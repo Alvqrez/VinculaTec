@@ -80,4 +80,123 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
   }
 });
 
+// ── GET /api/asesor/proyectos ─────────────────────────────────────────────────
+// Obtiene todos los proyectos asignados al asesor con datos relacionados
+router.get("/proyectos", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Verificar que el usuario es asesor
+    const [asesorRows] = await db.execute(
+      "SELECT id FROM asesores WHERE usuario_id = ?",
+      [userId],
+    );
+    if (!asesorRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es asesor." });
+
+    const asesorId = asesorRows[0].id;
+
+    // Obtener todos los proyectos del asesor
+    const [projects] = await db.execute(
+      `SELECT p.id, p.titulo AS title, p.descripcion AS description,
+              p.estado AS phase, p.prioridad AS priority,
+              e.nombre AS company, e.id AS empresa_id,
+              p.progreso, p.tecnologias AS habilidades,
+              COALESCE(res.horas_completadas, 0) AS horasDocumentadas,
+              COALESCE(res.horas_requeridas, 480) AS horasTotales,
+              res.fecha_inicio AS fechaInicio,
+              res.fecha_fin AS fechaFin
+       FROM proyectos p
+       LEFT JOIN empresas e ON p.empresa_id = e.id
+       LEFT JOIN residentes res ON p.residente_id = res.id
+       WHERE p.asesor_id = ?
+       ORDER BY p.created_at DESC`,
+      [asesorId],
+    );
+
+    // Para cada proyecto, obtener residentes, reportes y reuniones
+    const projectsWithDetails = await Promise.all(
+      projects.map(async (project) => {
+        // Residentes asignados al proyecto
+        const [residentes] = await db.execute(
+          `SELECT r.id, u.nombre, u.apellidos, 
+                  r.carrera, r.num_control,
+                  r.horas_completadas, r.horas_requeridas, r.estado
+           FROM residentes r
+           JOIN usuarios u ON r.usuario_id = u.id
+           WHERE r.asesor_id = ? AND r.empresa_id = ?`,
+          [asesorId, project.empresa_id],
+        );
+
+        // Reportes del proyecto
+        const [reportes] = await db.execute(
+          `SELECT r.id, r.tipo AS fase, u.nombre AS residente,
+                  r.estado AS status, r.calificacion AS score,
+                  r.fecha_entrega AS fecha, r.feedback,
+                  r.fecha_limite, r.archivo_url AS archivo
+           FROM reportes r
+           LEFT JOIN residentes res ON r.residente_id = res.id
+           LEFT JOIN usuarios u ON res.usuario_id = u.id
+           WHERE res.asesor_id = ? AND res.empresa_id = ?`,
+          [asesorId, project.empresa_id],
+        );
+
+        // Citas/reuniones del proyecto (usando citas table)
+        const [reuniones] = await db.execute(
+          `SELECT c.id, c.motivo AS titulo, c.fecha_hora,
+                  c.lugar, c.tipo AS tipo, c.estado
+           FROM citas c
+           WHERE c.participante_id = ?
+             AND c.estado != 'Cancelada'
+           LIMIT 10`,
+          [userId],
+        );
+
+        return {
+          ...project,
+          title: project.title,
+          phase: project.phase.toLowerCase(),
+          residentes: residentes.map((r) => ({
+            id: r.id,
+            nombre: `${r.nombre} ${r.apellidos}`,
+            iniciales: `${r.nombre.charAt(0)}${r.apellidos.charAt(0)}`,
+            rol: "Residente",
+            carrera: r.carrera,
+            numControl: r.num_control,
+            asignado: true,
+          })),
+          reportes: reportes.map((rep) => ({
+            id: rep.id,
+            titulo: `Reporte ${rep.fase}`,
+            residente: rep.residente || "Desconocido",
+            fase: rep.fase,
+            status: rep.status,
+            score: rep.score,
+            fecha: rep.fecha ? new Date(rep.fecha).toISOString().split('T')[0] : null,
+            feedback: rep.feedback,
+            archivo: rep.archivo,
+          })),
+          reuniones: reuniones.map((r) => ({
+            id: r.id,
+            titulo: r.titulo,
+            fecha: new Date(r.fecha_hora).toISOString().split('T')[0],
+            hora: new Date(r.fecha_hora).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
+            tipo: r.tipo,
+            modalidad: "Presencial",
+          })),
+          residentesRequeridos: residentes.length > 0 ? residentes.length : 1,
+        };
+      }),
+    );
+
+    return res.json({
+      ok: true,
+      proyectos: projectsWithDetails,
+    });
+  } catch (err) {
+    console.error("Error en /asesor/proyectos:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error al obtener proyectos." });
+  }
+});
+
 module.exports = router;

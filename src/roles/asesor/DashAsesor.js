@@ -156,8 +156,6 @@ export default function DashAsesor({ onNavigate }) {
 
   //Acá termina el código de gemini para agregar datos reales a la grafica de pastel    
 
-  
-  //const { proyectos } = useProyectos() || { proyectos: [] };
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
