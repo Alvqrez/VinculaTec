@@ -35,6 +35,9 @@ export default function SeguimientoAsesor() {
   const [feedback, setFeedback] = useState("");
   const [feedbackError, setFeedbackError] = useState(false);
   const [expandedReport, setExpandedReport] = useState(null);
+  const [cumpleObjetivos, setCumpleObjetivos] = useState(false);
+  const [cumpleDiagnostico, setCumpleDiagnostico] = useState(false);
+  const [cumplePlanTrabajo, setCumplePlanTrabajo] = useState(false);
 
   // Proyecto activo
   const activeProject = useMemo(
@@ -126,12 +129,12 @@ export default function SeguimientoAsesor() {
       feedback: feedback.trim(),
       fechaRevision: today,
       historial: [...(reviewingReport.historial || []), historialEntry],
-      cumpleObjetivos:
-        statusFinal === "Aceptado" ? true : reviewingReport.cumpleObjetivos,
-      cumpleDiagnostico:
-        statusFinal === "Aceptado" ? true : reviewingReport.cumpleDiagnostico,
-      cumplePlanTrabajo:
-        statusFinal === "Aceptado" ? true : reviewingReport.cumplePlanTrabajo,
+
+      cumpleObjetivos,
+      cumpleDiagnostico,
+      cumplePlanTrabajo,
+
+
     });
 
     // 2. Sincronizar a ReportesContext para que el RESIDENTE vea el feedback
@@ -868,10 +871,15 @@ export default function SeguimientoAsesor() {
                           {canReview && (
                             <TouchableOpacity
                               onPress={() => {
-                                setReviewingReport(report);
-                                setFeedback("");
-                                setFeedbackError(false);
-                              }}
+                                  setReviewingReport(report);
+
+                                  setFeedback(report.feedback || "");
+                                  setFeedbackError(false);
+
+                                  setCumpleObjetivos(report.cumpleObjetivos || false);
+                                  setCumpleDiagnostico(report.cumpleDiagnostico || false);
+                                  setCumplePlanTrabajo(report.cumplePlanTrabajo || false);
+                                }}
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
@@ -1087,27 +1095,120 @@ export default function SeguimientoAsesor() {
                 >
                   Verificar Requerimientos
                 </Text>
+                
                 <View
                   style={{
-                    gap: 6,
+                    gap: 10,
                     marginBottom: 16,
                     backgroundColor: C.bg,
                     borderRadius: 10,
                     padding: 12,
                   }}
                 >
-                  {[
-                    "Cumple objetivos del proyecto",
-                    "Aprobación diagnóstico empresarial",
-                    "Cumple plan de trabajo",
-                  ].map((req, i) => (
-                    <Row key={i} style={{ alignItems: "center", gap: 8 }}>
-                      <Feather name="check-square" size={14} color={C.teal} />
-                      <Text style={{ fontSize: 12, color: C.textSub }}>
-                        {req}
-                      </Text>
-                    </Row>
-                  ))}
+                  {/* Objetivos */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCumpleObjetivos(!cumpleObjetivos)
+                    }
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Feather
+                      name={
+                        cumpleObjetivos
+                          ? "check-square"
+                          : "square"
+                      }
+                      size={18}
+                      color={
+                        cumpleObjetivos
+                          ? C.green
+                          : C.textMuted
+                      }
+                    />
+
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: C.textSub,
+                      }}
+                    >
+                      Cumple objetivos del proyecto
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Diagnóstico */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCumpleDiagnostico(!cumpleDiagnostico)
+                    }
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Feather
+                      name={
+                        cumpleDiagnostico
+                          ? "check-square"
+                          : "square"
+                      }
+                      size={18}
+                      color={
+                        cumpleDiagnostico
+                          ? C.green
+                          : C.textMuted
+                      }
+                    />
+
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: C.textSub,
+                      }}
+                    >
+                      Aprobación diagnóstico empresarial
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Plan de trabajo */}
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCumplePlanTrabajo(!cumplePlanTrabajo)
+                    }
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <Feather
+                      name={
+                        cumplePlanTrabajo
+                          ? "check-square"
+                          : "square"
+                      }
+                      size={18}
+                      color={
+                        cumplePlanTrabajo
+                          ? C.green
+                          : C.textMuted
+                      }
+                    />
+
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: C.textSub,
+                      }}
+                    >
+                      Cumple plan de trabajo
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Retroalimentación */}
