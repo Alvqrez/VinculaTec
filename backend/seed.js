@@ -457,7 +457,7 @@ async function seed() {
       for (let t = 0; t < TIPOS.length; t++) {
         let estado, fechaEntrega, calificacion, feedback;
         if (t < aprobados) {
-          estado = "Aceptado";
+          estado = "Aprobado";
           fechaEntrega = ENTREGAS[t];
           calificacion = 75 + Math.floor(Math.random() * 25);
           feedback = FEEDBACKS[t];
