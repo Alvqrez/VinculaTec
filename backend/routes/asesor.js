@@ -105,7 +105,8 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
               COALESCE(res.horas_completadas, 0) AS horasDocumentadas,
               COALESCE(res.horas_requeridas, 480) AS horasTotales,
               res.fecha_inicio AS fechaInicio,
-              res.fecha_fin AS fechaFin
+              res.fecha_fin AS fechaFin,
+              p.solicitud_avance
        FROM proyectos p
        LEFT JOIN empresas e ON p.empresa_id = e.id
        LEFT JOIN residentes res ON p.residente_id = res.id
@@ -196,6 +197,51 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Error en /asesor/proyectos:", err);
     return res.status(500).json({ ok: false, mensaje: "Error al obtener proyectos." });
+  }
+});
+
+// ── POST /api/asesor/proyectos/:id/solicitar-avance ───────────────────────────────
+// Solicita avance de fase para un proyecto
+router.post("/proyectos/:id/solicitar-avance", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const proyectoId = req.params.id;
+
+    // Verificar que el usuario es asesor
+    const [asesorRows] = await db.execute(
+      "SELECT id FROM asesores WHERE usuario_id = ?",
+      [userId],
+    );
+    if (!asesorRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es asesor." });
+
+    const asesorId = asesorRows[0].id;
+
+    // Verificar que el proyecto pertenece al asesor
+    const [projectRows] = await db.execute(
+      "SELECT id, estado FROM proyectos WHERE id = ? AND asesor_id = ?",
+      [proyectoId, asesorId],
+    );
+    if (!projectRows.length)
+      return res.status(404).json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+    // Verificar que el proyecto no está concluido
+    if (projectRows[0].estado === "concluido")
+      return res.status(400).json({ ok: false, mensaje: "El proyecto ya está concluido." });
+
+    // Actualizar el proyecto para marcar la solicitud de avance
+    await db.execute(
+      "UPDATE proyectos SET solicitud_avance = 1 WHERE id = ?",
+      [proyectoId],
+    );
+
+    return res.json({
+      ok: true,
+      mensaje: "Solicitud de avance enviada correctamente.",
+    });
+  } catch (err) {
+    console.error("Error en /asesor/proyectos/:id/solicitar-avance:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error al solicitar avance de fase." });
   }
 });
 

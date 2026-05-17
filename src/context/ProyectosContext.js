@@ -88,6 +88,7 @@ export function ProyectosProvider({ children }) {
             company: p.company,
             phase: p.phase,
             priority: p.priority,
+            solicitudAvance: p.solicitud_avance || false,
             residentes: p.residentes || [],
             reportes: p.reportes || [],
             reuniones: p.reuniones || [],
@@ -246,8 +247,32 @@ export function ProyectosProvider({ children }) {
   const rechazarPropuesta = (id, motivo) =>
     updatePropuesta(id, { status: "Rechazado", motivoRechazo: motivo });
 
-  const solicitarAvanceFase = (proyectoId) =>
-    updateProyecto(proyectoId, { solicitudAvance: true });
+  const solicitarAvanceFase = async (proyectoId) => {
+    try {
+      const token = getAuthToken();
+      const headers = { "Content-Type": "application/json" };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`http://localhost:3001/api/asesor/proyectos/${proyectoId}/solicitar-avance`, {
+        method: "POST",
+        headers,
+      });
+
+      const json = await res.json();
+
+      if (json.ok) {
+        updateProyecto(proyectoId, { solicitudAvance: true });
+        return { ok: true, mensaje: json.mensaje };
+      } else {
+        return { ok: false, mensaje: json.mensaje || "Error al solicitar avance" };
+      }
+    } catch (err) {
+      console.error("Error al solicitar avance de fase:", err);
+      return { ok: false, mensaje: "Error de conexión con el servidor" };
+    }
+  };
 
   const aprobarAvanceFase = (proyectoId) => {
     const phases = ["propuesto", "desarrollo", "revision", "concluido"];

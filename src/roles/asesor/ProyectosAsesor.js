@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../../constants/colors";
 import { Row, Card, Badge, ProgressBar } from "../../components";
@@ -22,6 +22,8 @@ export default function ProyectosAsesor() {
   const sortedProyectos = useMemo(() => {
     const arr = [...proyectos];
     if (sortBy === "proyecto") arr.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sortBy === "id") arr.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    else if (sortBy === "empresa") arr.sort((a, b) => (a.company || "").localeCompare(b.company || ""));
     else if (sortBy === "residente") arr.sort((a, b) => (a.residentes[0]?.nombre || "").localeCompare(b.residentes[0]?.nombre || ""));
     else if (sortBy === "fase") {
       const order = ["propuesto", "desarrollo", "revision", "concluido"];
@@ -30,10 +32,14 @@ export default function ProyectosAsesor() {
     return arr;
   }, [proyectos, sortBy]);
 
-  const handleSolicitarAvance = (proyectoId) => {
+  const handleSolicitarAvance = async (proyectoId) => {
     if (solicitarAvanceFase) {
-      solicitarAvanceFase(proyectoId);
-      Alert.alert("Solicitud enviada", "Se ha notificado al Jefe de Vinculación para aprobar el avance de fase.");
+      const result = await solicitarAvanceFase(proyectoId);
+      if (result.ok) {
+        Alert.alert("Solicitud enviada", result.mensaje || "Se ha notificado al Jefe de Vinculación para aprobar el avance de fase.");
+      } else {
+        Alert.alert("Error", result.mensaje || "No se pudo enviar la solicitud de avance.");
+      }
     }
   };
 
