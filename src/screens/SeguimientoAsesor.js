@@ -74,14 +74,35 @@ export default function SeguimientoAsesor() {
   // ── Stats globales ────────────────────────────────────────────────────────
   const globalStats = useMemo(() => {
     let aceptados = 0,
-      total = 0;
+      total = 0,
+      pendientes = 0;
+    let fechaMasTemprana = null;
+
     proyectos.forEach((p) => {
       p.reportes.forEach((r) => {
         total++;
         if (r.status === "Aceptado") aceptados++;
+        if (r.status === "Pendiente") {
+          pendientes++;
+          const f = new Date(r.fecha);
+          if (!fechaMasTemprana || f < fechaMasTemprana) fechaMasTemprana = f;
+        }
       });
     });
-    return { aceptados, total, nextDeadline: "15 May 2026" };
+
+    let esperandoLabel = "Sin pendientes";
+    if (fechaMasTemprana) {
+      const hoy = new Date();
+      const diff = Math.floor((hoy - fechaMasTemprana) / (1000 * 60 * 60 * 24));
+      esperandoLabel =
+        diff === 0
+          ? "Recibido hoy"
+          : diff === 1
+            ? "Hace 1 día"
+            : `Hace ${diff} días`;
+    }
+
+    return { aceptados, total, pendientes, esperandoLabel };
   }, [proyectos]);
 
   // ── Stats del residente seleccionado ──────────────────────────────────────
@@ -206,11 +227,16 @@ export default function SeguimientoAsesor() {
           iconColor={C.green}
         />
         <StatCard
-          label="Próx. Vencimiento"
-          value={globalStats.nextDeadline}
+          label="Reportes Pendientes"
+          value={globalStats.pendientes > 0 ? `${globalStats.pendientes}` : "0"}
+          sub={
+            globalStats.pendientes > 0
+              ? globalStats.esperandoLabel
+              : "Todo al día"
+          }
           icon="clock"
-          iconBg={C.redLight}
-          iconColor={C.red}
+          iconBg={globalStats.pendientes > 0 ? C.redLight : C.greenLight}
+          iconColor={globalStats.pendientes > 0 ? C.red : C.green}
         />
       </Row>
 
