@@ -12,8 +12,35 @@ import {
 } from "../../components";
 import { useReportes } from "../../context/ReportesContext";
 
+// Fecha de fin de residencia (demo — en producción vendría del contexto del usuario)
+const FECHA_FIN_RESIDENCIA = new Date("2026-06-15");
+
 export default function DashResidente({ onNavigate }) {
   const { reports } = useReportes() || {};
+
+  // Derive state from context
+  const preliminar = reports?.find((r) => r.id === "preliminar");
+  const parciales = reports?.filter((r) => typeof r.id === "number") ?? [];
+  const final = reports?.find((r) => r.id === "final");
+
+  const parcialesAceptados = parciales.filter((r) => r.status === "Aceptado");
+  const totalParciales = parciales.length;
+  const progressPct =
+    totalParciales > 0
+      ? Math.round((parcialesAceptados.length / totalParciales) * 100)
+      : 0;
+
+  // Días restantes calculados dinámicamente
+  const hoy = new Date();
+  const diasRestantes = Math.max(
+    0,
+    Math.ceil((FECHA_FIN_RESIDENCIA - hoy) / (1000 * 60 * 60 * 24)),
+  );
+  const fechaFinLabel = FECHA_FIN_RESIDENCIA.toLocaleDateString("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 
   // Derive state from context
   const preliminar = reports?.find((r) => r.id === "preliminar");
@@ -101,11 +128,11 @@ export default function DashResidente({ onNavigate }) {
         />
         <StatCard
           label="Días Restantes"
-          value="28"
-          sub="Fin: 20 ene 2025"
+          value={String(diasRestantes)}
+          sub={`Fin: ${fechaFinLabel}`}
           icon="calendar"
-          iconBg={C.amberLight}
-          iconColor={C.amber}
+          iconBg={diasRestantes < 30 ? C.redLight : C.amberLight}
+          iconColor={diasRestantes < 30 ? C.red : C.amber}
         />
       </Row>
 

@@ -86,7 +86,7 @@ const INITIAL_PROJECTS = [
         fase: "Parcial 3",
         status: "Pendiente",
         score: null,
-        fecha: "2025-12-05",
+        fecha: "2026-05-08",
         feedback: null,
         fechaRevision: null,
         historial: [],
@@ -151,7 +151,7 @@ const INITIAL_PROJECTS = [
         fase: "Parcial 3",
         status: "Pendiente",
         score: null,
-        fecha: "2025-12-10",
+        fecha: "2026-05-12",
         feedback: null,
         fechaRevision: null,
         historial: [],
@@ -346,11 +346,8 @@ export function ProyectosProvider({ children }) {
     residenteNombre = "Carlos Ramírez",
     proyectoId = "p1",
   ) => {
-    const today = new Date().toLocaleDateString("es-MX", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
+    // ISO format: "2026-05-17" — garantiza que new Date(fecha) lo parsee correctamente
+    const today = new Date().toISOString().split("T")[0];
 
     setProyectos((prev) =>
       prev.map((p) => {

@@ -84,7 +84,9 @@ export default function SeguimientoAsesor() {
         if (r.status === "Aceptado") aceptados++;
         if (r.status === "Pendiente") {
           pendientes++;
+          if (!r.fecha) return; // Sin fecha → no se envió aún
           const f = new Date(r.fecha);
+          if (isNaN(f.getTime())) return; // Fecha inválida
           if (!fechaMasTemprana || f < fechaMasTemprana) fechaMasTemprana = f;
         }
       });

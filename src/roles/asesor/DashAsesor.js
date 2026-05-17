@@ -268,13 +268,15 @@ export default function DashAsesor({ onNavigate }) {
       ? Math.round((reportesAceptados / reportesTotal) * 100)
       : 0;
 
-  const hoy = new Date();
   const alertasRezagados = useMemo(() => {
+    const ahora = new Date();
     return allReportes.filter((r) => {
       if (r.status !== "Pendiente") return false;
+      if (!r.fecha) return false; // Sin fecha de entrega → aún no enviado
       const fechaEnvio = new Date(r.fecha);
+      if (isNaN(fechaEnvio.getTime())) return false; // Fecha inválida
       const diasEnRevision = Math.floor(
-        (hoy - fechaEnvio) / (1000 * 60 * 60 * 24),
+        (ahora - fechaEnvio) / (1000 * 60 * 60 * 24),
       );
       return diasEnRevision > 5;
     });
@@ -650,9 +652,13 @@ export default function DashAsesor({ onNavigate }) {
           ) : (
             <View style={{ gap: 10 }}>
               {alertasRezagados.map((r, i) => {
-                const dias = Math.floor(
-                  (hoy - new Date(r.fecha)) / (1000 * 60 * 60 * 24),
-                );
+                const fechaEnvio = new Date(r.fecha);
+                const dias =
+                  !r.fecha || isNaN(fechaEnvio.getTime())
+                    ? 0
+                    : Math.floor(
+                        (new Date() - fechaEnvio) / (1000 * 60 * 60 * 24),
+                      );
                 return (
                   <View
                     key={i}
