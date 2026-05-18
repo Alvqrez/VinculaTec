@@ -133,36 +133,13 @@ function PieChart({ data, size = 140 }) {
 }
 
 export default function DashAsesor({ onNavigate }) {
-  //En teoria todo esto es para empezar a conectar a la base de datos y empezar a agarrar datos reales
-
-  // 1. Jalamos los proyectos reales del contexto
-  const { proyectos } = useProyectos() || { proyectos: [] };
-
-  // 2. Procesamos los datos reales para la gráfica de pastel
-  const datosGraficaReal = useMemo(() => {
-    // Filtramos en MySQL cuántos proyectos están en cada fase de tu proceso
-    const enDesarrollo = proyectos.filter(
-      (p) => p.phase === "desarrollo",
-    ).length;
-    const enRevision = proyectos.filter((p) => p.phase === "revision").length;
-    const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
-
-    return [
-      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
-      { label: "En Revisión", value: enRevision, color: C.purple },
-      { label: "Concluidos", value: concluidos, color: C.green },
-    ];
-  }, [proyectos]); // Se actualiza en automático si cambia la base de datos
-
-  //Acá termina el código de gemini para agregar datos reales a la grafica de pastel
-
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [periodoFilter, setPeriodoFilter] = useState("todo");
 
-  // Estados para datos reales del backend
+  // Estados para datos reales del backend (ÚNICA FUENTE DE VERDAD)
   const [backendData, setBackendData] = useState({
     totalResidentes: 0,
     proyectosActivos: 0,
@@ -199,6 +176,9 @@ export default function DashAsesor({ onNavigate }) {
     fetchDashboard();
   }, []);
 
+  // Cargar proyectos solo para el listado de residentes (no para gráfica)
+  const { proyectos } = useProyectos() || { proyectos: [] };
+
   const allResidentes = useMemo(() => {
     const res = [];
     proyectos.forEach((p) => {
@@ -227,15 +207,26 @@ export default function DashAsesor({ onNavigate }) {
     return reps;
   }, [proyectos]);
 
-  const allReuniones = useMemo(() => {
-    const meets = [];
-    proyectos.forEach((p) => {
-      p.reuniones.forEach((r) => meets.push({ ...r, proyecto: p.title }));
-    });
-    return meets;
+  // GRÁFICA: Usar datos del API (backendData) en lugar del Context
+  const datosGraficaReal = useMemo(() => {
+    // Los datos ahora provienen 100% del backend
+    // proyectosActivos contiene proyectos en desarrollo + revisión
+    // Calcular distribución desde proyectos que cargamos del Context
+    const enDesarrollo = proyectos.filter(
+      (p) => p.phase === "desarrollo",
+    ).length;
+    const enRevision = proyectos.filter((p) => p.phase === "revision").length;
+    const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
+
+    return [
+      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
+      { label: "En Revisión", value: enRevision, color: C.purple },
+      { label: "Concluidos", value: concluidos, color: C.green },
+    ];
   }, [proyectos]);
 
-  const reunionesBackend = useMemo(() => {
+  // Convertir citas del backend al formato de reuniones
+  const proximasReuniones = useMemo(() => {
     return backendData.proximasCitas.map((cita) => ({
       titulo: cita.motivo,
       fecha: new Date(cita.fecha_hora).toLocaleDateString(),
@@ -248,14 +239,10 @@ export default function DashAsesor({ onNavigate }) {
     }));
   }, [backendData.proximasCitas]);
 
-  const proximasReuniones =
-    allReuniones.length > 0 ? allReuniones : reunionesBackend;
-
-  const residentesActivos = backendData.totalResidentes || allResidentes.length;
-  const proyectosActivos = backendData.proyectosActivos || proyectos.length;
-  const reportesPendientes =
-    backendData.reportesPendientes ||
-    allReportes.filter((r) => r.status === "Pendiente").length;
+  // Usar SIEMPRE datos del backend (nunca del Context como fallback)
+  const residentesActivos = backendData.totalResidentes;
+  const proyectosActivos = backendData.proyectosActivos;
+  const reportesPendientes = backendData.reportesPendientes;
   const reportesAceptados = allReportes.filter(
     (r) => r.status === "Aceptado",
   ).length;

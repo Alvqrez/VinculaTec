@@ -75,12 +75,12 @@ const saveCitaAPI = async (payload) => {
 };
 
 export default function CalendarioCitas() {
-  const { proyectos } = useProyectos() || { proyectos: [] };
   const [selected, setSelected] = useState(null);
   const [monthDate, setMonthDate] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
   const [events, setEvents] = useState({});
   const [upcoming, setUpcoming] = useState([]);
   const [categoryFilter, setCategoryFilter] = useState("todas");
+  const [loading, setLoading] = useState(false);
 
   // Form state
   const [showModal, setShowModal] = useState(false);
@@ -94,41 +94,69 @@ export default function CalendarioCitas() {
   const [dateError, setDateError] = useState("");
   const [timeError, setTimeError] = useState("");
 
-  // Merge project meetings into calendar
+  // Cargar citas SOLO desde API (no del Context)
   useEffect(() => {
-    const evts = {};
-    const upcomingList = [];
-    const hoy = new Date();
+    const fetchCitas = async () => {
+      try {
+        setLoading(true);
+        const token = getAuthToken();
+        if (!token) return;
 
-    proyectos.forEach((p) => {
-      p.reuniones.forEach((r) => {
-        const fecha = new Date(r.fecha);
-        const key = monthKey(fecha);
-        const day = fecha.getDate();
-        const cat = categorizarEvento(r.tipo);
-        const catColors = { revision: C.amber, residente: C.teal, empresa: C.purple, reunion: C.blue };
-        const color = catColors[cat] || C.blue;
-        const entry = { label: r.titulo, color, bg: color + "22", tipo: r.tipo, modalidad: r.modalidad, categoria: cat, proyecto: p.title };
+        const res = await fetch("http://localhost:3001/api/citas/mis-citas", {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        if (!evts[key]) evts[key] = {};
-        if (!evts[key][day]) evts[key][day] = [];
-        evts[key][day].push(entry);
-
-        if (fecha >= hoy) {
-          upcomingList.push({
-            day, month: MONTHS[fecha.getMonth()].slice(0, 3), monthIndex: fecha.getMonth(), year: fecha.getFullYear(),
-            title: r.titulo, time: r.hora, color, bg: color + "22",
-            icon: r.modalidad === "Virtual" ? "monitor" : "map-pin",
-            tipo: r.tipo, modalidad: r.modalidad, categoria: cat, proyecto: p.title,
-          });
+        const json = await res.json();
+        if (!json.ok) {
+          console.warn("Error al cargar citas:", json.mensaje);
+          return;
         }
-      });
-    });
 
-    upcomingList.sort((a, b) => new Date(a.year, a.monthIndex, a.day) - new Date(b.year, b.monthIndex, b.day));
-    setEvents(evts);
-    setUpcoming(upcomingList);
-  }, [proyectos]);
+        // Procesar citas desde API
+        const evts = {};
+        const upcomingList = [];
+        const hoy = new Date();
+
+        json.citas.forEach((cita) => {
+          const fecha = new Date(cita.fecha_hora);
+          const key = monthKey(fecha);
+          const day = fecha.getDate();
+          const cat = categorizarEvento(cita.tipo);
+          const catColors = { revision: C.amber, residente: C.teal, empresa: C.purple, reunion: C.blue };
+          const color = catColors[cat] || C.blue;
+          const entry = { label: cita.motivo, color, bg: color + "22", tipo: cita.tipo, modalidad: cita.modalidad || "Presencial", categoria: cat };
+
+          if (!evts[key]) evts[key] = {};
+          if (!evts[key][day]) evts[key][day] = [];
+          evts[key][day].push(entry);
+
+          if (fecha >= hoy) {
+            upcomingList.push({
+              day, month: MONTHS[fecha.getMonth()].slice(0, 3), monthIndex: fecha.getMonth(), year: fecha.getFullYear(),
+              title: cita.motivo, 
+              time: new Date(cita.fecha_hora).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+              color, bg: color + "22",
+              icon: (cita.modalidad || "Presencial") === "Virtual" ? "monitor" : "map-pin",
+              tipo: cita.tipo, modalidad: cita.modalidad || "Presencial", categoria: cat,
+            });
+          }
+        });
+
+        upcomingList.sort((a, b) => new Date(a.year, a.monthIndex, a.day) - new Date(b.year, b.monthIndex, b.day));
+        setEvents(evts);
+        setUpcoming(upcomingList);
+      } catch (err) {
+        console.error("Error al obtener citas:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCitas();
+  }, []);
 
   const monthName = `${MONTHS[monthDate.getMonth()]} ${monthDate.getFullYear()}`;
   const currentEvents = events[monthKey(monthDate)] || {};
