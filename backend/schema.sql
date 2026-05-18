@@ -170,3 +170,12 @@ CREATE TABLE IF NOT EXISTS fuentes_informacion (
   INDEX idx_tipo (tipo),
   INDEX idx_estado (estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Fotos de Perfil ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fotos_perfil (
+  usuario_id  VARCHAR(50) PRIMARY KEY,
+  foto_base64 TEXT,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

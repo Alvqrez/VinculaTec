@@ -485,7 +485,7 @@ export default function Utilerias({
   role,
 }) {
   const info = INFO_POR_ROL[role] || INFO_POR_ROL["Residente"];
-  const { getFoto } = useFotos() || { getFoto: () => null };
+  const { getFoto, setFoto: setFotoBD } = useFotos() || { getFoto: () => null, setFoto: () => {} };
   const initials = usuario?.nombre
     ? usuario.nombre
         .split(" ")
@@ -569,7 +569,15 @@ export default function Utilerias({
         return;
       }
       const reader = new FileReader();
-      reader.onload = (ev) => setFotoPerfil(ev.target.result);
+      reader.onload = (ev) => {
+        const base64 = ev.target.result;
+        // Actualizar estado local
+        setFotoPerfil(base64);
+        // Guardar en base de datos
+        if (usuario?.id) {
+          setFotoBD(usuario.id, base64);
+        }
+      };
       reader.readAsDataURL(file);
     };
     input.click();
@@ -584,7 +592,14 @@ export default function Utilerias({
         {
           text: "Eliminar",
           style: "destructive",
-          onPress: () => setFotoPerfil(null),
+          onPress: () => {
+            // Actualizar estado local
+            setFotoPerfil(null);
+            // Eliminar de base de datos
+            if (usuario?.id) {
+              setFotoBD(usuario.id, null);
+            }
+          },
         },
       ],
     );
