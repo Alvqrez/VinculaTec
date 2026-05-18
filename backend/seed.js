@@ -23,6 +23,7 @@ async function getConnection() {
     password: process.env.DB_PASSWORD || "",
     database: process.env.DB_NAME || "vinculatec",
     multipleStatements: true,
+    charset: "utf8mb4",
   });
 }
 
