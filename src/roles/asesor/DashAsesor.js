@@ -132,9 +132,7 @@ function PieChart({ data, size = 140 }) {
   );
 }
 
-
 export default function DashAsesor({ onNavigate }) {
-
   //En teoria todo esto es para empezar a conectar a la base de datos y empezar a agarrar datos reales
 
   // 1. Jalamos los proyectos reales del contexto
@@ -143,9 +141,11 @@ export default function DashAsesor({ onNavigate }) {
   // 2. Procesamos los datos reales para la gráfica de pastel
   const datosGraficaReal = useMemo(() => {
     // Filtramos en MySQL cuántos proyectos están en cada fase de tu proceso
-    const enDesarrollo = proyectos.filter((p) => p.phase === "desarrollo").length;
-    const enRevision   = proyectos.filter((p) => p.phase === "revision").length;
-    const concluidos   = proyectos.filter((p) => p.phase === "concluido").length;
+    const enDesarrollo = proyectos.filter(
+      (p) => p.phase === "desarrollo",
+    ).length;
+    const enRevision = proyectos.filter((p) => p.phase === "revision").length;
+    const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
 
     return [
       { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
@@ -154,7 +154,7 @@ export default function DashAsesor({ onNavigate }) {
     ];
   }, [proyectos]); // Se actualiza en automático si cambia la base de datos
 
-  //Acá termina el código de gemini para agregar datos reales a la grafica de pastel    
+  //Acá termina el código de gemini para agregar datos reales a la grafica de pastel
 
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
@@ -169,7 +169,7 @@ export default function DashAsesor({ onNavigate }) {
     reportesPendientes: 0,
     proximasCitas: [],
   });
-  const [loadingBackend, setLoadingBackend] = useState(true);
+  const [loadingBackend, setLoadingBackend] = useState(false);
   const [errorBackend, setErrorBackend] = useState(null);
 
   useEffect(() => {
@@ -268,13 +268,15 @@ export default function DashAsesor({ onNavigate }) {
       ? Math.round((reportesAceptados / reportesTotal) * 100)
       : 0;
 
-  const hoy = new Date();
   const alertasRezagados = useMemo(() => {
+    const ahora = new Date();
     return allReportes.filter((r) => {
       if (r.status !== "Pendiente") return false;
+      if (!r.fecha) return false; // Sin fecha de entrega → aún no enviado
       const fechaEnvio = new Date(r.fecha);
+      if (isNaN(fechaEnvio.getTime())) return false; // Fecha inválida
       const diasEnRevision = Math.floor(
-        (hoy - fechaEnvio) / (1000 * 60 * 60 * 24),
+        (ahora - fechaEnvio) / (1000 * 60 * 60 * 24),
       );
       return diasEnRevision > 5;
     });
@@ -568,7 +570,11 @@ export default function DashAsesor({ onNavigate }) {
               ))}
             </Row>
           </Row>
-          <PieChart data={datosGraficaReal} /** Lo que pasa acá es que en vez de usar datos estáticos, usamos los datos reales de la base de datos */ />
+          <PieChart
+            data={
+              datosGraficaReal
+            } /** Lo que pasa acá es que en vez de usar datos estáticos, usamos los datos reales de la base de datos */
+          />
           <View style={{ marginTop: 16, gap: 8 }}>
             <Row style={{ alignItems: "center", gap: 8 }}>
               <View
@@ -646,9 +652,13 @@ export default function DashAsesor({ onNavigate }) {
           ) : (
             <View style={{ gap: 10 }}>
               {alertasRezagados.map((r, i) => {
-                const dias = Math.floor(
-                  (hoy - new Date(r.fecha)) / (1000 * 60 * 60 * 24),
-                );
+                const fechaEnvio = new Date(r.fecha);
+                const dias =
+                  !r.fecha || isNaN(fechaEnvio.getTime())
+                    ? 0
+                    : Math.floor(
+                        (new Date() - fechaEnvio) / (1000 * 60 * 60 * 24),
+                      );
                 return (
                   <View
                     key={i}
