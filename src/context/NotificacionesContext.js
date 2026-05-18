@@ -9,38 +9,35 @@ export function NotificacionesProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // unreadCount siempre derivado de notifications — nunca hardcodeado
   const unreadCount = notifications
     ? notifications.filter((n) => n.unread).length
     : 0;
 
-  // Cargar notificaciones desde el backend y exponer estado real
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      setLoading(true);
-      try {
-        const response = await apiClient.get("/api/notificaciones");
-        if (response.ok && response.body?.ok) {
-          setNotifications(response.body.notificaciones ?? []);
-          setError(null);
-        } else {
-          setNotifications([]);
-          setError(
-            response.body?.mensaje || response.error?.message ||
-              "Error al cargar notificaciones",
-          );
-        }
-      } catch (err) {
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.get("/api/notificaciones");
+      if (response.ok && response.body?.ok) {
+        setNotifications(response.body.notificaciones ?? []);
+        setError(null);
+      } else {
         setNotifications([]);
-        setError("Error de conexión con el servidor");
-        console.error("Notificaciones fetch error:", err);
-      } finally {
-        setLoading(false);
+        setError(
+          response.body?.mensaje || response.error?.message ||
+            "Error al cargar notificaciones",
+        );
       }
-    };
+    } catch (err) {
+      setNotifications([]);
+      setError("Error de conexión con el servidor");
+      console.error("Notificaciones fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchNotifications();
-  }, []);
+  // reload: llamar desde cada *App.js al montar (después del login)
+  const reload = fetchNotifications;
 
   // Función para marcar una notificación como leída
   const markAsRead = async (id) => {
@@ -106,6 +103,7 @@ export function NotificacionesProvider({ children }) {
         unreadCount,
         loading,
         error,
+        reload,
         markAsRead,
         markAllAsRead,
         dismissNotification,

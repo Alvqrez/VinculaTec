@@ -4,6 +4,7 @@ import C from "../../constants/colors";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
 import { useFotos } from "../../context/FotosContext";
+import { useNotificaciones } from "../../context/NotificacionesContext";
 
 import DashJefe           from "./DashJefe";
 import GestionEmpresas    from "../../screens/GestionEmpresas";
@@ -28,8 +29,12 @@ const NAV = [
 function JefeAppInner({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
+  const { reload: reloadNotifs } = useNotificaciones();
 
-  useEffect(() => { initUser(usuario?.id); }, [usuario?.id]);
+  useEffect(() => {
+    initUser(usuario?.id);
+    reloadNotifs();
+  }, [usuario?.id]);
 
   const fotoPerfil = getFoto(usuario?.id);
   const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);

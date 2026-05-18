@@ -86,11 +86,25 @@ router.post("/", auth, async (req, res) => {
   }
 });
 
+// ── PUT /api/notificaciones/marcar-todas-leidas ───────────────────────────────
+// DEBE ir ANTES de /:id para que Express no lo interprete como un id
+router.put("/marcar-todas-leidas", auth, async (req, res) => {
+  try {
+    await db.execute(
+      "UPDATE notificaciones SET leida = true WHERE usuario_id = ?",
+      [req.user.id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error al marcar todas como leídas:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 // ── PUT /api/notificaciones/:id ─────────────────────────────────────────────────
 // Marca una notificación como leída
 router.put("/:id", auth, async (req, res) => {
   const { leida } = req.body;
-
   try {
     await db.execute(
       "UPDATE notificaciones SET leida = ? WHERE id = ? AND usuario_id = ?",
@@ -114,21 +128,6 @@ router.delete("/:id", auth, async (req, res) => {
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error al eliminar notificación:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno." });
-  }
-});
-
-// ── PUT /api/notificaciones/marcar-todas-leidas ───────────────────────────────
-// Marca todas las notificaciones del usuario como leídas
-router.put("/marcar-todas-leidas", auth, async (req, res) => {
-  try {
-    await db.execute(
-      "UPDATE notificaciones SET leida = true WHERE usuario_id = ?",
-      [req.user.id],
-    );
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("Error al marcar todas como leídas:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
   }
 });
