@@ -6,6 +6,7 @@
  * y permite cargar fotos de otros usuarios bajo demanda.
  */
 import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { API_BASE } from "../config/api";
 
 const FotosCtx = createContext(null);
 
@@ -48,7 +49,7 @@ export function FotosProvider({ children }) {
         const token = getAuthToken();
         if (!token) return;
 
-        const res = await fetch(`http://localhost:3001/api/fotos/${currentUserId}`, {
+        const res = await fetch(`${API_BASE}/fotos/${currentUserId}`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -88,8 +89,7 @@ export function FotosProvider({ children }) {
 
       if (base64OrNull === null) {
         // Eliminar foto de la BD
-        await fetch("http://localhost:3001/api/fotos", {
-          method: "DELETE",
+        await fetch(`${API_BASE}/fotos`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
@@ -103,7 +103,7 @@ export function FotosProvider({ children }) {
         });
       } else {
         // Guardar foto en la BD
-        const res = await fetch("http://localhost:3001/api/fotos", {
+        const res = await fetch(`${API_BASE}/fotos`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -132,7 +132,7 @@ export function FotosProvider({ children }) {
       const token = getAuthToken();
       if (!token) return null;
 
-      const res = await fetch(`http://localhost:3001/api/fotos/${userId}`, {
+      const res = await fetch(`${API_BASE}/fotos/${userId}`, {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

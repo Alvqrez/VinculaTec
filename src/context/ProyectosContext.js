@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { getAuthToken } from "./AuthContext";
+import { API_BASE } from "../config/api";
 
 const ProyectosCtx = createContext(null);
 
@@ -297,7 +298,7 @@ export function ProyectosProvider({ children }) {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        const res = await fetch("http://localhost:3001/api/asesor/proyectos", {
+        const res = await fetch(`${API_BASE}/asesor/proyectos`, {
           headers,
         });
         const json = await res.json();
@@ -480,7 +481,7 @@ export function ProyectosProvider({ children }) {
       }
 
       const res = await fetch(
-        `http://localhost:3001/api/asesor/proyectos/${proyectoId}/solicitar-avance`,
+        `${API_BASE}/asesor/proyectos/${proyectoId}/solicitar-avance`,
         {
           method: "POST",
           headers,

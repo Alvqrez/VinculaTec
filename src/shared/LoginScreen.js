@@ -25,14 +25,14 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
 
   useEffect(() => {
     try {
-      const info = localStorage.getItem("vt_last_user_info");
+      const info = globalThis?.localStorage?.getItem("vt_last_user_info");
       if (info) {
         const parsed = JSON.parse(info);
         setLastUser(parsed);
-        const foto = localStorage.getItem(`vt_foto_${parsed.id}`);
+        const foto = globalThis?.localStorage?.getItem(`vt_foto_${parsed.id}`);
         setLastUserPhoto(foto || null);
       }
-    } catch { /* sin localStorage */ }
+    } catch { /* sin storage */ }
   }, []);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;

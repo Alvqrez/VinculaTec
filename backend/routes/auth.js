@@ -37,9 +37,12 @@ router.post("/login", async (req, res) => {
         .status(401)
         .json({ ok: false, mensaje: "Contraseña incorrecta." });
 
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+    }
     const token = jwt.sign(
       { id: user.id, rol: user.rol },
-      process.env.JWT_SECRET || "secreto",
+      process.env.JWT_SECRET,
       { expiresIn: "8h" },
     );
 
@@ -139,9 +142,12 @@ router.get("/me", async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+    }
     const payload = jwt.verify(
       auth.split(" ")[1],
-      process.env.JWT_SECRET || "secreto",
+      process.env.JWT_SECRET,
     );
     const [rows] = await db.execute(
       "SELECT id, nombre, apellidos, correo, rol FROM usuarios WHERE id = ?",

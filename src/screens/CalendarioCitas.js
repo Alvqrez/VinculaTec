@@ -8,6 +8,7 @@ import C from "../constants/colors";
 import { Row, Card, Badge } from "../components";
 import { useProyectos } from "../context/ProyectosContext";
 import { getAuthToken } from "../context/AuthContext";
+import { API_BASE } from "../config/api";
 
 const WEEK_DAYS  = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MONTHS     = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -64,7 +65,7 @@ const saveCitaAPI = async (payload) => {
   try {
     const token = getAuthToken();
     if (!token) return;
-    await fetch("http://localhost:3001/api/citas", {
+    await fetch(`${API_BASE}/citas`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -102,7 +103,7 @@ export default function CalendarioCitas() {
         const token = getAuthToken();
         if (!token) return;
 
-        const res = await fetch("http://localhost:3001/api/citas/mis-citas", {
+        const res = await fetch(`${API_BASE}/citas/mis-citas`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,

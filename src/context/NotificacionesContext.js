@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { API_BASE } from "../config/api";
 
 const Ctx = createContext(null);
 
@@ -26,27 +27,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
           return;
         }
 
-        const res = await fetch("http://localhost:3001/api/notificaciones", {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const json = await res.json();
-        if (json.ok) {
-          setNotifications(json.notificaciones);
-          setUnreadCount(json.notificaciones.filter((n) => n.unread).length);
-        }
-      } catch (err) {
-        console.error("Error al cargar notificaciones:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotifications();
-  }, []);
+        const res = await fetch(`${API_BASE}/notificaciones`, {
 
   // Actualizar unreadCount cuando cambian las notificaciones
   useEffect(() => {
@@ -61,7 +42,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
       const token = getAuthToken();
       if (!token) return;
 
-      await fetch(`http://localhost:3001/api/notificaciones/${id}`, {
+      await fetch(`${API_BASE}/notificaciones/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -85,7 +66,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
       const token = getAuthToken();
       if (!token) return;
 
-      await fetch("http://localhost:3001/api/notificaciones/marcar-todas-leidas", {
+      await fetch(`${API_BASE}/notificaciones/marcar-todas-leidas`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -106,7 +87,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
       const token = getAuthToken();
       if (!token) return;
 
-      await fetch(`http://localhost:3001/api/notificaciones/${id}`, {
+      await fetch(`${API_BASE}/notificaciones/${id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
@@ -127,7 +108,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
       const token = getAuthToken();
       if (!token) return;
 
-      const res = await fetch("http://localhost:3001/api/notificaciones", {
+      const res = await fetch(`${API_BASE}/notificaciones`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -139,7 +120,7 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
       const json = await res.json();
       if (json.ok) {
         // Recargar notificaciones
-        const resReload = await fetch("http://localhost:3001/api/notificaciones", {
+        const resReload = await fetch(`${API_BASE}/notificaciones`, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
