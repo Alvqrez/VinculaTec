@@ -151,6 +151,7 @@ export default function DashAsesor({ onNavigate }) {
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      setLoadingBackend(true);
       try {
         const token = getAuthToken();
         const headers = { "Content-Type": "application/json" };
@@ -169,6 +170,7 @@ export default function DashAsesor({ onNavigate }) {
         setBackendData(json.data);
       } catch (err) {
         setErrorBackend("Error de conexión. ¿Backend corriendo en :3001?");
+        console.error("Dashboard fetch error:", err);
       } finally {
         setLoadingBackend(false);
       }
@@ -354,6 +356,28 @@ export default function DashAsesor({ onNavigate }) {
         <ActivityIndicator size="large" color={C.teal} />
         <Text style={{ marginTop: 12, color: C.textMuted }}>
           Cargando datos del servidor...
+        </Text>
+      </View>
+    );
+  }
+
+  if (errorBackend) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: C.bg,
+          padding: 20,
+        }}
+      >
+        <Feather name="alert-circle" size={48} color={C.red} />
+        <Text style={{ marginTop: 16, fontSize: 16, fontWeight: "600", color: C.text, textAlign: "center" }}>
+          Error al cargar el dashboard
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 13, color: C.textMuted, textAlign: "center" }}>
+          {errorBackend}
         </Text>
       </View>
     );
