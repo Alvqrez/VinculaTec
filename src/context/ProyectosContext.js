@@ -1,235 +1,9 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import { getAuthToken } from "./AuthContext";
+import { createContext, useContext, useEffect, useState } from "react";
+import apiClient from "../utils/apiClient";
 
 const ProyectosCtx = createContext(null);
 
 // ── STATUSES NORMALIZADOS ────────────────────────────────────────────────────
-// "Aceptado"    — revisado y aprobado por el asesor
-// "Pendiente"   — enviado por el residente, esperando revisión
-// "Por corregir"— rechazado, requiere reenvío con correcciones
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Fallback: datos iniciales por si no hay conexión a BD
-const INITIAL_PROJECTS = [
-  {
-    id: "p1",
-    title: "App de Logística Interna",
-    company: "AutoParts Globales",
-    phase: "desarrollo",
-    priority: "Alta",
-    residentes: [
-      { nombre: "Carlos Ramírez", iniciales: "CR", rol: "Fullstack Developer" },
-      { nombre: "Ana López", iniciales: "AL", rol: "Backend Developer" },
-    ],
-    residentesRequeridos: 3,
-    habilidades: ["React Native", "Node.js", "MongoDB"],
-    asesor: "Dr. Marco Reyes",
-    asesorId: "asesor1",
-    horasDocumentadas: 320,
-    horasTotales: 480,
-    fechaInicio: "2025-08-15",
-    fechaFin: "2026-06-15",
-    reportes: [
-      // ── Carlos Ramírez ──────────────────────────────────────────────────
-      {
-        id: "r1",
-        titulo: "Reporte Preliminar",
-        residente: "Carlos Ramírez",
-        fase: "Preliminar",
-        status: "Aceptado",
-        score: 92,
-        fecha: "2025-09-10",
-        feedback: "Planteamiento inicial sólido. Procede con los parciales.",
-        fechaRevision: "2025-09-12",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r2",
-        titulo: "Reporte Parcial 1",
-        residente: "Carlos Ramírez",
-        fase: "Parcial 1",
-        status: "Aceptado",
-        score: 88,
-        fecha: "2025-10-15",
-        feedback: "Excelente diagnóstico inicial. Metas claras y medibles.",
-        fechaRevision: "2025-10-17",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r3",
-        titulo: "Reporte Parcial 2",
-        residente: "Carlos Ramírez",
-        fase: "Parcial 2",
-        status: "Aceptado",
-        score: 85,
-        fecha: "2025-11-12",
-        feedback: "Buen avance. Profundizar en documentación técnica.",
-        fechaRevision: "2025-11-14",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r4",
-        titulo: "Reporte Parcial 3",
-        residente: "Carlos Ramírez",
-        fase: "Parcial 3",
-        status: "Pendiente",
-        score: null,
-        fecha: "2026-05-08",
-        feedback: null,
-        fechaRevision: null,
-        historial: [],
-        cumpleObjetivos: null,
-        cumpleDiagnostico: null,
-        cumplePlanTrabajo: null,
-        archivo: null,
-      },
-      // ── Ana López ────────────────────────────────────────────────────────
-      {
-        id: "r5",
-        titulo: "Reporte Preliminar",
-        residente: "Ana López",
-        fase: "Preliminar",
-        status: "Aceptado",
-        score: 90,
-        fecha: "2025-09-09",
-        feedback: "Diagnóstico claro y bien justificado.",
-        fechaRevision: "2025-09-11",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r6",
-        titulo: "Reporte Parcial 1",
-        residente: "Ana López",
-        fase: "Parcial 1",
-        status: "Aceptado",
-        score: 91,
-        fecha: "2025-10-14",
-        feedback: "Muy buen avance en backend. Sigue así.",
-        fechaRevision: "2025-10-16",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r7",
-        titulo: "Reporte Parcial 2",
-        residente: "Ana López",
-        fase: "Parcial 2",
-        status: "Aceptado",
-        score: 87,
-        fecha: "2025-11-10",
-        feedback: "Buen progreso. Agregar pruebas de integración.",
-        fechaRevision: "2025-11-13",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r8",
-        titulo: "Reporte Parcial 3",
-        residente: "Ana López",
-        fase: "Parcial 3",
-        status: "Pendiente",
-        score: null,
-        fecha: "2026-05-12",
-        feedback: null,
-        fechaRevision: null,
-        historial: [],
-        cumpleObjetivos: null,
-        cumpleDiagnostico: null,
-        cumplePlanTrabajo: null,
-        archivo: null,
-      },
-    ],
-    reuniones: [
-      {
-        titulo: "Revisión semanal",
-        fecha: "2026-05-20",
-        hora: "10:00",
-        modalidad: "Presencial",
-      },
-      {
-        titulo: "Entrega parcial 3",
-        fecha: "2026-06-01",
-        hora: "11:00",
-        modalidad: "Virtual",
-      },
-    ],
-  },
-  {
-    id: "p2",
-    title: "Portal de Clientes",
-    company: "Distribuidora Nacional",
-    phase: "revision",
-    priority: "Media",
-    residentes: [
-      { nombre: "María Torres", iniciales: "MT", rol: "Frontend Developer" },
-    ],
-    residentesRequeridos: 2,
-    habilidades: ["React", "TypeScript", "Firebase"],
-    asesor: "Dr. Marco Reyes",
-    asesorId: "asesor1",
-    horasDocumentadas: 410,
-    horasTotales: 480,
-    fechaInicio: "2025-07-01",
-    fechaFin: "2026-05-30",
-    reportes: [
-      {
-        id: "r9",
-        titulo: "Reporte Preliminar",
-        residente: "María Torres",
-        fase: "Preliminar",
-        status: "Aceptado",
-        score: 95,
-        fecha: "2025-07-15",
-        feedback: "Excelente planteamiento.",
-        fechaRevision: "2025-07-17",
-        historial: [],
-        cumpleObjetivos: true,
-        cumpleDiagnostico: true,
-        cumplePlanTrabajo: true,
-        archivo: null,
-      },
-      {
-        id: "r10",
-        titulo: "Reporte Parcial 1",
-        residente: "María Torres",
-        fase: "Parcial 1",
-        status: "Pendiente",
-        score: null,
-        fecha: "2026-05-10",
-        feedback: null,
-        fechaRevision: null,
-        historial: [],
-        cumpleObjetivos: null,
-        cumpleDiagnostico: null,
-        cumplePlanTrabajo: null,
-        archivo: null,
-      },
-    ],
-    reuniones: [],
-  },
-];
 
 const INITIAL_PROPOSED = [
   {
@@ -254,26 +28,11 @@ const INITIAL_PROPOSED = [
 ];
 
 export function ProyectosProvider({ children }) {
-  const [proyectos, setProyectos] = useState(INITIAL_PROJECTS);
+  const [proyectos, setProyectos] = useState([]);
   const [propuestas, setPropuestas] = useState(INITIAL_PROPOSED);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // ── Estado de desbloqueo por residente ───────────────────────────────────
-  // { [residenteNombre]: Set<fase> } — qué fases puede ya entregar cada residente
-  // Se inicializa con los reportes que ya tienen fecha (ya fueron entregados antes)
-  const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState(
-    () => {
-      const map = {};
-      INITIAL_PROJECTS.forEach((p) => {
-        p.reportes.forEach((r) => {
-          if (!map[r.residente]) map[r.residente] = new Set();
-          if (r.fecha) map[r.residente].add(r.fase); // ya fue entregado = ya estaba desbloqueado
-        });
-      });
-      return map;
-    },
-  );
+  const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState({});
 
   /** El asesor desbloquea una fase para un residente específico */
   const desbloquearReporteResidente = (residenteNombre, fase) => {
@@ -286,48 +45,65 @@ export function ProyectosProvider({ children }) {
     });
   };
 
+  useEffect(() => {
+    const deriveUnlocks = () => {
+      const map = {};
+      proyectos.forEach((p) => {
+        (p.reportes || []).forEach((r) => {
+          if (!map[r.residente]) map[r.residente] = new Set();
+          if (r.fecha) map[r.residente].add(r.fase);
+        });
+      });
+      setDesbloqueadosPorResidente(map);
+    };
+
+    if (!loading) {
+      deriveUnlocks();
+    }
+  }, [loading, proyectos]);
+
   // Cargar proyectos desde la API al montar el componente
   useEffect(() => {
     const fetchProyectos = async () => {
       try {
         setLoading(true);
-        const token = getAuthToken();
-        const headers = { "Content-Type": "application/json" };
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
+        const response = await apiClient.get("/api/asesor/proyectos");
+
+        if (!response.ok) {
+          setError(
+            response.body?.mensaje || response.error?.message ||
+              "Error al cargar proyectos",
+          );
+          setProyectos([]);
+          return;
         }
 
-        const res = await fetch("http://localhost:3001/api/asesor/proyectos", {
-          headers,
-        });
-        const json = await res.json();
-
-        if (!json.ok) {
-          setError(json.mensaje || "Error al cargar proyectos");
-          // Usar fallback data
-          setProyectos(INITIAL_PROJECTS);
-        } else {
-          // Mapear datos de API al formato esperado por la app
-          const proyectosFormateados = json.proyectos.map((p) => ({
-            ...p,
-            id: p.id,
-            title: p.title,
-            company: p.company,
-            phase: p.phase,
-            priority: p.priority,
-            solicitudAvance: p.solicitud_avance || false,
-            residentes: p.residentes || [],
-            reportes: p.reportes || [],
-            reuniones: p.reuniones || [],
-          }));
-          setProyectos(proyectosFormateados);
-          setError(null);
+        const payload = response.body;
+        if (!payload.ok) {
+          setError(payload.mensaje || "Error al cargar proyectos");
+          setProyectos([]);
+          return;
         }
+
+        const proyectosFormateados = (payload.proyectos || []).map((p) => ({
+          ...p,
+          id: p.id,
+          title: p.title,
+          company: p.company,
+          phase: p.phase,
+          priority: p.priority,
+          solicitudAvance: p.solicitud_avance || false,
+          residentes: p.residentes || [],
+          reportes: p.reportes || [],
+          reuniones: p.reuniones || [],
+        }));
+
+        setProyectos(proyectosFormateados);
+        setError(null);
       } catch (err) {
         console.error("Error fetching proyectos:", err);
         setError("Error de conexión con el servidor");
-        // Usar fallback data
-        setProyectos(INITIAL_PROJECTS);
+        setProyectos([]);
       } finally {
         setLoading(false);
       }
@@ -473,31 +249,22 @@ export function ProyectosProvider({ children }) {
 
   const solicitarAvanceFase = async (proyectoId) => {
     try {
-      const token = getAuthToken();
-      const headers = { "Content-Type": "application/json" };
-      if (token) {
-        headers.Authorization = `Bearer ${token}`;
-      }
-
-      const res = await fetch(
-        `http://localhost:3001/api/asesor/proyectos/${proyectoId}/solicitar-avance`,
-        {
-          method: "POST",
-          headers,
-        },
+      const response = await apiClient.post(
+        `/api/asesor/proyectos/${proyectoId}/solicitar-avance`,
       );
 
-      const json = await res.json();
-
-      if (json.ok) {
+      const resultado = response.body;
+      if (response.ok && resultado?.ok) {
         updateProyecto(proyectoId, { solicitudAvance: true });
-        return { ok: true, mensaje: json.mensaje };
-      } else {
-        return {
-          ok: false,
-          mensaje: json.mensaje || "Error al solicitar avance",
-        };
+        return { ok: true, mensaje: resultado.mensaje };
       }
+
+      return {
+        ok: false,
+        mensaje:
+          resultado?.mensaje || response.error?.message ||
+          "Error al solicitar avance",
+      };
     } catch (err) {
       console.error("Error al solicitar avance de fase:", err);
       return { ok: false, mensaje: "Error de conexión con el servidor" };
@@ -547,3 +314,4 @@ export function ProyectosProvider({ children }) {
 export function useProyectos() {
   return useContext(ProyectosCtx);
 }
+

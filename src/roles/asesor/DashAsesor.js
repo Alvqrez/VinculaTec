@@ -1,4 +1,4 @@
-import { getAuthToken } from "../../context/AuthContext";
+import apiClient from "../../utils/apiClient";
 import { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -133,31 +133,6 @@ function PieChart({ data, size = 140 }) {
 }
 
 export default function DashAsesor({ onNavigate }) {
-<<<<<<< HEAD
-
-  //En teoria todo esto es para empezar a conectar a la base de datos y empezar a agarrar datos reales
-
-  // 1. Jalamos los proyectos reales del contexto
-  const { proyectos } = useProyectos() || { proyectos: [] };
-
-  // 2. Procesamos los datos reales para la gráfica de pastel
-  const datosGraficaReal = useMemo(() => {
-    // Filtramos en MySQL cuántos proyectos están en cada fase de tu proceso
-    const enDesarrollo = proyectos.filter((p) => p.phase === "desarrollo").length;
-    const enRevision   = proyectos.filter((p) => p.phase === "revision").length;
-    const concluidos   = proyectos.filter((p) => p.phase === "concluido").length;
-
-    return [
-      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
-      { label: "En Revisión", value: enRevision, color: C.purple },
-      { label: "Concluidos", value: concluidos, color: C.green },
-    ];
-  }, [proyectos]); // Se actualiza en automático si cambia la base de datos
-
-  //Acá termina el código de gemini para agregar datos reales a la grafica de pastel    
-
-=======
->>>>>>> 7f1adbb99a73cd2ab3c09824dbdaf6f68939b146
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -178,21 +153,15 @@ export default function DashAsesor({ onNavigate }) {
     const fetchDashboard = async () => {
       setLoadingBackend(true);
       try {
-        const token = getAuthToken();
-        const headers = { "Content-Type": "application/json" };
-        if (token) {
-          headers.Authorization = `Bearer ${token}`;
-        }
-
-        const res = await fetch("http://localhost:3001/api/asesor/dashboard", {
-          headers,
-        });
-        const json = await res.json();
-        if (!json.ok) {
-          setErrorBackend(json.mensaje || "Error al cargar dashboard");
+        const response = await apiClient.get("/api/asesor/dashboard");
+        if (!response.ok || !response.body?.ok) {
+          setErrorBackend(
+            response.body?.mensaje || response.error?.message ||
+              "Error al cargar dashboard",
+          );
           return;
         }
-        setBackendData(json.data);
+        setBackendData(response.body.data || {});
       } catch (err) {
         setErrorBackend("Error de conexión. ¿Backend corriendo en :3001?");
         console.error("Dashboard fetch error:", err);
