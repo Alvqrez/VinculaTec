@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import C from "../constants/colors";
 import apiClient from "../utils/apiClient";
 
