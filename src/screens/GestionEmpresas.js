@@ -22,6 +22,17 @@ export default function GestionEmpresas() {
   const [form,         setForm]       = useState(EMPTY_FORM);
   const [filters,      setFilters]    = useState({ sector:"Todos", status:"Todos", ciudad:"Todas" });
   const [editId,       setEditId]     = useState(null);
+  const [toast,        setToast]       = useState(null); // { msg, type }
+
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const reloadEmpresas = () =>
+    apiClient.get("/api/jefe/empresas").then((res) => {
+      if (res.ok && res.body?.ok) setCompanies(res.body.empresas);
+    });
 
   useEffect(() => {
     apiClient.get("/api/jefe/empresas").then((res) => {
@@ -30,7 +41,7 @@ export default function GestionEmpresas() {
     });
   }, []);
 
-  // Aplicar filtros + búsqueda
+// Aplicar filtros + búsqueda
   const filtered = companies.filter((c) => {
     const q = search.toLowerCase();
     const matchSearch = c.name.toLowerCase().includes(q) || c.sector.toLowerCase().includes(q) || c.ciudad.toLowerCase().includes(q);
@@ -48,16 +59,18 @@ export default function GestionEmpresas() {
     if (!form.name.trim()) return;
     if (editId) {
       const res = await apiClient.put(`/api/jefe/empresas/${editId}`, form);
-      if (res.ok) setCompanies((prev) => prev.map((c) => c.id === editId ? { ...c, ...form } : c));
+      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa actualizada con éxito"); }
+      else showToast(res.body?.mensaje || "Error al actualizar", "error");
     } else {
       const res = await apiClient.post("/api/jefe/empresas", form);
-      if (res.ok) setCompanies((prev) => [...prev, { id: res.body.id, ...form, residentes: 0 }]);
+      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa guardada con éxito"); }
+      else showToast(res.body?.mensaje || "Error al registrar", "error");
     }
-    setModal(false);
   };
   const deleteCompany = async (id) => {
     const res = await apiClient.delete(`/api/jefe/empresas/${id}`);
-    if (res.ok) setCompanies((prev) => prev.filter((c) => c.id !== id));
+    if (res.ok) { await reloadEmpresas(); showToast("Empresa eliminada"); }
+    else showToast("Error al eliminar", "error");
   };
 
   const F = ({ label, value, ph, key2, multiline }) => (
@@ -223,6 +236,20 @@ export default function GestionEmpresas() {
       {/* Cerrar filtro al tocar afuera */}
       {showFilter && (
         <Pressable style={{ position:"absolute", inset:0 }} onPress={()=>setFilter(false)} />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <View style={{
+          position: "absolute", bottom: 32, left: "50%", transform: [{ translateX: -160 }],
+          width: 320, backgroundColor: toast.type === "error" ? C.red : C.green,
+          borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20,
+          flexDirection: "row", alignItems: "center", gap: 10,
+          shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
+        }}>
+          <Feather name={toast.type === "error" ? "x-circle" : "check-circle"} size={18} color="white" />
+          <Text style={{ color: "white", fontWeight: "700", fontSize: 14 }}>{toast.msg}</Text>
+        </View>
       )}
 
       {/* ── Modal Nueva / Editar Empresa ── */}
