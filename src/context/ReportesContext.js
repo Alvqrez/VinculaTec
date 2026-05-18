@@ -2,6 +2,24 @@ import { createContext, useContext, useState } from "react";
 
 const ReportesCtx = createContext(null);
 
+// Calcula qué parciales ya estaban desbloqueados al abrir la app,
+// basándose en el estado inicial de los reportes (para no romper datos previos).
+function derivarDesbloqueados(reports) {
+  const set = new Set();
+  const prelim = reports.find((r) => r.id === "preliminar");
+  // Parcial 1 se desbloquea cuando el preliminar es aceptado
+  if (prelim?.status === "Aceptado") set.add(1);
+
+  [1, 2, 3].forEach((id) => {
+    const r = reports.find((rep) => rep.id === id);
+    // Si ya fue entregado alguna vez (submitted), estaba desbloqueado
+    if (r?.submitted) set.add(id);
+    // Si está aceptado, el siguiente queda pre-desbloqueado en los datos de demo
+    if (r?.status === "Aceptado") set.add(id + 1);
+  });
+  return set;
+}
+
 export const INITIAL_REPORTS = [
   {
     id: "preliminar",
@@ -80,6 +98,10 @@ export const INITIAL_REPORTS = [
 
 export function ReportesProvider({ children }) {
   const [reports, setReports] = useState(INITIAL_REPORTS);
+  // Set de IDs de parciales que el asesor ha desbloqueado para entrega
+  const [parcialesDesbloqueados, setParcialesDesbloqueados] = useState(() =>
+    derivarDesbloqueados(INITIAL_REPORTS),
+  );
 
   /** Actualiza campos de un reporte (usado por el Residente al enviar) */
   const updateReport = (id, changes) =>
@@ -87,10 +109,12 @@ export function ReportesProvider({ children }) {
       prev.map((r) => (r.id === id ? { ...r, ...changes } : r)),
     );
 
+  /** El Asesor desbloquea un parcial para que el Residente pueda entregarlo */
+  const desbloquearParcial = (id) =>
+    setParcialesDesbloqueados((prev) => new Set([...prev, id]));
+
   /**
    * Registra la revisión del Asesor en el contexto del Residente.
-   * Esto es lo que permite que el Residente vea la retroalimentación
-   * después de que el Asesor revisa en SeguimientoAsesor.
    */
   const reviewReport = (id, { status, feedback, reviewer = "Asesor" }) => {
     const today = new Date().toLocaleDateString("es-MX", {
@@ -105,6 +129,8 @@ export function ReportesProvider({ children }) {
           : r,
       ),
     );
+    // Si el asesor aceptó un parcial, auto-registrar que PODRÍA desbloquear el siguiente
+    // (el asesor aún tiene que presionar el botón explícito)
   };
 
   const preliminarAprobado =
@@ -122,6 +148,8 @@ export function ReportesProvider({ children }) {
         reports,
         updateReport,
         reviewReport,
+        desbloquearParcial,
+        parcialesDesbloqueados,
         preliminarAprobado,
         todosParcialesAprobados,
         finalDesbloqueado,

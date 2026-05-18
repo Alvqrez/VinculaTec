@@ -42,18 +42,6 @@ export default function DashResidente({ onNavigate }) {
     year: "numeric",
   });
 
-  // Derive state from context
-  const preliminar = reports?.find((r) => r.id === "preliminar");
-  const parciales = reports?.filter((r) => typeof r.id === "number") ?? [];
-  const final = reports?.find((r) => r.id === "final");
-
-  const parcialesAceptados = parciales.filter((r) => r.status === "Aceptado");
-  const totalParciales = parciales.length;
-  const progressPct =
-    totalParciales > 0
-      ? Math.round((parcialesAceptados.length / totalParciales) * 100)
-      : 0;
-
   // Steps: Registro & Asignación are always done; then one per parcial + Final
   const steps = [
     { label: "Registro", done: true, active: false },

@@ -193,6 +193,13 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
           ...project,
           title: project.title,
           phase: project.phase.toLowerCase(),
+          // Convertir string "React, Node.js" → ["React", "Node.js"]
+          habilidades: project.habilidades
+            ? project.habilidades
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : [],
           residentes: residentes.map((r) => ({
             id: r.id,
             nombre: `${r.nombre} ${r.apellidos}`,

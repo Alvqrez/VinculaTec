@@ -26,7 +26,8 @@ const FASE_TO_REPORTES_ID = {
 
 export default function SeguimientoAsesor() {
   const { proyectos, updateReporte } = useProyectos() || { proyectos: [] };
-  const { reviewReport } = useReportes() || {};
+  const { reviewReport, desbloquearParcial, parcialesDesbloqueados } =
+    useReportes() || {};
   const { setNotifications } = useNotificaciones() || {};
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -925,6 +926,82 @@ export default function SeguimientoAsesor() {
                             </TouchableOpacity>
                           )}
                         </Row>
+
+                        {/* ── Botón desbloquear siguiente parcial ── */}
+                        {(() => {
+                          const siguienteId = FASE_TO_REPORTES_ID[report.fase];
+                          // Solo aplica a parciales numéricos (1, 2, 3)
+                          if (typeof siguienteId !== "number") return null;
+                          // Solo si este reporte está Aceptado
+                          if (report.status !== "Aceptado") return null;
+                          const nextId = siguienteId + 1;
+                          // Solo si existe un siguiente parcial (1→2, 2→3, no 3→4)
+                          if (nextId > 3) return null;
+                          const yaDesbloqueado =
+                            parcialesDesbloqueados?.has(nextId);
+                          return (
+                            <View style={{ marginTop: 12 }}>
+                              {yaDesbloqueado ? (
+                                <Row
+                                  style={{
+                                    alignItems: "center",
+                                    gap: 7,
+                                    backgroundColor: C.greenLight,
+                                    borderRadius: 8,
+                                    padding: 10,
+                                  }}
+                                >
+                                  <Feather
+                                    name="unlock"
+                                    size={13}
+                                    color={C.green}
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 12,
+                                      color: C.green,
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    Parcial {nextId} desbloqueado para entrega
+                                  </Text>
+                                </Row>
+                              ) : (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    desbloquearParcial?.(nextId);
+                                  }}
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    gap: 8,
+                                    backgroundColor: C.navy,
+                                    borderRadius: 8,
+                                    paddingVertical: 11,
+                                    paddingHorizontal: 14,
+                                  }}
+                                >
+                                  <Feather
+                                    name="unlock"
+                                    size={14}
+                                    color="white"
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 13,
+                                      fontWeight: "800",
+                                      color: "white",
+                                    }}
+                                  >
+                                    Desbloquear Parcial {nextId} para{" "}
+                                    {report.residente}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          );
+                        })()}
                       </View>
                     )}
                   </Card>
