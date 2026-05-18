@@ -30,17 +30,8 @@ export default function DashResidente({ onNavigate }) {
       ? Math.round((parcialesAceptados.length / totalParciales) * 100)
       : 0;
 
-  // Días restantes calculados dinámicamente
-  const hoy = new Date();
-  const diasRestantes = Math.max(
-    0,
-    Math.ceil((FECHA_FIN_RESIDENCIA - hoy) / (1000 * 60 * 60 * 24)),
-  );
-  const fechaFinLabel = FECHA_FIN_RESIDENCIA.toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  // Validación de residencia: solo se valida después de que el reporte final sea aceptado
+  const residenciaValidada = final?.status === "Aceptado";
 
   // Steps: Registro & Asignación are always done; then one per parcial + Final
   const steps = [
@@ -115,12 +106,12 @@ export default function DashResidente({ onNavigate }) {
           trendUp
         />
         <StatCard
-          label="Días Restantes"
-          value={String(diasRestantes)}
-          sub={`Fin: ${fechaFinLabel}`}
-          icon="calendar"
-          iconBg={diasRestantes < 30 ? C.redLight : C.amberLight}
-          iconColor={diasRestantes < 30 ? C.red : C.amber}
+          label="Residencia"
+          value={residenciaValidada ? "Validada" : "Pendiente"}
+          sub={residenciaValidada ? "Completada" : "Esperando reporte final"}
+          icon={residenciaValidada ? "check-circle" : "clock"}
+          iconBg={residenciaValidada ? C.greenLight : C.amberLight}
+          iconColor={residenciaValidada ? C.green : C.amber}
         />
       </Row>
 

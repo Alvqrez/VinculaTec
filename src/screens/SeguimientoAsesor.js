@@ -149,7 +149,9 @@ export default function SeguimientoAsesor() {
     setFeedbackError(false);
 
     const today = new Date().toISOString().slice(0, 10);
-    const statusFinal = newStatus === "Aceptado" ? "Aceptado" : "Por corregir";
+    // Los reportes preliminares solo se aceptan o no aceptan, no se califican
+    const esPreliminar = reviewingReport.fase === "Preliminar";
+    const statusFinal = newStatus === "Aceptado" ? "Aceptado" : (esPreliminar ? "No aceptado" : "Por corregir");
 
     const historialEntry = {
       status: statusFinal,
@@ -190,11 +192,11 @@ export default function SeguimientoAsesor() {
           icon: isAceptado ? "check-circle" : "x-circle",
           iconBg: isAceptado ? C.greenLight : C.redLight,
           iconColor: isAceptado ? C.green : C.red,
-          title: `${reviewingReport.titulo} — ${isAceptado ? "Aceptado ✓" : "Requiere correcciones"}`,
+          title: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : (isAceptado ? "Aceptado ✓" : "Requiere correcciones")}`,
           body: feedback.trim(),
           time: "Ahora",
           unread: true,
-          type: isAceptado ? "Aceptación" : "Por corregir",
+          type: isAceptado ? "Aceptación" : (esPreliminar ? "No aceptado" : "Por corregir"),
           typeBg: isAceptado ? C.greenLight : C.redLight,
           typeColor: isAceptado ? C.green : C.red,
           proyecto: activeProject.title,
