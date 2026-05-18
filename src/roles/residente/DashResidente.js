@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../../constants/colors";
@@ -11,12 +11,20 @@ import {
   SectionTitle,
 } from "../../components";
 import { useReportes } from "../../context/ReportesContext";
+import apiClient from "../../utils/apiClient";
 
 // Fecha de fin de residencia (demo — en producción vendría del contexto del usuario)
 const FECHA_FIN_RESIDENCIA = new Date("2026-06-15");
 
 export default function DashResidente({ onNavigate }) {
   const { reports } = useReportes() || {};
+  const [asesor, setAsesor] = useState(null);
+
+  useEffect(() => {
+    apiClient.get("/api/residente/asesor").then((res) => {
+      if (res.ok && res.body?.ok && res.body.asesor) setAsesor(res.body.asesor);
+    });
+  }, []);
 
   // Derive state from context
   const preliminar = reports?.find((r) => r.id === "preliminar");
@@ -71,12 +79,24 @@ export default function DashResidente({ onNavigate }) {
     };
   });
 
-  const eventos = [
-    { fecha: "18 Dic", titulo: "Entrega Reporte 3", color: C.amber },
-    { fecha: "20 Dic", titulo: "Reunión con Asesor", color: C.blue },
-    { fecha: "20 Ene", titulo: "Reporte Final", color: C.red },
-    { fecha: "27 Ene", titulo: "Evaluación Final", color: C.green },
-  ];
+  const [eventos, setEventos] = useState([]);
+
+  useEffect(() => {
+    apiClient.get("/api/citas/mis-citas").then((res) => {
+      if (res.ok && res.body?.ok) {
+        const hoy = new Date();
+        const proximos = res.body.citas
+          .filter((c) => new Date(c.fecha_hora) >= hoy)
+          .slice(0, 4)
+          .map((c) => ({
+            fecha: new Date(c.fecha_hora).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }),
+            titulo: c.motivo || c.tipo,
+            color: C.blue,
+          }));
+        setEventos(proximos);
+      }
+    });
+  }, []);
 
   return (
     <ScrollView
@@ -367,22 +387,21 @@ export default function DashResidente({ onNavigate }) {
                 <Text
                   style={{ fontSize: 20, fontWeight: "700", color: C.teal }}
                 >
-                  MR
+                  {asesor ? asesor.iniciales : "—"}
                 </Text>
               </View>
               <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
-                Dr. Marco Reyes
+                {asesor ? asesor.nombre : "Sin asesor asignado"}
               </Text>
               <Text style={{ fontSize: 13, color: C.textMuted }}>
-                Ing. en Sistemas
+                {asesor ? asesor.departamento : ""}
               </Text>
             </View>
             <View style={{ gap: 8, marginBottom: 16 }}>
-              {[
-                ["mail", "marco.reyes@itm.edu.mx"],
-                ["phone", "Ext. 2341"],
-                ["map-pin", "Cubículo B-12"],
-              ].map(([icon, txt], i) => (
+              {asesor && [
+                ["mail", asesor.correo],
+                asesor.extension ? ["phone", `Ext. ${asesor.extension}`] : null,
+              ].filter(Boolean).map(([icon, txt], i) => (
                 <Row key={i} style={{ gap: 8, alignItems: "center" }}>
                   <Feather name={icon} size={14} color={C.textMuted} />
                   <Text style={{ fontSize: 13, color: C.textMuted }}>

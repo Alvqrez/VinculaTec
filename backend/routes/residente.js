@@ -1,0 +1,191 @@
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const db = require("../db");
+
+const router = express.Router();
+
+const auth = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET || "secreto");
+    next();
+  } catch {
+    return res.status(401).json({ ok: false, mensaje: "Token inválido." });
+  }
+};
+
+// Mapeo tipo BD → id frontend
+const TIPO_TO_ID = {
+  preliminar: "preliminar",
+  parcial1: 1,
+  parcial2: 2,
+  parcial3: 3,
+  final: "final",
+};
+
+const TIPO_TO_TITLE = {
+  preliminar: "Reporte Preliminar",
+  parcial1: "Reporte Parcial 1",
+  parcial2: "Reporte Parcial 2",
+  parcial3: "Reporte Parcial 3",
+  final: "Reporte Final",
+};
+
+const TIPO_TO_SUBTITLE = {
+  preliminar: "Diagnóstico inicial del proyecto",
+  parcial1: "Semana 1–4 · Diagnóstico inicial",
+  parcial2: "Semana 5–8 · Desarrollo",
+  parcial3: "Semana 9–12 · Integración",
+  final: "Semana 13–16 · Cierre",
+};
+
+const ESTADO_TO_STATUS = {
+  Pendiente: "Pendiente",
+  Entregado: "Pendiente",
+  "En Revisión": "Pendiente",
+  Aprobado: "Aceptado",
+  Rechazado: "Por corregir",
+};
+
+// ── GET /api/residente/reportes ───────────────────────────────────────────────
+router.get("/reportes", auth, async (req, res) => {
+  try {
+    const [resRows] = await db.execute(
+      "SELECT r.id, r.asesor_id FROM residentes r WHERE r.usuario_id = ?",
+      [req.user.id]
+    );
+    if (!resRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+
+    const residenteId = resRows[0].id;
+    const asesorId = resRows[0].asesor_id;
+
+    // Obtener nombre del asesor
+    let asesorNombre = "Asesor";
+    if (asesorId) {
+      const [asesorRows] = await db.execute(
+        "SELECT u.nombre, u.apellidos FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE a.id = ?",
+        [asesorId]
+      );
+      if (asesorRows.length)
+        asesorNombre = `${asesorRows[0].nombre} ${asesorRows[0].apellidos}`;
+    }
+
+    const [rows] = await db.execute(
+      `SELECT tipo, estado, fecha_entrega, feedback, archivo_url
+       FROM reportes WHERE residente_id = ? ORDER BY FIELD(tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
+      [residenteId]
+    );
+
+    // Construir lista completa (si no existe en BD, status Pendiente sin entregar)
+    const TIPOS = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+    const reportes = TIPOS.map((tipo) => {
+      const row = rows.find((r) => r.tipo === tipo);
+      const fechaEntrega = row?.fecha_entrega
+        ? new Date(row.fecha_entrega).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+        : null;
+      return {
+        id: TIPO_TO_ID[tipo],
+        title: TIPO_TO_TITLE[tipo],
+        subtitle: TIPO_TO_SUBTITLE[tipo],
+        status: row ? (ESTADO_TO_STATUS[row.estado] || "Pendiente") : "Pendiente",
+        submitted: fechaEntrega,
+        reviewer: asesorNombre,
+        feedback: row?.feedback || null,
+        items: [],
+      };
+    });
+
+    return res.json({ ok: true, reportes });
+  } catch (err) {
+    console.error("Error en /residente/reportes:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── PUT /api/residente/reportes/:tipo ─────────────────────────────────────────
+// Residente entrega un reporte (crea o actualiza)
+router.put("/reportes/:tipo", auth, async (req, res) => {
+  const tiposValidos = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+  const { tipo } = req.params;
+  if (!tiposValidos.includes(tipo))
+    return res.status(400).json({ ok: false, mensaje: "Tipo de reporte inválido." });
+
+  try {
+    const [resRows] = await db.execute(
+      "SELECT id FROM residentes WHERE usuario_id = ?",
+      [req.user.id]
+    );
+    if (!resRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+
+    const residenteId = resRows[0].id;
+    const today = new Date().toISOString().split("T")[0];
+
+    const [existing] = await db.execute(
+      "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
+      [residenteId, tipo]
+    );
+
+    if (existing.length) {
+      await db.execute(
+        "UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ? WHERE residente_id = ? AND tipo = ?",
+        [today, residenteId, tipo]
+      );
+    } else {
+      const newId = `rep_${residenteId}_${tipo}_${Date.now()}`;
+      await db.execute(
+        "INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega) VALUES (?,?,?,'En Revisión',?)",
+        [newId, residenteId, tipo, today]
+      );
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en PUT /residente/reportes/:tipo:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── GET /api/residente/asesor ─────────────────────────────────────────────────
+// Datos del asesor asignado al residente
+router.get("/asesor", auth, async (req, res) => {
+  try {
+    const [resRows] = await db.execute(
+      "SELECT asesor_id FROM residentes WHERE usuario_id = ?",
+      [req.user.id]
+    );
+    if (!resRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+
+    const asesorId = resRows[0].asesor_id;
+    if (!asesorId)
+      return res.json({ ok: true, asesor: null });
+
+    const [rows] = await db.execute(
+      `SELECT u.nombre, u.apellidos, u.correo, a.departamento, a.num_empleado
+       FROM asesores a JOIN usuarios u ON a.usuario_id = u.id WHERE a.id = ?`,
+      [asesorId]
+    );
+    if (!rows.length)
+      return res.json({ ok: true, asesor: null });
+
+    const a = rows[0];
+    return res.json({
+      ok: true,
+      asesor: {
+        nombre: `${a.nombre} ${a.apellidos}`,
+        iniciales: `${a.nombre.charAt(0)}${a.apellidos.charAt(0)}`,
+        correo: a.correo,
+        departamento: a.departamento || "",
+        extension: a.num_empleado || "",
+      },
+    });
+  } catch (err) {
+    console.error("Error en /residente/asesor:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+module.exports = router;
