@@ -1,5 +1,4 @@
 import { getAuthToken } from "../../context/AuthContext";
-//
 import { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -210,6 +209,14 @@ export default function DashAsesor({ onNavigate }) {
     return reps;
   }, [proyectos]);
 
+  const allReuniones = useMemo(() => {
+    const reuniones = [];
+    proyectos.forEach((p) => {
+      p.reuniones.forEach((r) => reuniones.push({ ...r, proyecto: p.title }));
+    });
+    return reuniones;
+  }, [proyectos]);
+
   // GRÁFICA: Usar datos del API (backendData) en lugar del Context
   const datosGraficaReal = useMemo(() => {
     // Los datos ahora provienen 100% del backend
@@ -301,11 +308,11 @@ export default function DashAsesor({ onNavigate }) {
         });
     });
     allReuniones.forEach((r) => {
-      if (r.titulo.toLowerCase().includes(q))
+      if (r.titulo && r.titulo.toLowerCase().includes(q))
         results.push({
           tipo: "Reunión",
           nombre: r.titulo,
-          sub: r.fecha,
+          sub: r.fecha || new Date(r.fecha_hora).toLocaleDateString() || "Sin fecha",
           icon: "calendar",
         });
     });
@@ -692,10 +699,10 @@ export default function DashAsesor({ onNavigate }) {
                             color: C.text,
                           }}
                         >
-                          {r.residente}
+                          {r.residente || r.residenteNombre || "Residente"}
                         </Text>
                         <Text style={{ fontSize: 11, color: C.textMuted }}>
-                          {r.titulo} · {r.proyecto}
+                          {r.titulo || r.nombre || "Reporte"} · {r.proyecto}
                         </Text>
                       </View>
                       <Badge
@@ -1062,7 +1069,7 @@ export default function DashAsesor({ onNavigate }) {
                     <Text
                       style={{ fontSize: 13, color: C.text, fontWeight: "500" }}
                     >
-                      {r.residente} — {r.titulo}
+                      {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
                     </Text>
                     <Text
                       style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}
@@ -1152,7 +1159,7 @@ export default function DashAsesor({ onNavigate }) {
                     <Text
                       style={{ fontSize: 13, fontWeight: "600", color: C.text }}
                     >
-                      {r.titulo}
+                      {r.titulo || r.nombre || "Reunión"}
                     </Text>
                     <Text style={{ fontSize: 11, color: C.textMuted }}>
                       {r.fecha} · {r.hora}
@@ -1213,7 +1220,7 @@ export default function DashAsesor({ onNavigate }) {
                   <Text
                     style={{ fontSize: 13, fontWeight: "600", color: C.text }}
                   >
-                    {r.residente} — {r.titulo}
+                    {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
                   </Text>
                   <Badge
                     text={r.status}
