@@ -133,6 +133,31 @@ function PieChart({ data, size = 140 }) {
 }
 
 export default function DashAsesor({ onNavigate }) {
+<<<<<<< HEAD
+
+  //En teoria todo esto es para empezar a conectar a la base de datos y empezar a agarrar datos reales
+
+  // 1. Jalamos los proyectos reales del contexto
+  const { proyectos } = useProyectos() || { proyectos: [] };
+
+  // 2. Procesamos los datos reales para la gráfica de pastel
+  const datosGraficaReal = useMemo(() => {
+    // Filtramos en MySQL cuántos proyectos están en cada fase de tu proceso
+    const enDesarrollo = proyectos.filter((p) => p.phase === "desarrollo").length;
+    const enRevision   = proyectos.filter((p) => p.phase === "revision").length;
+    const concluidos   = proyectos.filter((p) => p.phase === "concluido").length;
+
+    return [
+      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
+      { label: "En Revisión", value: enRevision, color: C.purple },
+      { label: "Concluidos", value: concluidos, color: C.green },
+    ];
+  }, [proyectos]); // Se actualiza en automático si cambia la base de datos
+
+  //Acá termina el código de gemini para agregar datos reales a la grafica de pastel    
+
+=======
+>>>>>>> 7f1adbb99a73cd2ab3c09824dbdaf6f68939b146
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
