@@ -5,14 +5,21 @@
  * Al iniciar, carga TODAS las fotos del usuario actual desde la BD,
  * y permite cargar fotos de otros usuarios bajo demanda.
  */
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from "react";
 
 const FotosCtx = createContext(null);
 
 // Función auxiliar para obtener el token de autenticación
 const getAuthToken = () => {
   try {
-    return globalThis?.localStorage?.getItem("vt_token");
+    // Mismo key que usa AuthContext.js
+    return globalThis?.localStorage?.getItem("authToken") ?? null;
   } catch {
     return null;
   }
@@ -48,12 +55,15 @@ export function FotosProvider({ children }) {
         const token = getAuthToken();
         if (!token) return;
 
-        const res = await fetch(`http://localhost:3001/api/fotos/${currentUserId}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+        const res = await fetch(
+          `http://localhost:3001/api/fotos/${currentUserId}`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           },
-        });
+        );
 
         const json = await res.json();
         if (json.ok && json.foto) {
