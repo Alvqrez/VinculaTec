@@ -93,29 +93,19 @@ const NOTIFICATIONS = [
 ];
 
 export default function Notificaciones({ onNavigate }) {
-  const [localNotifications, setLocalNotifications] = useState(NOTIFICATIONS);
   const [activeTab, setActiveTab] = useState("Todas");
   const {
     notifications: contextNotifications,
     setNotifications: setContextNotifications,
+    unreadCount,
     setUnreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    dismissNotification,
   } = useNotificaciones() || {};
 
-  useEffect(() => {
-    if (!contextNotifications && setContextNotifications) {
-      setContextNotifications(localNotifications);
-    }
-  }, [contextNotifications, localNotifications, setContextNotifications]);
-
-  const notifications = contextNotifications || localNotifications;
-  const setNotificationState = (updater) => {
-    if (setContextNotifications) {
-      setContextNotifications((prev) => updater(prev || localNotifications));
-      return;
-    }
-    setLocalNotifications(updater);
-  };
-
+  const notifications = contextNotifications || [];
   const unread = notifications.filter((n) => n.unread).length;
   const read = notifications.filter((n) => !n.unread).length;
   const visibleNotifications = notifications.filter((notif) => {
@@ -126,31 +116,43 @@ export default function Notificaciones({ onNavigate }) {
     return true;
   });
 
-  const markAllRead = () => {
-    setNotificationState((prev) => prev.map((n) => ({ ...n, unread: false })));
-    setUnreadCount && setUnreadCount(0);
+  const handleMarkAllRead = () => {
+    if (markAllAsRead) {
+      markAllAsRead();
+    } else if (setContextNotifications) {
+      setContextNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+      setUnreadCount && setUnreadCount(0);
+    }
   };
 
-  const markRead = (id) => {
-    setNotificationState((prev) => {
-      const updated = prev.map((n) =>
-        n.id === id ? { ...n, unread: false } : n,
-      );
-      const newCount = updated.filter((n) => n.unread).length;
-      setUnreadCount && setUnreadCount(newCount);
-      return updated;
-    });
+  const handleMarkRead = (id) => {
+    if (markAsRead) {
+      markAsRead(id);
+    } else if (setContextNotifications) {
+      setContextNotifications((prev) => {
+        const updated = prev.map((n) =>
+          n.id === id ? { ...n, unread: false } : n,
+        );
+        const newCount = updated.filter((n) => n.unread).length;
+        setUnreadCount && setUnreadCount(newCount);
+        return updated;
+      });
+    }
   };
 
-  const dismiss = (id) => {
-    setNotificationState((prev) => {
-      const item = prev.find((n) => n.id === id);
-      const updated = prev.filter((n) => n.id !== id);
-      if (item?.unread)
-        setUnreadCount &&
-          setUnreadCount(updated.filter((n) => n.unread).length);
-      return updated;
-    });
+  const handleDismiss = (id) => {
+    if (dismissNotification) {
+      dismissNotification(id);
+    } else if (setContextNotifications) {
+      setContextNotifications((prev) => {
+        const item = prev.find((n) => n.id === id);
+        const updated = prev.filter((n) => n.id !== id);
+        if (item?.unread)
+          setUnreadCount &&
+            setUnreadCount(updated.filter((n) => n.unread).length);
+        return updated;
+      });
+    }
   };
 
   return (
@@ -175,7 +177,7 @@ export default function Notificaciones({ onNavigate }) {
           </Text>
         </View>
         <TouchableOpacity
-          onPress={markAllRead}
+          onPress={handleMarkAllRead}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -365,7 +367,7 @@ export default function Notificaciones({ onNavigate }) {
                     <Row style={{ gap: 8 }}>
                       {notif.unread && (
                         <TouchableOpacity
-                          onPress={() => markRead(notif.id)}
+                          onPress={() => handleMarkRead(notif.id)}
                           style={{
                             paddingHorizontal: 10,
                             paddingVertical: 5,
@@ -388,7 +390,7 @@ export default function Notificaciones({ onNavigate }) {
                       )}
                       {notif.actionScreen && onNavigate && (
                           <TouchableOpacity
-                            onPress={() => { markRead(notif.id); onNavigate(notif.actionScreen); }}
+                            onPress={() => { handleMarkRead(notif.id); onNavigate(notif.actionScreen); }}
                             style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: C.teal }}
                           >
                             <Feather name="arrow-right" size={11} color="white" />
@@ -396,7 +398,7 @@ export default function Notificaciones({ onNavigate }) {
                           </TouchableOpacity>
                         )}
                       <TouchableOpacity
-                        onPress={() => dismiss(notif.id)}
+                        onPress={() => handleDismiss(notif.id)}
                         style={{
                           width: 28,
                           height: 28,

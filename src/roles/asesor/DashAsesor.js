@@ -132,8 +132,8 @@ function PieChart({ data, size = 140 }) {
   );
 }
 
-
 export default function DashAsesor({ onNavigate }) {
+<<<<<<< HEAD
 
   //En teoria todo esto es para empezar a conectar a la base de datos y empezar a agarrar datos reales
 
@@ -156,24 +156,27 @@ export default function DashAsesor({ onNavigate }) {
 
   //Acá termina el código de gemini para agregar datos reales a la grafica de pastel    
 
+=======
+>>>>>>> 7f1adbb99a73cd2ab3c09824dbdaf6f68939b146
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const [periodoFilter, setPeriodoFilter] = useState("todo");
 
-  // Estados para datos reales del backend
+  // Estados para datos reales del backend (ÚNICA FUENTE DE VERDAD)
   const [backendData, setBackendData] = useState({
     totalResidentes: 0,
     proyectosActivos: 0,
     reportesPendientes: 0,
     proximasCitas: [],
   });
-  const [loadingBackend, setLoadingBackend] = useState(true);
+  const [loadingBackend, setLoadingBackend] = useState(false);
   const [errorBackend, setErrorBackend] = useState(null);
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      setLoadingBackend(true);
       try {
         const token = getAuthToken();
         const headers = { "Content-Type": "application/json" };
@@ -192,12 +195,16 @@ export default function DashAsesor({ onNavigate }) {
         setBackendData(json.data);
       } catch (err) {
         setErrorBackend("Error de conexión. ¿Backend corriendo en :3001?");
+        console.error("Dashboard fetch error:", err);
       } finally {
         setLoadingBackend(false);
       }
     };
     fetchDashboard();
   }, []);
+
+  // Cargar proyectos solo para el listado de residentes (no para gráfica)
+  const { proyectos } = useProyectos() || { proyectos: [] };
 
   const allResidentes = useMemo(() => {
     const res = [];
@@ -228,14 +235,33 @@ export default function DashAsesor({ onNavigate }) {
   }, [proyectos]);
 
   const allReuniones = useMemo(() => {
-    const meets = [];
+    const reuniones = [];
     proyectos.forEach((p) => {
-      p.reuniones.forEach((r) => meets.push({ ...r, proyecto: p.title }));
+      p.reuniones.forEach((r) => reuniones.push({ ...r, proyecto: p.title }));
     });
-    return meets;
+    return reuniones;
   }, [proyectos]);
 
-  const reunionesBackend = useMemo(() => {
+  // GRÁFICA: Usar datos del API (backendData) en lugar del Context
+  const datosGraficaReal = useMemo(() => {
+    // Los datos ahora provienen 100% del backend
+    // proyectosActivos contiene proyectos en desarrollo + revisión
+    // Calcular distribución desde proyectos que cargamos del Context
+    const enDesarrollo = proyectos.filter(
+      (p) => p.phase === "desarrollo",
+    ).length;
+    const enRevision = proyectos.filter((p) => p.phase === "revision").length;
+    const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
+
+    return [
+      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
+      { label: "En Revisión", value: enRevision, color: C.purple },
+      { label: "Concluidos", value: concluidos, color: C.green },
+    ];
+  }, [proyectos]);
+
+  // Convertir citas del backend al formato de reuniones
+  const proximasReuniones = useMemo(() => {
     return backendData.proximasCitas.map((cita) => ({
       titulo: cita.motivo,
       fecha: new Date(cita.fecha_hora).toLocaleDateString(),
@@ -248,14 +274,10 @@ export default function DashAsesor({ onNavigate }) {
     }));
   }, [backendData.proximasCitas]);
 
-  const proximasReuniones =
-    allReuniones.length > 0 ? allReuniones : reunionesBackend;
-
-  const residentesActivos = backendData.totalResidentes || allResidentes.length;
-  const proyectosActivos = backendData.proyectosActivos || proyectos.length;
-  const reportesPendientes =
-    backendData.reportesPendientes ||
-    allReportes.filter((r) => r.status === "Pendiente").length;
+  // Usar SIEMPRE datos del backend (nunca del Context como fallback)
+  const residentesActivos = backendData.totalResidentes;
+  const proyectosActivos = backendData.proyectosActivos;
+  const reportesPendientes = backendData.reportesPendientes;
   const reportesAceptados = allReportes.filter(
     (r) => r.status === "Aceptado",
   ).length;
@@ -268,13 +290,15 @@ export default function DashAsesor({ onNavigate }) {
       ? Math.round((reportesAceptados / reportesTotal) * 100)
       : 0;
 
-  const hoy = new Date();
   const alertasRezagados = useMemo(() => {
+    const ahora = new Date();
     return allReportes.filter((r) => {
       if (r.status !== "Pendiente") return false;
+      if (!r.fecha) return false; // Sin fecha de entrega → aún no enviado
       const fechaEnvio = new Date(r.fecha);
+      if (isNaN(fechaEnvio.getTime())) return false; // Fecha inválida
       const diasEnRevision = Math.floor(
-        (hoy - fechaEnvio) / (1000 * 60 * 60 * 24),
+        (ahora - fechaEnvio) / (1000 * 60 * 60 * 24),
       );
       return diasEnRevision > 5;
     });
@@ -309,11 +333,11 @@ export default function DashAsesor({ onNavigate }) {
         });
     });
     allReuniones.forEach((r) => {
-      if (r.titulo.toLowerCase().includes(q))
+      if (r.titulo && r.titulo.toLowerCase().includes(q))
         results.push({
           tipo: "Reunión",
           nombre: r.titulo,
-          sub: r.fecha,
+          sub: r.fecha || new Date(r.fecha_hora).toLocaleDateString() || "Sin fecha",
           icon: "calendar",
         });
     });
@@ -365,6 +389,28 @@ export default function DashAsesor({ onNavigate }) {
         <ActivityIndicator size="large" color={C.teal} />
         <Text style={{ marginTop: 12, color: C.textMuted }}>
           Cargando datos del servidor...
+        </Text>
+      </View>
+    );
+  }
+
+  if (errorBackend) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: C.bg,
+          padding: 20,
+        }}
+      >
+        <Feather name="alert-circle" size={48} color={C.red} />
+        <Text style={{ marginTop: 16, fontSize: 16, fontWeight: "600", color: C.text, textAlign: "center" }}>
+          Error al cargar el dashboard
+        </Text>
+        <Text style={{ marginTop: 8, fontSize: 13, color: C.textMuted, textAlign: "center" }}>
+          {errorBackend}
         </Text>
       </View>
     );
@@ -568,7 +614,11 @@ export default function DashAsesor({ onNavigate }) {
               ))}
             </Row>
           </Row>
-          <PieChart data={datosGraficaReal} /** Lo que pasa acá es que en vez de usar datos estáticos, usamos los datos reales de la base de datos */ />
+          <PieChart
+            data={
+              datosGraficaReal
+            } /** Lo que pasa acá es que en vez de usar datos estáticos, usamos los datos reales de la base de datos */
+          />
           <View style={{ marginTop: 16, gap: 8 }}>
             <Row style={{ alignItems: "center", gap: 8 }}>
               <View
@@ -646,9 +696,13 @@ export default function DashAsesor({ onNavigate }) {
           ) : (
             <View style={{ gap: 10 }}>
               {alertasRezagados.map((r, i) => {
-                const dias = Math.floor(
-                  (hoy - new Date(r.fecha)) / (1000 * 60 * 60 * 24),
-                );
+                const fechaEnvio = new Date(r.fecha);
+                const dias =
+                  !r.fecha || isNaN(fechaEnvio.getTime())
+                    ? 0
+                    : Math.floor(
+                        (new Date() - fechaEnvio) / (1000 * 60 * 60 * 24),
+                      );
                 return (
                   <View
                     key={i}
@@ -670,10 +724,10 @@ export default function DashAsesor({ onNavigate }) {
                             color: C.text,
                           }}
                         >
-                          {r.residente}
+                          {r.residente || r.residenteNombre || "Residente"}
                         </Text>
                         <Text style={{ fontSize: 11, color: C.textMuted }}>
-                          {r.titulo} · {r.proyecto}
+                          {r.titulo || r.nombre || "Reporte"} · {r.proyecto}
                         </Text>
                       </View>
                       <Badge
@@ -1040,7 +1094,7 @@ export default function DashAsesor({ onNavigate }) {
                     <Text
                       style={{ fontSize: 13, color: C.text, fontWeight: "500" }}
                     >
-                      {r.residente} — {r.titulo}
+                      {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
                     </Text>
                     <Text
                       style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}
@@ -1130,7 +1184,7 @@ export default function DashAsesor({ onNavigate }) {
                     <Text
                       style={{ fontSize: 13, fontWeight: "600", color: C.text }}
                     >
-                      {r.titulo}
+                      {r.titulo || r.nombre || "Reunión"}
                     </Text>
                     <Text style={{ fontSize: 11, color: C.textMuted }}>
                       {r.fecha} · {r.hora}
@@ -1191,7 +1245,7 @@ export default function DashAsesor({ onNavigate }) {
                   <Text
                     style={{ fontSize: 13, fontWeight: "600", color: C.text }}
                   >
-                    {r.residente} — {r.titulo}
+                    {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
                   </Text>
                   <Badge
                     text={r.status}

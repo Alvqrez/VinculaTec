@@ -24,7 +24,12 @@ const TIMELINE = [
   { label: "Inicio de residencia", date: "01 Ago 2024", done: true },
   { label: "Reporte Parcial 1", date: "15 Oct 2024", done: true },
   { label: "Reporte Parcial 2", date: "12 Nov 2024", done: true },
-  { label: "Reporte Parcial 3", date: "05 Dic 2024", done: false, current: true },
+  {
+    label: "Reporte Parcial 3",
+    date: "05 Dic 2024",
+    done: false,
+    current: true,
+  },
   { label: "Reporte Final", date: "20 Ene 2025", done: false },
   { label: "Presentación oral", date: "31 Ene 2025", done: false },
 ];
@@ -38,7 +43,13 @@ const RUBRIC = [
 ];
 
 export default function ReporteFinal() {
-  const { finalDesbloqueado, todosParcialesAprobados, preliminarAprobado, updateReport } = useReportes() || {};
+  const {
+    finalDesbloqueado,
+    todosParcialesAprobados,
+    preliminarAprobado,
+    updateReport,
+    reports,
+  } = useReportes() || {};
   const [uploadHover, setUploadHover] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitted, setSubmitted] = useState(false);
@@ -52,35 +63,117 @@ export default function ReporteFinal() {
   // ── Lock screen ──────────────────────────────────────────────────────────
   if (!finalDesbloqueado) {
     const faltaPreliminar = !preliminarAprobado;
-    const faltaParciales  = preliminarAprobado && !todosParcialesAprobados;
+    const faltaParciales = preliminarAprobado && !todosParcialesAprobados;
     return (
-      <View style={{ flex: 1, backgroundColor: C.bg, alignItems: "center", justifyContent: "center", padding: 40 }}>
-        <View style={{ width: 80, height: 80, borderRadius: 20, backgroundColor: C.amberLight, alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: C.bg,
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 40,
+        }}
+      >
+        <View
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: 20,
+            backgroundColor: C.amberLight,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 24,
+          }}
+        >
           <Feather name="lock" size={36} color={C.amber} />
         </View>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: C.text, textAlign: "center", marginBottom: 10 }}>
+        <Text
+          style={{
+            fontSize: 22,
+            fontWeight: "800",
+            color: C.text,
+            textAlign: "center",
+            marginBottom: 10,
+          }}
+        >
           Reporte Final bloqueado
         </Text>
-        <Text style={{ fontSize: 14, color: C.textMuted, textAlign: "center", lineHeight: 22, maxWidth: 420, marginBottom: 28 }}>
+        <Text
+          style={{
+            fontSize: 14,
+            color: C.textMuted,
+            textAlign: "center",
+            lineHeight: 22,
+            maxWidth: 420,
+            marginBottom: 28,
+          }}
+        >
           {faltaPreliminar
             ? "Necesitas que tu Reporte Preliminar sea aprobado por tu asesor antes de poder entregar el Reporte Final."
             : faltaParciales
-            ? "Todos tus reportes parciales deben estar en estado Aprobado para desbloquear el Reporte Final."
-            : "Completa todos los requisitos previos para desbloquear el Reporte Final."}
+              ? "Todos tus reportes parciales deben estar en estado Aprobado para desbloquear el Reporte Final."
+              : "Completa todos los requisitos previos para desbloquear el Reporte Final."}
         </Text>
-        <View style={{ backgroundColor: C.card, borderRadius: 14, padding: 20, borderWidth: 1, borderColor: C.border, width: "100%", maxWidth: 380 }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: C.textSub, marginBottom: 12 }}>Requisitos</Text>
+        <View
+          style={{
+            backgroundColor: C.card,
+            borderRadius: 14,
+            padding: 20,
+            borderWidth: 1,
+            borderColor: C.border,
+            width: "100%",
+            maxWidth: 380,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontWeight: "700",
+              color: C.textSub,
+              marginBottom: 12,
+            }}
+          >
+            Requisitos
+          </Text>
           {[
-            { label: "Reporte Preliminar aprobado", done: !!preliminarAprobado },
-            { label: "Reporte Parcial 1 aprobado",  done: false },
-            { label: "Reporte Parcial 2 aprobado",  done: false },
-            { label: "Reporte Parcial 3 aprobado",  done: false },
+            {
+              label: "Reporte Preliminar aprobado",
+              done: !!preliminarAprobado,
+            },
+            ...(reports?.filter((r) => typeof r.id === "number") ?? []).map(
+              (p) => ({
+                label: `${p.title} aprobado`,
+                done: p.status === "Aceptado",
+              }),
+            ),
           ].map((req, i) => (
-            <Row key={i} style={{ alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <View style={{ width: 20, height: 20, borderRadius: 6, backgroundColor: req.done ? C.green : C.bg, borderWidth: req.done ? 0 : 1, borderColor: C.border, alignItems: "center", justifyContent: "center" }}>
+            <Row
+              key={i}
+              style={{ alignItems: "center", gap: 10, marginBottom: 8 }}
+            >
+              <View
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 6,
+                  backgroundColor: req.done ? C.green : C.bg,
+                  borderWidth: req.done ? 0 : 1,
+                  borderColor: C.border,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 {req.done && <Feather name="check" size={12} color="white" />}
               </View>
-              <Text style={{ fontSize: 13, color: req.done ? C.textSub : C.textLight, fontWeight: req.done ? "600" : "400" }}>{req.label}</Text>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: req.done ? C.textSub : C.textLight,
+                  fontWeight: req.done ? "600" : "400",
+                }}
+              >
+                {req.label}
+              </Text>
             </Row>
           ))}
         </View>
@@ -90,13 +183,17 @@ export default function ReporteFinal() {
 
   const selectFile = () => {
     if (!globalThis?.document?.createElement) {
-      Alert.alert("Seleccionar archivo", "La seleccion de archivos esta disponible en la version web.");
+      Alert.alert(
+        "Seleccionar archivo",
+        "La seleccion de archivos esta disponible en la version web.",
+      );
       return;
     }
 
     const input = globalThis.document.createElement("input");
     input.type = "file";
-    input.accept = ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    input.accept =
+      ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     input.onchange = (event) => {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -111,7 +208,10 @@ export default function ReporteFinal() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24 }}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: C.bg }}
+      contentContainerStyle={{ padding: 24 }}
+    >
       {/* Dark Navy Banner Header */}
       <View
         style={{
@@ -135,7 +235,9 @@ export default function ReporteFinal() {
             right: -40,
           }}
         />
-        <Row style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+        <Row
+          style={{ justifyContent: "space-between", alignItems: "flex-start" }}
+        >
           <View style={{ flex: 1, marginRight: 20 }}>
             <Row style={{ alignItems: "center", gap: 8, marginBottom: 6 }}>
               <View
@@ -146,16 +248,41 @@ export default function ReporteFinal() {
                   paddingVertical: 3,
                 }}
               >
-                <Text style={{ fontSize: 10, fontWeight: "700", color: "white", letterSpacing: 0.5 }}>
+                <Text
+                  style={{
+                    fontSize: 10,
+                    fontWeight: "700",
+                    color: "white",
+                    letterSpacing: 0.5,
+                  }}
+                >
                   REPORTE FINAL
                 </Text>
               </View>
-              <Badge text="En Progreso" color={C.amber} bg="rgba(245,158,11,0.2)" />
+              <Badge
+                text="En Progreso"
+                color={C.amber}
+                bg="rgba(245,158,11,0.2)"
+              />
             </Row>
-            <Text style={{ fontSize: 20, fontWeight: "800", color: "white", lineHeight: 26, marginBottom: 4 }}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "800",
+                color: "white",
+                lineHeight: 26,
+                marginBottom: 4,
+              }}
+            >
               Sistema de Gestión de Inventarios
             </Text>
-            <Text style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginBottom: 14 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                color: "rgba(255,255,255,0.6)",
+                marginBottom: 14,
+              }}
+            >
               AutoParts Globales S.A. de C.V.
             </Text>
 
@@ -172,24 +299,42 @@ export default function ReporteFinal() {
                     justifyContent: "center",
                   }}
                 >
-                  <Text style={{ fontSize: 10, color: "white", fontWeight: "800" }}>C.R</Text>
+                  <Text
+                    style={{ fontSize: 10, color: "white", fontWeight: "800" }}
+                  >
+                    C.R
+                  </Text>
                 </View>
-                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", fontWeight: "600" }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    color: "rgba(255,255,255,0.8)",
+                    fontWeight: "600",
+                  }}
+                >
                   Carlos Ramírez
                 </Text>
               </Row>
               <Row style={{ alignItems: "center", gap: 5 }}>
                 <Feather name="user" size={11} color="rgba(255,255,255,0.5)" />
-                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Dr. Martínez</Text>
+                <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
+                  Dr. Martínez
+                </Text>
               </Row>
             </Row>
 
             {/* Deadline */}
             <Row style={{ alignItems: "center", gap: 6 }}>
-              <Feather name="calendar" size={12} color="rgba(255,255,255,0.5)" />
+              <Feather
+                name="calendar"
+                size={12}
+                color="rgba(255,255,255,0.5)"
+              />
               <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                 Fecha límite:{" "}
-                <Text style={{ color: C.amber, fontWeight: "700" }}>20 Enero 2025</Text>
+                <Text style={{ color: C.amber, fontWeight: "700" }}>
+                  20 Enero 2025
+                </Text>
               </Text>
             </Row>
           </View>
@@ -221,9 +366,18 @@ export default function ReporteFinal() {
                   transform: [{ rotate: "-45deg" }],
                 }}
               />
-              <Text style={{ fontSize: 20, fontWeight: "800", color: "white" }}>{pct}%</Text>
+              <Text style={{ fontSize: 20, fontWeight: "800", color: "white" }}>
+                {pct}%
+              </Text>
             </View>
-            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", marginTop: 8, textAlign: "center" }}>
+            <Text
+              style={{
+                fontSize: 11,
+                color: "rgba(255,255,255,0.6)",
+                marginTop: 8,
+                textAlign: "center",
+              }}
+            >
               {doneCount}/{CHECKLIST.length} secciones
             </Text>
           </View>
@@ -232,10 +386,21 @@ export default function ReporteFinal() {
         {/* Progress bar */}
         <View style={{ marginTop: 16 }}>
           <Row style={{ justifyContent: "space-between", marginBottom: 6 }}>
-            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>Progreso del reporte</Text>
-            <Text style={{ fontSize: 11, color: C.teal, fontWeight: "700" }}>{pct}% completado</Text>
+            <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>
+              Progreso del reporte
+            </Text>
+            <Text style={{ fontSize: 11, color: C.teal, fontWeight: "700" }}>
+              {pct}% completado
+            </Text>
           </Row>
-          <View style={{ height: 6, backgroundColor: C.navyLight, borderRadius: 3, overflow: "hidden" }}>
+          <View
+            style={{
+              height: 6,
+              backgroundColor: C.navyLight,
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
             <View
               style={{
                 height: "100%",
@@ -254,8 +419,16 @@ export default function ReporteFinal() {
         <View style={{ flex: 1 }}>
           {/* Checklist */}
           <Card style={{ marginBottom: 16 }}>
-            <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: "800", color: C.text }}>Lista de Contenidos</Text>
+            <Row
+              style={{
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ fontSize: 14, fontWeight: "800", color: C.text }}>
+                Lista de Contenidos
+              </Text>
               <Badge
                 text={`${doneCount}/${CHECKLIST.length} completados`}
                 color={C.teal}
@@ -292,7 +465,9 @@ export default function ReporteFinal() {
                       flexShrink: 0,
                     }}
                   >
-                    {item.done && <Feather name="check" size={12} color="white" />}
+                    {item.done && (
+                      <Feather name="check" size={12} color="white" />
+                    )}
                   </View>
                   <Text
                     style={{
@@ -312,7 +487,14 @@ export default function ReporteFinal() {
 
           {/* File Upload */}
           <Card>
-            <Text style={{ fontSize: 14, fontWeight: "800", color: C.text, marginBottom: 14 }}>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: "800",
+                color: C.text,
+                marginBottom: 14,
+              }}
+            >
               Subir Documento
             </Text>
             <TouchableOpacity
@@ -344,10 +526,19 @@ export default function ReporteFinal() {
               >
                 <Feather name="upload-cloud" size={22} color={C.teal} />
               </View>
-              <Text style={{ fontSize: 14, fontWeight: "700", color: C.text, marginBottom: 4 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: "700",
+                  color: C.text,
+                  marginBottom: 4,
+                }}
+              >
                 Arrastra tu archivo aquí
               </Text>
-              <Text style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+              <Text
+                style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}
+              >
                 o haz clic para seleccionar
               </Text>
               <TouchableOpacity
@@ -359,7 +550,11 @@ export default function ReporteFinal() {
                   paddingVertical: 8,
                 }}
               >
-                <Text style={{ fontSize: 12, color: "white", fontWeight: "700" }}>Seleccionar archivo</Text>
+                <Text
+                  style={{ fontSize: 12, color: "white", fontWeight: "700" }}
+                >
+                  Seleccionar archivo
+                </Text>
               </TouchableOpacity>
             </TouchableOpacity>
             {selectedFile && (
@@ -376,16 +571,22 @@ export default function ReporteFinal() {
                 <Row style={{ alignItems: "center", gap: 8 }}>
                   <Feather name="file-text" size={16} color={C.teal} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: C.text }}>
+                    <Text
+                      style={{ fontSize: 12, fontWeight: "700", color: C.text }}
+                    >
                       {selectedFile.name}
                     </Text>
-                    <Text style={{ fontSize: 11, color: C.textMuted }}>{selectedFile.size}</Text>
+                    <Text style={{ fontSize: 11, color: C.textMuted }}>
+                      {selectedFile.size}
+                    </Text>
                   </View>
                   <Badge text="Listo" color={C.green} bg={C.greenLight} />
                 </Row>
               </View>
             )}
-            <Text style={{ fontSize: 11, color: C.textLight, textAlign: "center" }}>
+            <Text
+              style={{ fontSize: 11, color: C.textLight, textAlign: "center" }}
+            >
               Formatos aceptados: PDF, DOCX · Tamaño máximo: 25 MB
             </Text>
           </Card>
@@ -394,24 +595,63 @@ export default function ReporteFinal() {
           {!submitted ? (
             <TouchableOpacity
               onPress={() => {
-                if (!selectedFile) { Alert.alert("Sin archivo", "Selecciona tu documento antes de entregar."); return; }
-                const today = new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-                updateReport && updateReport("final", { status: "En Revisión", submitted: today });
+                if (!selectedFile) {
+                  Alert.alert(
+                    "Sin archivo",
+                    "Selecciona tu documento antes de entregar.",
+                  );
+                  return;
+                }
+                const today = new Date().toLocaleDateString("es-MX", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                });
+                updateReport &&
+                  updateReport("final", {
+                    status: "En Revisión",
+                    submitted: today,
+                  });
                 setSubmitted(true);
-                Alert.alert("Reporte Final entregado", "Tu asesor recibirá una notificación para revisarlo.");
+                Alert.alert(
+                  "Reporte Final entregado",
+                  "Tu asesor recibirá una notificación para revisarlo.",
+                );
               }}
-              style={{ backgroundColor: C.navy, borderRadius: 12, padding: 16, alignItems: "center", marginTop: 4 }}
+              style={{
+                backgroundColor: C.navy,
+                borderRadius: 12,
+                padding: 16,
+                alignItems: "center",
+                marginTop: 4,
+              }}
             >
               <Row style={{ alignItems: "center", gap: 8 }}>
                 <Feather name="send" size={16} color="white" />
-                <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>Entregar Reporte Final</Text>
+                <Text
+                  style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                >
+                  Entregar Reporte Final
+                </Text>
               </Row>
             </TouchableOpacity>
           ) : (
-            <View style={{ backgroundColor: C.greenLight, borderRadius: 12, padding: 16, alignItems: "center", marginTop: 4 }}>
+            <View
+              style={{
+                backgroundColor: C.greenLight,
+                borderRadius: 12,
+                padding: 16,
+                alignItems: "center",
+                marginTop: 4,
+              }}
+            >
               <Row style={{ alignItems: "center", gap: 8 }}>
                 <Feather name="check-circle" size={16} color={C.green} />
-                <Text style={{ fontSize: 14, fontWeight: "700", color: C.green }}>Reporte entregado — En revisión</Text>
+                <Text
+                  style={{ fontSize: 14, fontWeight: "700", color: C.green }}
+                >
+                  Reporte entregado — En revisión
+                </Text>
               </Row>
             </View>
           )}
@@ -421,7 +661,14 @@ export default function ReporteFinal() {
         <View style={{ width: 280 }}>
           {/* Timeline */}
           <Card style={{ marginBottom: 14 }}>
-            <Text style={{ fontSize: 13, fontWeight: "800", color: C.text, marginBottom: 16 }}>
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "800",
+                color: C.text,
+                marginBottom: 16,
+              }}
+            >
               Línea de Tiempo
             </Text>
             <View style={{ gap: 0 }}>
@@ -437,15 +684,21 @@ export default function ReporteFinal() {
                         backgroundColor: ev.done
                           ? C.teal
                           : ev.current
-                          ? C.amber
-                          : C.bg,
+                            ? C.amber
+                            : C.bg,
                         borderWidth: ev.done ? 0 : 2,
                         borderColor: ev.current ? C.amber : C.border,
                         marginTop: 2,
                       }}
                     >
                       {ev.done && (
-                        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                        <View
+                          style={{
+                            flex: 1,
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
                           <Feather name="check" size={8} color="white" />
                         </View>
                       )}
@@ -462,19 +715,34 @@ export default function ReporteFinal() {
                       />
                     )}
                   </View>
-                  <View style={{ flex: 1, paddingBottom: i < TIMELINE.length - 1 ? 8 : 0 }}>
+                  <View
+                    style={{
+                      flex: 1,
+                      paddingBottom: i < TIMELINE.length - 1 ? 8 : 0,
+                    }}
+                  >
                     <Text
                       style={{
                         fontSize: 12,
                         fontWeight: ev.current ? "800" : "600",
-                        color: ev.done ? C.teal : ev.current ? C.amber : C.textMuted,
+                        color: ev.done
+                          ? C.teal
+                          : ev.current
+                            ? C.amber
+                            : C.textMuted,
                       }}
                     >
                       {ev.label}
                     </Text>
-                    <Text style={{ fontSize: 11, color: C.textLight }}>{ev.date}</Text>
+                    <Text style={{ fontSize: 11, color: C.textLight }}>
+                      {ev.date}
+                    </Text>
                     {ev.current && (
-                      <Badge text="En progreso" color={C.amber} bg={C.amberLight} />
+                      <Badge
+                        text="En progreso"
+                        color={C.amber}
+                        bg={C.amberLight}
+                      />
                     )}
                   </View>
                 </Row>
@@ -484,8 +752,16 @@ export default function ReporteFinal() {
 
           {/* Rubric */}
           <Card>
-            <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <Text style={{ fontSize: 13, fontWeight: "800", color: C.text }}>Rúbrica</Text>
+            <Row
+              style={{
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 14,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: "800", color: C.text }}>
+                Rúbrica
+              </Text>
               <Text style={{ fontSize: 13, fontWeight: "800", color: C.teal }}>
                 {totalEarned}/{totalMax}
               </Text>
@@ -493,13 +769,26 @@ export default function ReporteFinal() {
             <View style={{ gap: 12 }}>
               {RUBRIC.map((r, i) => (
                 <View key={i}>
-                  <Row style={{ justifyContent: "space-between", marginBottom: 5 }}>
-                    <Text style={{ fontSize: 11, color: C.textSub, fontWeight: "600" }}>{r.label}</Text>
+                  <Row
+                    style={{ justifyContent: "space-between", marginBottom: 5 }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: C.textSub,
+                        fontWeight: "600",
+                      }}
+                    >
+                      {r.label}
+                    </Text>
                     <Text style={{ fontSize: 11, color: C.textMuted }}>
                       {r.earned}/{r.max}
                     </Text>
                   </Row>
-                  <ProgressBar pct={(r.earned / r.max) * 100} color={r.earned > 0 ? C.teal : C.border} />
+                  <ProgressBar
+                    pct={(r.earned / r.max) * 100}
+                    color={r.earned > 0 ? C.teal : C.border}
+                  />
                 </View>
               ))}
             </View>
