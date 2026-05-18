@@ -1,38 +1,34 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Card, Badge } from "../components";
-
-const ASESORES = [
-  { id: "a1", nombre: "Dr. Martínez",  departamento: "Sistemas", activos: 4 },
-  { id: "a2", nombre: "Dra. López",    departamento: "Sistemas", activos: 3 },
-  { id: "a3", nombre: "Dr. Herrera",   departamento: "Sistemas", activos: 2 },
-  { id: "a4", nombre: "Dra. Sánchez",  departamento: "Sistemas", activos: 1 },
-  { id: "a5", nombre: "Dr. Ramírez",   departamento: "Sistemas", activos: 0 },
-];
-
-const EMPRESAS = ["Telmex", "Pemex", "CFE", "BioFarma México", "AutoParts Globales", "EduTech Innovación", "Constructora Peña", "SoftSolutions SA", "Tecnológica del Norte", "Grupo Industrial MX"];
-
-const RESIDENTES_DISPONIBLES = [
-  { id: "r1", nombre: "Sofia Hernández",  matricula: "21CS001", carrera: "Ing. en Sistemas" },
-  { id: "r2", nombre: "Diego Castillo",   matricula: "21CS014", carrera: "Ing. en Sistemas" },
-  { id: "r3", nombre: "Valentina Cruz",   matricula: "21CS027", carrera: "Ing. en Sistemas" },
-  { id: "r4", nombre: "Miguel Torres",    matricula: "22CS003", carrera: "Ing. en Sistemas" },
-  { id: "r5", nombre: "Natalia Ramírez",  matricula: "22CS011", carrera: "Ing. en Sistemas" },
-  { id: "r6", nombre: "Emiliano Vargas",  matricula: "22CS019", carrera: "Ing. en Sistemas" },
-];
+import apiClient from "../utils/apiClient";
 
 const PASO_LABELS = ["Proyecto", "Asesor", "Residente", "Confirmar"];
 
 export default function AsignacionJefe() {
   const [paso, setPaso]                   = useState(0);
-  const [proyecto, setProyecto]           = useState({ nombre: "", empresa: "", descripcion: "" });
+  const [proyecto, setProyecto]           = useState({ nombre: "", empresaId: "", empresaNombre: "", descripcion: "" });
   const [asesorId, setAsesorId]           = useState(null);
   const [residentesIds, setResidentesIds] = useState([]);
   const [asignaciones, setAsignaciones]   = useState([]);
 
-  const asesorSel = ASESORES.find((a) => a.id === asesorId);
+  const [asesores,   setAsesores]   = useState([]);
+  const [empresas,   setEmpresas]   = useState([]);
+  const [residentes, setResidentes] = useState([]);
+
+  useEffect(() => {
+    apiClient.get("/api/jefe/asignacion/datos").then((res) => {
+      if (res.ok && res.body?.ok) {
+        setAsesores(res.body.asesores || []);
+        setEmpresas(res.body.empresas || []);
+        setResidentes(res.body.residentes || []);
+      }
+    });
+  }, []);
+
+  const asesorSel = asesores.find((a) => a.id === asesorId);
 
   const toggleResidente = (id) => {
     setResidentesIds((prev) =>
@@ -43,26 +39,32 @@ export default function AsignacionJefe() {
   const validarPaso = () => {
     if (paso === 0) {
       if (!proyecto.nombre.trim()) { Alert.alert("Falta información", "Ingresa el nombre del proyecto."); return; }
-      if (!proyecto.empresa.trim()) { Alert.alert("Falta información", "Selecciona la empresa."); return; }
+      if (!proyecto.empresaId) { Alert.alert("Falta información", "Selecciona la empresa."); return; }
     }
     if (paso === 1 && !asesorId) { Alert.alert("Falta información", "Selecciona un asesor."); return; }
     if (paso === 2 && residentesIds.length === 0) { Alert.alert("Falta información", "Selecciona al menos un residente."); return; }
     setPaso((p) => p + 1);
   };
 
-  const guardarAsignacion = () => {
-    const nuevaAsignacion = {
-      id: Date.now(),
-      proyecto: proyecto.nombre,
-      empresa: proyecto.empresa,
+  const guardarAsignacion = async () => {
+    const res = await apiClient.post("/api/jefe/asignacion", {
+      proyectoNombre: proyecto.nombre,
+      empresaId: proyecto.empresaId,
       descripcion: proyecto.descripcion,
+      asesorId,
+      residentesIds,
+    });
+    if (!res.ok) { Alert.alert("Error", res.body?.mensaje || "No se pudo guardar."); return; }
+    const nuevaAsignacion = {
+      id: res.body.id,
+      proyecto: proyecto.nombre,
+      empresa: proyecto.empresaNombre,
       asesor: asesorSel?.nombre,
-      residentes: residentesIds.map((id) => RESIDENTES_DISPONIBLES.find((r) => r.id === id)?.nombre),
+      residentes: residentesIds.map((id) => residentes.find((r) => r.id === id)?.nombre),
       fecha: new Date().toLocaleDateString("es-MX"),
     };
     setAsignaciones((prev) => [nuevaAsignacion, ...prev]);
-    // Reset
-    setProyecto({ nombre: "", empresa: "", descripcion: "" });
+    setProyecto({ nombre: "", empresaId: "", empresaNombre: "", descripcion: "" });
     setAsesorId(null);
     setResidentesIds([]);
     setPaso(0);
@@ -124,26 +126,17 @@ export default function AsignacionJefe() {
           <Text style={{ fontSize: 11, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Empresa *</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
             <Row style={{ gap: 8 }}>
-              {EMPRESAS.map((emp) => (
+              {empresas.map((emp) => (
                 <TouchableOpacity
-                  key={emp}
-                  onPress={() => setProyecto({ ...proyecto, empresa: emp })}
-                  style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: proyecto.empresa === emp ? C.teal : C.bg, borderWidth: 1, borderColor: proyecto.empresa === emp ? C.teal : C.border }}
+                  key={emp.id}
+                  onPress={() => setProyecto({ ...proyecto, empresaId: emp.id, empresaNombre: emp.nombre })}
+                  style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: proyecto.empresaId === emp.id ? C.teal : C.bg, borderWidth: 1, borderColor: proyecto.empresaId === emp.id ? C.teal : C.border }}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: "600", color: proyecto.empresa === emp ? "white" : C.textMuted }}>{emp}</Text>
+                  <Text style={{ fontSize: 12, fontWeight: "600", color: proyecto.empresaId === emp.id ? "white" : C.textMuted }}>{emp.nombre}</Text>
                 </TouchableOpacity>
               ))}
             </Row>
           </ScrollView>
-          {proyecto.empresa === "" && (
-            <TextInput
-              value={proyecto.empresa}
-              onChangeText={(v) => setProyecto({ ...proyecto, empresa: v })}
-              placeholder="O escribe el nombre de la empresa..."
-              placeholderTextColor={C.textLight}
-              style={{ padding: 11, borderRadius: 8, borderWidth: 1, borderColor: C.border, fontSize: 13, color: C.text, backgroundColor: "#FAFAFA", marginBottom: 16 }}
-            />
-          )}
 
           <Field label="Descripción del Proyecto" value={proyecto.descripcion} onChangeText={(v) => setProyecto({ ...proyecto, descripcion: v })} placeholder="Breve descripción del proyecto y sus objetivos..." multiline />
         </Card>
@@ -163,7 +156,7 @@ export default function AsignacionJefe() {
           </Row>
 
           <View style={{ gap: 10 }}>
-            {ASESORES.map((a) => (
+            {asesores.map((a) => (
               <TouchableOpacity
                 key={a.id}
                 onPress={() => setAsesorId(a.id)}
@@ -218,7 +211,7 @@ export default function AsignacionJefe() {
           )}
 
           <View style={{ gap: 10 }}>
-            {RESIDENTES_DISPONIBLES.map((r) => {
+            {residentes.map((r) => {
               const sel = residentesIds.includes(r.id);
               return (
                 <TouchableOpacity
@@ -259,9 +252,9 @@ export default function AsignacionJefe() {
 
           {[
             { label: "Proyecto",    value: proyecto.nombre,        icon: "folder"     },
-            { label: "Empresa",     value: proyecto.empresa,       icon: "briefcase"  },
-            { label: "Asesor",      value: asesorSel?.nombre,      icon: "user-check" },
-            { label: "Residentes",  value: residentesIds.map((id) => RESIDENTES_DISPONIBLES.find((r) => r.id === id)?.nombre).join(", "), icon: "users" },
+            { label: "Empresa",     value: proyecto.empresaNombre,  icon: "briefcase"  },
+            { label: "Asesor",      value: asesorSel?.nombre,       icon: "user-check" },
+            { label: "Residentes",  value: residentesIds.map((id) => residentes.find((r) => r.id === id)?.nombre).join(", "), icon: "users" },
           ].map((item, i) => (
             <Row key={i} style={{ alignItems: "flex-start", gap: 12, paddingVertical: 12, borderBottomWidth: i < 3 ? 1 : 0, borderBottomColor: C.border }}>
               <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: C.tealLight, alignItems: "center", justifyContent: "center" }}>
