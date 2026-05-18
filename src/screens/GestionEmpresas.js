@@ -1,18 +1,9 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Card, StatCard, Badge } from "../components";
-
-const INITIAL_COMPANIES = [
-  { id:1, name:"Tecnológica del Norte", sector:"Tecnología",  ciudad:"Monterrey",  residentes:3, convenio:"2024-12-31", status:"Activa"     },
-  { id:2, name:"Grupo Industrial MX",   sector:"Manufactura", ciudad:"Guadalajara", residentes:5, convenio:"2025-06-30", status:"Activa"     },
-  { id:3, name:"SoftSolutions SA",      sector:"Software",    ciudad:"CDMX",        residentes:2, convenio:"2024-11-15", status:"Por Vencer" },
-  { id:4, name:"Constructora Peña",     sector:"Construcción",ciudad:"Monterrey",   residentes:4, convenio:"2025-03-20", status:"Activa"     },
-  { id:5, name:"BioFarma México",       sector:"Farmacéutica",ciudad:"Puebla",      residentes:1, convenio:"2024-10-01", status:"Por Vencer" },
-  { id:6, name:"AutoParts Globales",    sector:"Automotriz",  ciudad:"Saltillo",    residentes:6, convenio:"2025-08-15", status:"Activa"     },
-  { id:7, name:"EduTech Innovación",    sector:"Educación",   ciudad:"CDMX",        residentes:2, convenio:"2025-01-10", status:"Nueva"      },
-];
+import apiClient from "../utils/apiClient";
 
 const STATUS_STYLE  = { Activa:{color:C.green,bg:C.greenLight}, "Por Vencer":{color:C.amber,bg:C.amberLight}, Nueva:{color:C.blue,bg:C.blueLight}, Inactiva:{color:C.red,bg:C.redLight} };
 const SECTOR_ICON   = { Tecnología:"cpu", Manufactura:"tool", Software:"code", Construcción:"home", Farmacéutica:"activity", Automotriz:"truck", Educación:"book-open" };
@@ -23,15 +14,34 @@ const CIUDADES      = ["Todas","CDMX","Monterrey","Guadalajara","Puebla","Saltil
 const EMPTY_FORM = { name:"", sector:"Tecnología", ciudad:"", convenio:"", contactoNombre:"", contactoEmail:"", contactoTel:"", status:"Nueva" };
 
 export default function GestionEmpresas() {
-  const [companies,    setCompanies]  = useState(INITIAL_COMPANIES);
+  const [companies,    setCompanies]  = useState([]);
+  const [loading,      setLoading]    = useState(true);
   const [search,       setSearch]     = useState("");
   const [showModal,    setModal]      = useState(false);
   const [showFilter,   setFilter]     = useState(false);
   const [form,         setForm]       = useState(EMPTY_FORM);
   const [filters,      setFilters]    = useState({ sector:"Todos", status:"Todos", ciudad:"Todas" });
   const [editId,       setEditId]     = useState(null);
+  const [toast,        setToast]       = useState(null); // { msg, type }
 
-  // Aplicar filtros + búsqueda
+  const showToast = (msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const reloadEmpresas = () =>
+    apiClient.get("/api/jefe/empresas").then((res) => {
+      if (res.ok && res.body?.ok) setCompanies(res.body.empresas);
+    });
+
+  useEffect(() => {
+    apiClient.get("/api/jefe/empresas").then((res) => {
+      if (res.ok && res.body?.ok) setCompanies(res.body.empresas);
+      setLoading(false);
+    });
+  }, []);
+
+// Aplicar filtros + búsqueda
   const filtered = companies.filter((c) => {
     const q = search.toLowerCase();
     const matchSearch = c.name.toLowerCase().includes(q) || c.sector.toLowerCase().includes(q) || c.ciudad.toLowerCase().includes(q);
@@ -44,18 +54,24 @@ export default function GestionEmpresas() {
   const activeFilterCount = [filters.sector !== "Todos", filters.status !== "Todos", filters.ciudad !== "Todas"].filter(Boolean).length;
 
   const openNew  = ()        => { setForm(EMPTY_FORM); setEditId(null); setModal(true); };
-  const openEdit = (co)      => { setForm({ name:co.name, sector:co.sector, ciudad:co.ciudad, convenio:co.convenio, contactoNombre:"", contactoEmail:"", contactoTel:"", status:co.status }); setEditId(co.id); setModal(true); };
-  const saveCompany = () => {
+  const openEdit = (co)      => { setForm({ name:co.name, sector:co.sector, ciudad:co.ciudad, convenio:co.convenio, contactoNombre:co.contactoNombre||"", contactoEmail:co.contactoEmail||"", contactoTel:co.contactoTel||"", status:co.status }); setEditId(co.id); setModal(true); };
+  const saveCompany = async () => {
     if (!form.name.trim()) return;
     if (editId) {
-      setCompanies((prev) => prev.map((c) => c.id === editId ? { ...c, ...form } : c));
+      const res = await apiClient.put(`/api/jefe/empresas/${editId}`, form);
+      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa actualizada con éxito"); }
+      else showToast(res.body?.mensaje || "Error al actualizar", "error");
     } else {
-      const newId = Math.max(...companies.map((c) => c.id)) + 1;
-      setCompanies((prev) => [...prev, { id: newId, ...form, residentes: 0 }]);
+      const res = await apiClient.post("/api/jefe/empresas", form);
+      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa guardada con éxito"); }
+      else showToast(res.body?.mensaje || "Error al registrar", "error");
     }
-    setModal(false);
   };
-  const deleteCompany = (id) => setCompanies((prev) => prev.filter((c) => c.id !== id));
+  const deleteCompany = async (id) => {
+    const res = await apiClient.delete(`/api/jefe/empresas/${id}`);
+    if (res.ok) { await reloadEmpresas(); showToast("Empresa eliminada"); }
+    else showToast("Error al eliminar", "error");
+  };
 
   const F = ({ label, value, ph, key2, multiline }) => (
     <View style={{ marginBottom: 14 }}>
@@ -220,6 +236,20 @@ export default function GestionEmpresas() {
       {/* Cerrar filtro al tocar afuera */}
       {showFilter && (
         <Pressable style={{ position:"absolute", inset:0 }} onPress={()=>setFilter(false)} />
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <View style={{
+          position: "absolute", bottom: 32, left: "50%", transform: [{ translateX: -160 }],
+          width: 320, backgroundColor: toast.type === "error" ? C.red : C.green,
+          borderRadius: 12, paddingVertical: 14, paddingHorizontal: 20,
+          flexDirection: "row", alignItems: "center", gap: 10,
+          shadowColor: "#000", shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
+        }}>
+          <Feather name={toast.type === "error" ? "x-circle" : "check-circle"} size={18} color="white" />
+          <Text style={{ color: "white", fontWeight: "700", fontSize: 14 }}>{toast.msg}</Text>
+        </View>
       )}
 
       {/* ── Modal Nueva / Editar Empresa ── */}

@@ -5,6 +5,8 @@ require("dotenv").config();
 const authRoutes          = require("./routes/auth");
 const citasRoutes         = require("./routes/citas");
 const asesorRoutes        = require("./routes/asesor");
+const residenteRoutes     = require("./routes/residente");
+const jefeRoutes          = require("./routes/jefe");
 const notificacionesRoutes = require("./routes/notificaciones");
 const fotosRoutes         = require("./routes/fotos");
 
@@ -18,6 +20,8 @@ app.use(express.json());
 app.use("/api/auth",          authRoutes);
 app.use("/api/citas",         citasRoutes);
 app.use("/api/asesor",        asesorRoutes);
+app.use("/api/residente",     residenteRoutes);
+app.use("/api/jefe",          jefeRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
 app.use("/api/fotos",         fotosRoutes);
 
