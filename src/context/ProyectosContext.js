@@ -259,6 +259,33 @@ export function ProyectosProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // ── Estado de desbloqueo por residente ───────────────────────────────────
+  // { [residenteNombre]: Set<fase> } — qué fases puede ya entregar cada residente
+  // Se inicializa con los reportes que ya tienen fecha (ya fueron entregados antes)
+  const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState(
+    () => {
+      const map = {};
+      INITIAL_PROJECTS.forEach((p) => {
+        p.reportes.forEach((r) => {
+          if (!map[r.residente]) map[r.residente] = new Set();
+          if (r.fecha) map[r.residente].add(r.fase); // ya fue entregado = ya estaba desbloqueado
+        });
+      });
+      return map;
+    },
+  );
+
+  /** El asesor desbloquea una fase para un residente específico */
+  const desbloquearReporteResidente = (residenteNombre, fase) => {
+    setDesbloqueadosPorResidente((prev) => {
+      const actual = prev[residenteNombre]
+        ? new Set(prev[residenteNombre])
+        : new Set();
+      actual.add(fase);
+      return { ...prev, [residenteNombre]: actual };
+    });
+  };
+
   // Cargar proyectos desde la API al montar el componente
   useEffect(() => {
     const fetchProyectos = async () => {
@@ -506,6 +533,8 @@ export function ProyectosProvider({ children }) {
         rechazarPropuesta,
         solicitarAvanceFase,
         aprobarAvanceFase,
+        desbloqueadosPorResidente,
+        desbloquearReporteResidente,
         loading,
         error,
       }}
