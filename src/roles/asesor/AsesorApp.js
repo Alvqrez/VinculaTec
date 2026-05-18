@@ -4,7 +4,8 @@ import C from "../../constants/colors"; //no estoy seguro de esto pero creo que 
 import Sidebar from "../../components/Sidebar";//componente de barra lateral que se usa para navegar entre las diferentes secciones de la app
 import TopBar from "../../components/TopBar";//componente de barra superior que se usa para mostrar el nombre del usuario y un botón de cerrar sesión
 import { useFotos } from "../../context/FotosContext";
-import { useNotificaciones } from "../../context/NotificacionesContext";//hook personalizado para manejar las fotos de perfil de los usuarios en la aplicación
+import { useNotificaciones } from "../../context/NotificacionesContext";
+import { useProyectos } from "../../context/ProyectosContext";//hook personalizado para manejar las fotos de perfil de los usuarios en la aplicación
 
 import DashAsesor from "./DashAsesor";//componente que muestra el dashboard del asesor con información relevante y accesos rápidos a las diferentes secciones de la app
 import ProyectosAsesor from "./ProyectosAsesor";//componente que muestra la lista de proyectos asignados al asesor, con opciones para ver detalles, editar o eliminar cada proyecto
@@ -45,11 +46,13 @@ export default function AsesorApp({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
+  const { reload: reloadProyectos } = useProyectos();
 
-  // Cargar foto y notificaciones desde BD al montar (después del login)
+  // Cargar foto, notificaciones y proyectos desde BD al montar (después del login)
   useEffect(() => {
     initUser(usuario?.id);
     reloadNotifs();
+    reloadProyectos();
   }, [usuario?.id]);
 
   const fotoPerfil = getFoto(usuario?.id);

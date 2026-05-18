@@ -34,7 +34,7 @@ const INITIAL_PROPOSED = [
 export function ProyectosProvider({ children }) {
   const [proyectos, setProyectos] = useState([]);
   const [propuestas, setPropuestas] = useState(INITIAL_PROPOSED);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState({});
 
@@ -60,61 +60,51 @@ export function ProyectosProvider({ children }) {
       });
       setDesbloqueadosPorResidente(map);
     };
-
-    if (!loading) {
-      deriveUnlocks();
-    }
+    if (!loading) deriveUnlocks();
   }, [loading, proyectos]);
 
-  // Cargar proyectos desde la API al montar el componente
-  useEffect(() => {
-    const fetchProyectos = async () => {
-      try {
-        setLoading(true);
-        const response = await apiClient.get("/api/asesor/proyectos");
+  const fetchProyectos = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get("/api/asesor/proyectos");
 
-        if (!response.ok) {
-          setError(
-            response.body?.mensaje || response.error?.message ||
-              "Error al cargar proyectos",
-          );
-          setProyectos([]);
-          return;
-        }
-
-        const payload = response.body;
-        if (!payload.ok) {
-          setError(payload.mensaje || "Error al cargar proyectos");
-          setProyectos([]);
-          return;
-        }
-
-        const proyectosFormateados = (payload.proyectos || []).map((p) => ({
-          ...p,
-          id: p.id,
-          title: p.title,
-          company: p.company,
-          phase: p.phase,
-          priority: p.priority,
-          solicitudAvance: p.solicitud_avance || false,
-          residentes: p.residentes || [],
-          reportes: p.reportes || [],
-          reuniones: p.reuniones || [],
-        }));
-
-        setProyectos(proyectosFormateados);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching proyectos:", err);
-        setError("Error de conexión con el servidor");
+      if (!response.ok) {
+        setError(
+          response.body?.mensaje || response.error?.message ||
+            "Error al cargar proyectos",
+        );
         setProyectos([]);
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
-    fetchProyectos();
-  }, []);
+      const payload = response.body;
+      if (!payload?.ok) {
+        setError(payload?.mensaje || "Error al cargar proyectos");
+        setProyectos([]);
+        return;
+      }
+
+      const proyectosFormateados = (payload.proyectos || []).map((p) => ({
+        ...p,
+        solicitudAvance: p.solicitud_avance || false,
+        residentes: p.residentes || [],
+        reportes: p.reportes || [],
+        reuniones: p.reuniones || [],
+      }));
+
+      setProyectos(proyectosFormateados);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching proyectos:", err);
+      setError("Error de conexión con el servidor");
+      setProyectos([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // reload: llamar desde AsesorApp al montar (después del login)
+  const reload = fetchProyectos;
 
   const updateProyecto = (id, changes) =>
     setProyectos((prev) =>
@@ -290,6 +280,7 @@ export function ProyectosProvider({ children }) {
         proyectos,
         propuestas,
         setProyectos,
+        reload,
         updateProyecto,
         addReporte,
         updateReporte,
