@@ -2,7 +2,7 @@ import { View, ScrollView, Platform } from "react-native";
 import C from "../../constants/colors";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useFotos } from "../../context/FotosContext";
 
 import DashResidente from "./DashResidente";
@@ -35,7 +35,9 @@ const NAV = [
 
 export default function ResidenteApp({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
-  const { getFoto, setFoto } = useFotos();
+  const { getFoto, setFoto, initUser } = useFotos();
+
+  useEffect(() => { initUser(usuario?.id); }, [usuario?.id]);
 
   const fotoPerfil = getFoto(usuario?.id);
   const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);

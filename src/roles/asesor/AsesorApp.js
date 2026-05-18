@@ -1,4 +1,4 @@
-import { useState } from "react";//importamos el hook useState de React para manejar el estado de la navegación activa en la aplicación del asesor
+import { useState, useEffect } from "react";//importamos el hook useState de React para manejar el estado de la navegación activa en la aplicación del asesor
 import { View, ScrollView, Platform } from "react-native";//importamos los componentes necesarios de React y React Native para construir la interfaz de usuario de la aplicación del asesor
 import C from "../../constants/colors"; //no estoy seguro de esto pero creo que son las "constantes de colores" que se usan en la app
 import Sidebar from "../../components/Sidebar";//componente de barra lateral que se usa para navegar entre las diferentes secciones de la app
@@ -42,11 +42,13 @@ export default function AsesorApp({ usuario, onLogout }) {
    * lo el que ha iniciado sesión y el onLogout es para salirse de AsesorApp.
   */
   const [activeNav, setActiveNav] = useState("dashboard");
-  const { getFoto, setFoto } = useFotos();//para la foto de perfil (cambiarla)
+  const { getFoto, setFoto, initUser } = useFotos();
+
+  // Cargar foto desde BD al montar (después del login)
+  useEffect(() => { initUser(usuario?.id); }, [usuario?.id]);
 
   const fotoPerfil = getFoto(usuario?.id);
   const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);
-  //metodos para setear y obtener la foto de perfil del usuario actual.
 
   const views = {
     dashboard: <DashAsesor onNavigate={setActiveNav} />,

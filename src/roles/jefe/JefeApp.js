@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, ScrollView, Platform } from "react-native";
 import C from "../../constants/colors";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
+import { useFotos } from "../../context/FotosContext";
 
 import DashJefe           from "./DashJefe";
 import GestionEmpresas    from "../../screens/GestionEmpresas";
@@ -26,20 +27,12 @@ const NAV = [
 
 function JefeAppInner({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
+  const { getFoto, setFoto, initUser } = useFotos();
 
-  // ── Foto de perfil persistente en localStorage ────────────────────────────
-  const storageKey = `vt_foto_${usuario?.id || "jefe"}`;
-  const [fotoPerfil, setFotoPerfilState] = useState(() => {
-    try { return localStorage.getItem(storageKey) || null; } catch { return null; }
-  });
+  useEffect(() => { initUser(usuario?.id); }, [usuario?.id]);
 
-  const setFotoPerfil = (foto) => {
-    setFotoPerfilState(foto);
-    try {
-      if (foto) localStorage.setItem(storageKey, foto);
-      else       localStorage.removeItem(storageKey);
-    } catch { /* sin localStorage */ }
-  };
+  const fotoPerfil = getFoto(usuario?.id);
+  const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);
 
   const views = {
     dashboard:      <DashJefe onNavigate={setActiveNav} />,

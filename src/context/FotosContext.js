@@ -2,18 +2,14 @@
  * FotosContext
  * Almacén centralizado de fotos de perfil de todos los usuarios.
  * Las fotos se persisten en la base de datos a través de la API.
- * Al iniciar, carga TODAS las fotos del usuario actual desde la BD,
- * y permite cargar fotos de otros usuarios bajo demanda.
  */
-import { createContext, useContext, useState, useCallback, useEffect } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
 import { API_BASE } from "../config/api";
 
 const FotosCtx = createContext(null);
 
-// Función auxiliar para obtener el token de autenticación
 const getAuthToken = () => {
   try {
-    // Mismo key que usa AuthContext.js
     return globalThis?.localStorage?.getItem("authToken") ?? null;
   } catch {
     return null;
@@ -22,89 +18,47 @@ const getAuthToken = () => {
 
 export function FotosProvider({ children }) {
   const [fotos, setFotos] = useState({});
-  const [currentUserId, setCurrentUserId] = useState(null);
 
-  // Cargar la foto del usuario actual al iniciar
-  useEffect(() => {
-    const loadCurrentUserId = () => {
-      try {
-        const token = getAuthToken();
-        if (token) {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          setCurrentUserId(payload.id);
-        }
-      } catch {
-        // No hacer nada si no hay token
+  /**
+   * Llamar desde cada *App.js al montar, pasando el id del usuario logueado.
+   * Carga la foto desde la BD y la guarda en el estado local.
+   */
+  const initUser = useCallback(async (userId) => {
+    if (!userId) return;
+    const token = getAuthToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/fotos/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.ok && json.foto) {
+        setFotos((prev) => ({ ...prev, [String(userId)]: json.foto }));
       }
-    };
-
-    loadCurrentUserId();
+    } catch (err) {
+      console.error("FotosContext initUser error:", err);
+    }
   }, []);
 
-  // Cargar foto del usuario actual desde la BD
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const loadCurrentFoto = async () => {
-      try {
-        const token = getAuthToken();
-        if (!token) return;
-
-        const res = await fetch(`${API_BASE}/fotos/${currentUserId}`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const json = await res.json();
-        if (json.ok && json.foto) {
-          setFotos((prev) => ({ ...prev, [currentUserId]: json.foto }));
-        }
-      } catch (err) {
-        console.error("Error al cargar foto del usuario:", err);
-      }
-    };
-
-    loadCurrentFoto();
-  }, [currentUserId]);
-
   const getFoto = useCallback(
-    (userId) => {
-      if (!userId) return null;
-      return fotos[String(userId)] || null;
-    },
+    (userId) => (userId ? fotos[String(userId)] || null : null),
     [fotos],
   );
 
   const setFoto = useCallback(async (userId, base64OrNull) => {
     if (!userId) return;
     const key = String(userId);
+    const token = getAuthToken();
+    if (!token) { console.error("setFoto: sin token"); return; }
 
     try {
-      const token = getAuthToken();
-      if (!token) {
-        console.error("No hay token de autenticación");
-        return;
-      }
-
       if (base64OrNull === null) {
-        // Eliminar foto de la BD
         await fetch(`${API_BASE}/fotos`, {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
-
-        setFotos((prev) => {
-          const next = { ...prev };
-          delete next[key];
-          return next;
-        });
+        setFotos((prev) => { const n = { ...prev }; delete n[key]; return n; });
       } else {
-        // Guardar foto en la BD
         const res = await fetch(`${API_BASE}/fotos`, {
           method: "POST",
           headers: {
@@ -113,48 +67,40 @@ export function FotosProvider({ children }) {
           },
           body: JSON.stringify({ foto_base64: base64OrNull }),
         });
-
         const json = await res.json();
         if (json.ok) {
           setFotos((prev) => ({ ...prev, [key]: base64OrNull }));
         } else {
-          console.error("Error al guardar foto:", json.mensaje);
+          console.error("setFoto error:", json.mensaje);
         }
       }
     } catch (err) {
-      console.error("Error al guardar/eliminar foto:", err);
+      console.error("setFoto error:", err);
     }
   }, []);
 
-  // Función para cargar la foto de un usuario específico (útil para ver fotos de otros usuarios)
   const loadFoto = useCallback(async (userId) => {
     if (!userId) return null;
-
+    const token = getAuthToken();
+    if (!token) return null;
     try {
-      const token = getAuthToken();
-      if (!token) return null;
-
       const res = await fetch(`${API_BASE}/fotos/${userId}`, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
       const json = await res.json();
       if (json.ok && json.foto) {
-        setFotos((prev) => ({ ...prev, [userId]: json.foto }));
+        setFotos((prev) => ({ ...prev, [String(userId)]: json.foto }));
         return json.foto;
       }
       return null;
     } catch (err) {
-      console.error("Error al cargar foto:", err);
+      console.error("loadFoto error:", err);
       return null;
     }
   }, []);
 
   return (
-    <FotosCtx.Provider value={{ getFoto, setFoto, loadFoto }}>
+    <FotosCtx.Provider value={{ getFoto, setFoto, loadFoto, initUser }}>
       {children}
     </FotosCtx.Provider>
   );
