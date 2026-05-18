@@ -1,139 +1,100 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { API_BASE } from "../config/api";
+import C from "../constants/colors";
+import apiClient from "../utils/apiClient";
 
 const Ctx = createContext(null);
 
-// Función auxiliar para obtener el token de autenticación
-const getAuthToken = () => {
-  try {
-    return globalThis?.localStorage?.getItem("vt_token");
-  } catch {
-    return null;
-  }
-};
-
-export function NotificacionesProvider({ children, initialUnread = 0 }) {
-  const [notifications, setNotifications] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(initialUnread);
+export function NotificacionesProvider({ children }) {
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Cargar notificaciones desde el backend
+  // unreadCount siempre derivado de notifications — nunca hardcodeado
+  const unreadCount = notifications
+    ? notifications.filter((n) => n.unread).length
+    : 0;
+
+  // Cargar notificaciones desde el backend y exponer estado real
   useEffect(() => {
     const fetchNotifications = async () => {
+      setLoading(true);
       try {
-        const token = getAuthToken();
-        if (!token) {
-          setLoading(false);
-          return;
+        const response = await apiClient.get("/api/notificaciones");
+        if (response.ok && response.body?.ok) {
+          setNotifications(response.body.notificaciones ?? []);
+          setError(null);
+        } else {
+          setNotifications([]);
+          setError(
+            response.body?.mensaje || response.error?.message ||
+              "Error al cargar notificaciones",
+          );
         }
+      } catch (err) {
+        setNotifications([]);
+        setError("Error de conexión con el servidor");
+        console.error("Notificaciones fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-        const res = await fetch(`${API_BASE}/notificaciones`, {
-
-  // Actualizar unreadCount cuando cambian las notificaciones
-  useEffect(() => {
-    if (notifications) {
-      setUnreadCount(notifications.filter((n) => n.unread).length);
-    }
-  }, [notifications]);
+    fetchNotifications();
+  }, []);
 
   // Función para marcar una notificación como leída
   const markAsRead = async (id) => {
+    setNotifications((prev) =>
+      prev
+        ? prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+        : prev,
+    );
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      await fetch(`${API_BASE}/notificaciones/${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ leida: true }),
-      });
-
-      // Actualizar estado local
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
-      );
-    } catch (err) {
-      console.error("Error al marcar notificación como leída:", err);
+      await apiClient.put(`/api/notificaciones/${id}`, { leida: true });
+    } catch {
+      // Silencioso: el update optimista ya está aplicado
     }
   };
 
   // Función para marcar todas como leídas
   const markAllAsRead = async () => {
+    setNotifications((prev) =>
+      prev ? prev.map((n) => ({ ...n, unread: false })) : prev,
+    );
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      await fetch(`${API_BASE}/notificaciones/marcar-todas-leidas`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Actualizar estado local
-      setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
-    } catch (err) {
-      console.error("Error al marcar todas como leídas:", err);
+      await apiClient.put("/api/notificaciones/marcar-todas-leidas");
+    } catch {
+      // Silencioso
     }
   };
 
   // Función para eliminar una notificación
   const dismissNotification = async (id) => {
+    setNotifications((prev) => (prev ? prev.filter((n) => n.id !== id) : prev));
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      await fetch(`${API_BASE}/notificaciones/${id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      // Actualizar estado local
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-    } catch (err) {
-      console.error("Error al eliminar notificación:", err);
+      await apiClient.delete(`/api/notificaciones/${id}`);
+    } catch {
+      // Silencioso
     }
   };
 
   // Función para crear una nueva notificación (para uso interno del sistema)
   const createNotification = async (notificationData) => {
+    const newNotif = {
+      id: `local-${Date.now()}`,
+      unread: true,
+      time: "Ahora",
+      type: "Sistema",
+      typeBg: C.tealLight,
+      typeColor: C.teal,
+      ...notificationData,
+    };
+    setNotifications((prev) => (prev ? [newNotif, ...prev] : [newNotif]));
+
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      const res = await fetch(`${API_BASE}/notificaciones`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(notificationData),
-      });
-
-      const json = await res.json();
-      if (json.ok) {
-        // Recargar notificaciones
-        const resReload = await fetch(`${API_BASE}/notificaciones`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const jsonReload = await resReload.json();
-        if (jsonReload.ok) {
-          setNotifications(jsonReload.notificaciones);
-          setUnreadCount(jsonReload.notificaciones.filter((n) => n.unread).length);
-        }
-      }
-    } catch (err) {
-      console.error("Error al crear notificación:", err);
+      await apiClient.post("/api/notificaciones", notificationData);
+    } catch {
+      // Silencioso
     }
   };
 
@@ -143,8 +104,8 @@ export function NotificacionesProvider({ children, initialUnread = 0 }) {
         notifications,
         setNotifications,
         unreadCount,
-        setUnreadCount,
         loading,
+        error,
         markAsRead,
         markAllAsRead,
         dismissNotification,

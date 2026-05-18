@@ -1,5 +1,4 @@
 import { getAuthToken } from "../../context/AuthContext";
-import { API_BASE } from "../../config/api";
 import { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -160,7 +159,7 @@ export default function DashAsesor({ onNavigate }) {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        const res = await fetch(`${API_BASE}/asesor/dashboard`, {
+        const res = await fetch("http://localhost:3001/api/asesor/dashboard", {
           headers,
         });
         const json = await res.json();
@@ -168,7 +167,7 @@ export default function DashAsesor({ onNavigate }) {
           setErrorBackend(json.mensaje || "Error al cargar dashboard");
           return;
         }
-        setBackendData(json.data);
+        setBackendData(response.body.data || {});
       } catch (err) {
         setErrorBackend("Error de conexión. ¿Backend corriendo en :3001?");
         console.error("Dashboard fetch error:", err);

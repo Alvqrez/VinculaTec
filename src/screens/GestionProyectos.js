@@ -162,7 +162,7 @@ export default function GestionProyectos() {
       {/* Modal edición */}
       <Modal visible={!!editingCard} transparent animationType="fade">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }} onPress={() => setEditingCard(null)}>
-          <Pressable style={{ width: 420, backgroundColor: C.card, borderRadius: 16, padding: 28, borderWidth: 1, borderColor: C.border }} onPress={() => {}}>
+          <Pressable style={{ width: 420, backgroundColor: C.card, borderRadius: 16, padding: 28, borderWidth: 1, borderColor: C.border }} onPress={(e) => e.stopPropagation()}>
             <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
               <View>
                 <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Editar Proyecto</Text>

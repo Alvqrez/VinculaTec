@@ -13,7 +13,8 @@ const FotosCtx = createContext(null);
 // Función auxiliar para obtener el token de autenticación
 const getAuthToken = () => {
   try {
-    return globalThis?.localStorage?.getItem("vt_token");
+    // Mismo key que usa AuthContext.js
+    return globalThis?.localStorage?.getItem("authToken") ?? null;
   } catch {
     return null;
   }
@@ -90,6 +91,7 @@ export function FotosProvider({ children }) {
       if (base64OrNull === null) {
         // Eliminar foto de la BD
         await fetch(`${API_BASE}/fotos`, {
+          method: "DELETE",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,

@@ -316,7 +316,7 @@ function RecursoModal({ visible, item, color, onClose }) {
             borderRadius: 18,
             overflow: "hidden",
           }}
-          onPress={() => {}}
+          onPress={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <View
