@@ -2,20 +2,33 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const AuthContext = createContext();
 
+// ── Storage helpers (compatibles con web y React Native) ───────────────────
+const storage = {
+  getItem: (key) => {
+    try { return globalThis?.localStorage?.getItem(key) ?? null; } catch { return null; }
+  },
+  setItem: (key, value) => {
+    try { globalThis?.localStorage?.setItem(key, value); } catch { /* sin storage */ }
+  },
+  removeItem: (key) => {
+    try { globalThis?.localStorage?.removeItem(key); } catch { /* sin storage */ }
+  },
+};
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem("authToken");
+    const stored = storage.getItem("authToken");
     if (stored) setToken(stored);
   }, []);
 
   const guardarToken = (nuevoToken) => {
     setToken(nuevoToken);
     if (nuevoToken) {
-      localStorage.setItem("authToken", nuevoToken);
+      storage.setItem("authToken", nuevoToken);
     } else {
-      localStorage.removeItem("authToken");
+      storage.removeItem("authToken");
     }
   };
 
@@ -32,20 +45,16 @@ export function useAuth() {
   return context;
 }
 
-// ── Helpers de token (singleton sobre localStorage) ────────────────────────
+// ── Helpers de token (singleton sobre storage) ─────────────────────────────
 // Usados por App.js y DashAsesor.js directamente (sin contexto React)
 export function setAuthToken(token) {
   if (token) {
-    localStorage.setItem("authToken", token);
+    storage.setItem("authToken", token);
   } else {
-    localStorage.removeItem("authToken");
+    storage.removeItem("authToken");
   }
 }
 
 export function getAuthToken() {
-  try {
-    return localStorage.getItem("authToken") || null;
-  } catch {
-    return null;
-  }
+  return storage.getItem("authToken");
 }

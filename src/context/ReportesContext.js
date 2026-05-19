@@ -1,113 +1,100 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import apiClient from "../utils/apiClient";
 
 const ReportesCtx = createContext(null);
 
-export const INITIAL_REPORTS = [
-  {
-    id: "preliminar",
-    title: "Reporte Preliminar",
-    subtitle: "Diagnóstico inicial del proyecto",
-    status: "Aceptado",
-    submitted: "10 Ene 2026",
-    reviewer: "Dr. Martínez",
-    feedback:
-      "Planteamiento inicial sólido. La fuente del proyecto está debidamente justificada. Procede con los reportes parciales.",
-    items: [
-      { label: "Identificación del proyecto", done: true },
-      { label: "Fuente del proyecto declarada", done: true },
-      { label: "Diagnóstico empresarial", done: true },
-    ],
-  },
-  {
-    id: 1,
-    title: "Reporte Parcial 1",
-    subtitle: "Semana 1–4 · Diagnóstico inicial",
-    status: "Aceptado",
-    submitted: "15 Oct 2024",
-    reviewer: "Dr. Martínez",
-    feedback:
-      "Excelente diagnóstico inicial. Se identificaron correctamente los procesos críticos de la empresa y se establecieron metas claras y medibles para el proyecto.",
-    items: [
-      { label: "Diagnóstico empresarial", done: true },
-      { label: "Objetivos del proyecto", done: true },
-      { label: "Plan de trabajo", done: true },
-    ],
-  },
-  {
-    id: 2,
-    title: "Reporte Parcial 2",
-    subtitle: "Semana 5–8 · Desarrollo",
-    status: "Aceptado",
-    submitted: "12 Nov 2024",
-    reviewer: "Dr. Martínez",
-    feedback:
-      "Buen avance en el desarrollo. Se recomienda profundizar más en la documentación técnica y detallar las pruebas unitarias realizadas.",
-    items: [
-      { label: "Avance de implementación", done: true },
-      { label: "Documentación técnica", done: true },
-      { label: "Pruebas unitarias", done: false },
-    ],
-  },
-  {
-    id: 3,
-    title: "Reporte Parcial 3",
-    subtitle: "Semana 9–12 · Integración",
-    status: "Pendiente",
-    submitted: "05 Dic 2024",
-    reviewer: "Dr. Martínez",
-    feedback: null,
-    items: [
-      { label: "Integración de módulos", done: true },
-      { label: "Pruebas de integración", done: true },
-      { label: "Manual de usuario", done: false },
-    ],
-  },
-  {
-    id: "final",
-    title: "Reporte Final",
-    subtitle: "Semana 13–16 · Cierre",
-    status: "Pendiente",
-    submitted: null,
-    reviewer: "Dr. Martínez",
-    feedback: null,
-    items: [
-      { label: "Resultados obtenidos", done: false },
-      { label: "Conclusiones", done: false },
-      { label: "Anexos y evidencias", done: false },
-    ],
-  },
-];
+function derivarDesbloqueados(reports) {
+  const set = new Set();
+  const prelim = reports.find((r) => r.id === "preliminar");
+  if (prelim?.status === "Aceptado") set.add(1);
+  [1, 2, 3].forEach((id) => {
+    const r = reports.find((rep) => rep.id === id);
+    if (r?.submitted) set.add(id);
+    if (r?.status === "Aceptado") set.add(id + 1);
+  });
+  return set;
+}
+
+const TIPO_MAP = {
+  "preliminar": "preliminar",
+  1: "parcial1",
+  2: "parcial2",
+  3: "parcial3",
+  "final": "final",
+};
 
 export function ReportesProvider({ children }) {
-  const [reports, setReports] = useState(INITIAL_REPORTS);
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [parcialesDesbloqueados, setParcialesDesbloqueados] = useState(new Set());
 
-  /** Actualiza campos de un reporte (usado por el Residente al enviar) */
-  const updateReport = (id, changes) =>
-    setReports((prev) => prev.map((r) => (r.id === id ? { ...r, ...changes } : r)));
+  useEffect(() => {
+    const fetchReportes = async () => {
+      try {
+        const response = await apiClient.get("/api/residente/reportes");
+        if (response.ok && response.body?.ok) {
+          const data = response.body.reportes;
+          setReports(data);
+          setParcialesDesbloqueados(derivarDesbloqueados(data));
+        }
+      } catch (err) {
+        console.error("Error al cargar reportes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReportes();
+  }, []);
+
+  /** Actualiza campos de un reporte (optimista) y persiste en BD */
+  const updateReport = async (id, changes) => {
+    setReports((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...changes } : r)),
+    );
+    // Si el cambio es una entrega (status Pendiente con submitted), persistir en BD
+    if (changes.status === "Pendiente" && changes.submitted) {
+      const tipo = TIPO_MAP[id];
+      if (tipo) {
+        try {
+          await apiClient.put(`/api/residente/reportes/${tipo}`);
+        } catch (err) {
+          console.error("Error al guardar reporte en BD:", err);
+        }
+      }
+    }
+  };
+
+  /** El Asesor desbloquea un parcial para que el Residente pueda entregarlo */
+  const desbloquearParcial = (id) =>
+    setParcialesDesbloqueados((prev) => new Set([...prev, id]));
 
   /**
    * Registra la revisión del Asesor en el contexto del Residente.
-   * Esto es lo que permite que el Residente vea la retroalimentación
-   * después de que el Asesor revisa en SeguimientoAsesor.
    */
   const reviewReport = (id, { status, feedback, reviewer = "Asesor" }) => {
     const today = new Date().toLocaleDateString("es-MX", {
-      day: "2-digit", month: "short", year: "numeric",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
     setReports((prev) =>
       prev.map((r) =>
         r.id === id
           ? { ...r, status, feedback, reviewer, fechaRevision: today }
-          : r
-      )
+          : r,
+      ),
     );
+    // Si el asesor aceptó un parcial, auto-registrar que PODRÍA desbloquear el siguiente
+    // (el asesor aún tiene que presionar el botón explícito)
   };
 
   const preliminarAprobado =
     reports.find((r) => r.id === "preliminar")?.status === "Aceptado";
 
   const parciales = reports.filter((r) => typeof r.id === "number");
-  const todosParcialesAprobados = parciales.every((r) => r.status === "Aceptado");
+  const todosParcialesAprobados = parciales.every(
+    (r) => r.status === "Aceptado",
+  );
   const finalDesbloqueado = preliminarAprobado && todosParcialesAprobados;
 
   return (
@@ -116,9 +103,12 @@ export function ReportesProvider({ children }) {
         reports,
         updateReport,
         reviewReport,
+        desbloquearParcial,
+        parcialesDesbloqueados,
         preliminarAprobado,
         todosParcialesAprobados,
         finalDesbloqueado,
+        loading,
       }}
     >
       {children}

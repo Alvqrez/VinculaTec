@@ -20,19 +20,16 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
   const [showSupport, setSupport] = useState(false);
   const [showPass, setShowPass]   = useState(false);
 
-  const [lastUser, setLastUser]           = useState(null);
-  const [lastUserPhoto, setLastUserPhoto] = useState(null);
+  const [lastUser, setLastUser] = useState(null);
 
   useEffect(() => {
     try {
-      const info = localStorage.getItem("vt_last_user_info");
+      const info = globalThis?.localStorage?.getItem("vt_last_user_info");
       if (info) {
         const parsed = JSON.parse(info);
         setLastUser(parsed);
-        const foto = localStorage.getItem(`vt_foto_${parsed.id}`);
-        setLastUserPhoto(foto || null);
       }
-    } catch { /* sin localStorage */ }
+    } catch { /* sin storage */ }
   }, []);
 
   const fadeAnim  = useRef(new Animated.Value(0)).current;
@@ -146,21 +143,14 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
                */
               <View style={{ alignItems: "center", marginBottom: 24 }}>
                 {/* 1. Foto de perfil */}
-                {lastUserPhoto ? (
-                  <Image
-                    source={{ uri: lastUserPhoto }}
-                    style={{ width: 76, height: 76, borderRadius: 38, borderWidth: 3, borderColor: C.teal }}
-                  />
-                ) : (
-                  <View style={{
-                    width: 76, height: 76, borderRadius: 38,
-                    backgroundColor: C.teal, alignItems: "center", justifyContent: "center",
-                  }}>
-                    <Text style={{ color: "white", fontWeight: "800", fontSize: 26 }}>
-                      {lastUserInitials}
-                    </Text>
-                  </View>
-                )}
+                <View style={{
+                  width: 76, height: 76, borderRadius: 38,
+                  backgroundColor: C.teal, alignItems: "center", justifyContent: "center",
+                }}>
+                  <Text style={{ color: "white", fontWeight: "800", fontSize: 26 }}>
+                    {lastUserInitials}
+                  </Text>
+                </View>
 
                 {/* 2. Nombre completo */}
                 <Text style={{

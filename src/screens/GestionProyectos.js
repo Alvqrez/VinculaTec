@@ -1,69 +1,53 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Badge } from "../components";
+import apiClient from "../utils/apiClient";
 
-// Solo proyectos ya aprobados: En Desarrollo, En Revisión, Concluido
-const INITIAL_COLUMNS = [
-  {
-    id: "desarrollo", label: "En Desarrollo", color: C.amber, bg: C.amberLight,
-    cards: [
-      { id: "c1", title: "Sistema ERP Módulo RRHH",    company: "Grupo Industrial MX",   companyIcon: "tool",      student: "A.L", studentBg: "#059669", priority: "Alta",  priorityColor: C.red,   priorityBg: C.redLight,   tags: ["Python", "Django", "PostgreSQL"], asesor: "Dr. Martínez" },
-      { id: "c2", title: "Portal de Clientes Web",     company: "Tecnológica del Norte",  companyIcon: "cpu",       student: "J.P", studentBg: "#DC2626", priority: "Media", priorityColor: C.amber, priorityBg: C.amberLight, tags: ["React", "GraphQL"],               asesor: "Dr. Herrera"  },
-      { id: "c3", title: "Automatización de Reportes", company: "BioFarma México",        companyIcon: "activity",  student: "L.V", studentBg: "#7C3AED", priority: "Baja",  priorityColor: C.green, priorityBg: C.greenLight, tags: ["Python", "Excel API"],            asesor: "Dra. López"   },
-      { id: "c4", title: "App de Logística Interna",   company: "AutoParts Globales",     companyIcon: "truck",     student: "C.R", studentBg: "#7C3AED", priority: "Alta",  priorityColor: C.red,   priorityBg: C.redLight,   tags: ["React Native", "Node.js"],        asesor: "Dr. Martínez" },
-      { id: "c5", title: "Plataforma de E-learning",   company: "EduTech Innovación",     companyIcon: "book-open", student: "M.G", studentBg: "#0891B2", priority: "Media", priorityColor: C.amber, priorityBg: C.amberLight, tags: ["Vue.js", "Firebase"],             asesor: "Dra. López"   },
-    ],
-  },
-  {
-    id: "revision", label: "En Revisión", color: C.purple, bg: C.purpleLight,
-    cards: [
-      { id: "c6", title: "App Inventarios Móvil",      company: "Constructora Peña",      companyIcon: "home",      student: "R.M", studentBg: "#0891B2", priority: "Alta",  priorityColor: C.red,   priorityBg: C.redLight,   tags: ["Flutter", "SQLite"],              asesor: "Dr. Martínez" },
-      { id: "c7", title: "Dashboard BI Financiero",    company: "SoftSolutions SA",       companyIcon: "code",      student: "K.F", studentBg: "#D97706", priority: "Media", priorityColor: C.amber, priorityBg: C.amberLight, tags: ["Power BI", "SQL Server"],         asesor: "Dr. Herrera"  },
-    ],
-  },
-  {
-    id: "concluido", label: "Concluido", color: C.green, bg: C.greenLight,
-    cards: [
-      { id: "c8", title: "Rediseño UI/UX Tienda",      company: "Tecnológica del Norte",  companyIcon: "cpu",       student: "S.H", studentBg: "#059669", priority: "Baja",  priorityColor: C.green, priorityBg: C.greenLight, tags: ["Figma", "React"],                asesor: "Dra. López"   },
-      { id: "c9", title: "Integración API Pagos",      company: "AutoParts Globales",     companyIcon: "truck",     student: "N.T", studentBg: "#DC2626", priority: "Alta",  priorityColor: C.red,   priorityBg: C.redLight,   tags: ["Stripe", "Node.js"],             asesor: "Dr. Martínez" },
-    ],
-  },
+const PHASE_COLUMNS = [
+  { id: "desarrollo", label: "En Desarrollo", color: C.amber,  bg: C.amberLight  },
+  { id: "revision",   label: "En Revisión",   color: C.purple, bg: C.purpleLight },
+  { id: "concluido",  label: "Concluido",      color: C.green,  bg: C.greenLight  },
 ];
 
-const ASESORES = ["Dr. Martínez", "Dra. López", "Dr. Herrera", "Dra. Sánchez", "Dr. Ramírez"];
+const PRIORITY_STYLE = {
+  Alta:  { color: C.red,   bg: C.redLight   },
+  Media: { color: C.amber, bg: C.amberLight },
+  Baja:  { color: C.green, bg: C.greenLight },
+};
 
 export default function GestionProyectos() {
-  const [columns, setColumns]         = useState(INITIAL_COLUMNS);
-  const [active, setActive]           = useState(null);
-  const [showFilter, setShowFilter]   = useState(false);
-  const [priorityFilter, setPriorityFilter] = useState("Todas");
-  const [editingCard, setEditingCard] = useState(null);
-  const [editForm, setEditForm]       = useState({ title: "", asesor: "" });
+  const [proyectos,        setProyectos]        = useState([]);
+  const [active,           setActive]           = useState(null);
+  const [showFilter,       setShowFilter]       = useState(false);
+  const [priorityFilter,   setPriorityFilter]   = useState("Todas");
+  const [editingCard,      setEditingCard]      = useState(null);
+  const [editForm,         setEditForm]         = useState({ title: "" });
 
-  const filteredColumns = columns.map((col) => ({
+  useEffect(() => {
+    apiClient.get("/api/jefe/proyectos").then((res) => {
+      if (res.ok && res.body?.ok) setProyectos(res.body.proyectos);
+    });
+  }, []);
+
+  const columns = PHASE_COLUMNS.map((col) => ({
     ...col,
-    cards:
-      priorityFilter === "Todas"
-        ? col.cards
-        : col.cards.filter((card) => card.priority === priorityFilter),
+    cards: proyectos.filter((p) =>
+      p.phase === col.id &&
+      (priorityFilter === "Todas" || p.priority === priorityFilter)
+    ),
   }));
 
-  const openEdit = (colId, card) => {
-    setEditingCard({ colId, cardId: card.id });
-    setEditForm({ title: card.title, asesor: card.asesor });
+  const openEdit = (card) => {
+    setEditingCard(card);
+    setEditForm({ title: card.title });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editForm.title.trim()) return;
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === editingCard.colId
-          ? { ...col, cards: col.cards.map((c) => c.id === editingCard.cardId ? { ...c, title: editForm.title.trim(), asesor: editForm.asesor } : c) }
-          : col
-      )
-    );
+    const res = await apiClient.put(`/api/jefe/proyectos/${editingCard.id}`, { title: editForm.title.trim() });
+    if (res.ok) setProyectos((prev) => prev.map((p) => p.id === editingCard.id ? { ...p, title: editForm.title.trim() } : p));
     setEditingCard(null);
   };
 
@@ -75,7 +59,7 @@ export default function GestionProyectos() {
           <View>
             <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>Gestión de Proyectos</Text>
             <Text style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-              Tablero Kanban · {columns.reduce((acc, c) => acc + c.cards.length, 0)} proyectos activos
+              Tablero Kanban · {proyectos.length} proyectos activos
             </Text>
           </View>
           <View style={{ position: "relative" }}>
@@ -114,44 +98,49 @@ export default function GestionProyectos() {
                 </View>
 
                 <View style={{ padding: 10, gap: 10 }}>
-                  {col.cards.map((card, i) => (
+                  {col.cards.map((card, i) => {
+                    const ps = PRIORITY_STYLE[card.priority] || PRIORITY_STYLE.Media;
+                    const tags = card.tags ? card.tags.split(",").map(t => t.trim()).filter(Boolean) : [];
+                    return (
                     <TouchableOpacity
                       key={card.id}
-                      onPress={() => setActive(active === `${col.id}-${i}` ? null : `${col.id}-${i}`)}
+                      onPress={() => setActive(active === card.id ? null : card.id)}
                       activeOpacity={0.85}
-                      style={{ backgroundColor: C.card, borderRadius: 11, borderWidth: 1, borderColor: active === `${col.id}-${i}` ? col.color : C.border, padding: 14 }}
+                      style={{ backgroundColor: C.card, borderRadius: 11, borderWidth: 1, borderColor: active === card.id ? col.color : C.border, padding: 14 }}
                     >
                       <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <Badge text={card.priority} color={card.priorityColor} bg={card.priorityBg} />
-                        <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEdit(col.id, card); }} style={{ padding: 4 }}>
+                        <Badge text={card.priority || "Media"} color={ps.color} bg={ps.bg} />
+                        <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEdit(card); }} style={{ padding: 4 }}>
                           <Feather name="edit-2" size={13} color={C.textLight} />
                         </TouchableOpacity>
                       </Row>
                       <Text style={{ fontSize: 13, fontWeight: "700", color: C.text, marginBottom: 10, lineHeight: 18 }}>{card.title}</Text>
-                      <Row style={{ flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
-                        {card.tags.map((tag, ti) => (
-                          <View key={ti} style={{ backgroundColor: C.bg, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1, borderColor: C.border }}>
-                            <Text style={{ fontSize: 10, color: C.textMuted, fontWeight: "600" }}>{tag}</Text>
-                          </View>
-                        ))}
-                      </Row>
-                      <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                        <Row style={{ alignItems: "center", gap: 6 }}>
-                          <View style={{ width: 22, height: 22, borderRadius: 6, backgroundColor: C.tealLight, alignItems: "center", justifyContent: "center" }}>
-                            <Feather name={card.companyIcon} size={11} color={C.teal} />
-                          </View>
-                          <Text style={{ fontSize: 10, color: C.textMuted, fontWeight: "600" }} numberOfLines={1}>{card.company}</Text>
+                      {tags.length > 0 && (
+                        <Row style={{ flexWrap: "wrap", gap: 5, marginBottom: 12 }}>
+                          {tags.map((tag, ti) => (
+                            <View key={ti} style={{ backgroundColor: C.bg, borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2, borderWidth: 1, borderColor: C.border }}>
+                              <Text style={{ fontSize: 10, color: C.textMuted, fontWeight: "600" }}>{tag}</Text>
+                            </View>
+                          ))}
                         </Row>
-                        <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: card.studentBg, alignItems: "center", justifyContent: "center" }}>
-                          <Text style={{ fontSize: 9, color: "white", fontWeight: "800" }}>{card.student}</Text>
-                        </View>
+                      )}
+                      <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <Text style={{ fontSize: 10, color: C.textMuted, fontWeight: "600" }} numberOfLines={1}>{card.company}</Text>
+                        {card.residenteIniciales && (
+                          <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: C.teal, alignItems: "center", justifyContent: "center" }}>
+                            <Text style={{ fontSize: 9, color: "white", fontWeight: "800" }}>{card.residenteIniciales}</Text>
+                          </View>
+                        )}
                       </Row>
-                      <Row style={{ alignItems: "center", gap: 5, backgroundColor: C.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5 }}>
-                        <Feather name="user-check" size={11} color={C.teal} />
-                        <Text style={{ fontSize: 11, color: C.teal, fontWeight: "600" }}>{card.asesor}</Text>
-                      </Row>
+                      {card.asesor && (
+                        <Row style={{ alignItems: "center", gap: 5, backgroundColor: C.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5 }}>
+                          <Feather name="user-check" size={11} color={C.teal} />
+                          <Text style={{ fontSize: 11, color: C.teal, fontWeight: "600" }}>{card.asesor}</Text>
+                        </Row>
+                      )}
                     </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             ))}
@@ -162,17 +151,17 @@ export default function GestionProyectos() {
       {/* Modal edición */}
       <Modal visible={!!editingCard} transparent animationType="fade">
         <Pressable style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }} onPress={() => setEditingCard(null)}>
-          <Pressable style={{ width: 420, backgroundColor: C.card, borderRadius: 16, padding: 28, borderWidth: 1, borderColor: C.border }} onPress={() => {}}>
+          <Pressable style={{ width: 420, backgroundColor: C.card, borderRadius: 16, padding: 28, borderWidth: 1, borderColor: C.border }} onPress={(e) => e.stopPropagation()}>
             <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
               <View>
                 <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Editar Proyecto</Text>
-                <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Nombre del proyecto y asesor asignado</Text>
+                <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>Nombre del proyecto</Text>
               </View>
               <TouchableOpacity onPress={() => setEditingCard(null)}>
                 <Feather name="x" size={20} color={C.textMuted} />
               </TouchableOpacity>
             </Row>
-            <View style={{ marginBottom: 18 }}>
+            <View style={{ marginBottom: 22 }}>
               <Text style={{ fontSize: 12, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Nombre del Proyecto</Text>
               <TextInput
                 value={editForm.title}
@@ -181,16 +170,6 @@ export default function GestionProyectos() {
                 placeholderTextColor={C.textLight}
                 style={{ padding: 11, borderRadius: 8, borderWidth: 1, borderColor: C.border, fontSize: 14, color: C.text, backgroundColor: "#FAFAFA" }}
               />
-            </View>
-            <View style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 12, fontWeight: "700", color: C.textMuted, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Asesor Asignado</Text>
-              <Row style={{ flexWrap: "wrap", gap: 8 }}>
-                {ASESORES.map((a) => (
-                  <TouchableOpacity key={a} onPress={() => setEditForm({ ...editForm, asesor: a })} style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: editForm.asesor === a ? C.teal : C.border, backgroundColor: editForm.asesor === a ? C.tealLight : "transparent" }}>
-                    <Text style={{ fontSize: 12, fontWeight: "700", color: editForm.asesor === a ? C.teal : C.textMuted }}>{a}</Text>
-                  </TouchableOpacity>
-                ))}
-              </Row>
             </View>
             <Row style={{ gap: 10 }}>
               <TouchableOpacity onPress={() => setEditingCard(null)} style={{ flex: 1, paddingVertical: 11, borderRadius: 9, borderWidth: 1, borderColor: C.border, alignItems: "center" }}>

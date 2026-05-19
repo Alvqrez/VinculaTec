@@ -1,123 +1,26 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Card, StatCard, Badge } from "../components";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: "file-text",
-    iconBg: C.blueLight,
-    iconColor: C.blue,
-    title: "Reporte Parcial 3 pendiente",
-    body: "Tu reporte parcial 3 vence el 15 de diciembre. Recuerda subirlo a tiempo para evitar penalizaciones.",
-    time: "Hace 2 horas",
-    unread: true,
-    type: "Reporte",
-    typeBg: C.blueLight,
-    typeColor: C.blue,
-    actionScreen: "seguimiento",
-    actionLabel: "Ir a Seguimiento",
-  },
-  {
-    id: 2,
-    icon: "check-circle",
-    iconBg: C.greenLight,
-    iconColor: C.green,
-    title: "Reporte Parcial 2 aprobado",
-    body: "El Dr. Martínez ha aprobado tu Reporte Parcial 2 con una calificación de 88/100.",
-    time: "Hace 5 horas",
-    unread: true,
-    type: "Aprobación",
-    typeBg: C.greenLight,
-    typeColor: C.green,
-    actionScreen: "seguimiento",
-    actionLabel: "Ver retroalimentación",
-  },
-  {
-    id: 3,
-    icon: "calendar",
-    iconBg: C.purpleLight,
-    iconColor: C.purple,
-    title: "Cita agendada con asesor",
-    body: "Se ha confirmado tu cita con el Dr. Martínez el 18 de diciembre a las 10:00 AM en sala 204.",
-    time: "Ayer 3:30 PM",
-    unread: true,
-    type: "Cita",
-    typeBg: C.purpleLight,
-    typeColor: C.purple,
-    actionScreen: "calendario",
-    actionLabel: "Ver calendario",
-  },
-  {
-    id: 4,
-    icon: "alert-triangle",
-    iconBg: C.amberLight,
-    iconColor: C.amber,
-    title: "Convenio próximo a vencer",
-    body: "El convenio de SoftSolutions SA vence el 15 de noviembre. Contacta a vinculación para renovarlo.",
-    time: "Ayer 9:00 AM",
-    unread: true,
-    type: "Alerta",
-    typeBg: C.amberLight,
-    typeColor: C.amber,
-  },
-  {
-    id: 5,
-    icon: "message-circle",
-    iconBg: C.tealLight,
-    iconColor: C.teal,
-    title: "Retroalimentación del asesor",
-    body: "El Dr. Martínez ha dejado comentarios en tu Reporte Parcial 2. Revisa los puntos de mejora.",
-    time: "12 Nov 2024",
-    unread: false,
-    type: "Mensaje",
-    typeBg: C.tealLight,
-    typeColor: C.teal,
-  },
-  {
-    id: 6,
-    icon: "award",
-    iconBg: C.greenLight,
-    iconColor: C.green,
-    title: "Evaluación intermedia completada",
-    body: "Has completado exitosamente tu evaluación intermedia con un promedio de 91.5 puntos.",
-    time: "10 Nov 2024",
-    unread: false,
-    type: "Logro",
-    typeBg: C.greenLight,
-    typeColor: C.green,
-  },
-];
-
 export default function Notificaciones({ onNavigate }) {
-  const [localNotifications, setLocalNotifications] = useState(NOTIFICATIONS);
   const [activeTab, setActiveTab] = useState("Todas");
   const {
     notifications: contextNotifications,
-    setNotifications: setContextNotifications,
-    setUnreadCount,
+    setNotifications,
+    unreadCount,
+    loading,
+    markAsRead,
+    markAllAsRead,
+    dismissNotification,
   } = useNotificaciones() || {};
 
-  useEffect(() => {
-    if (!contextNotifications && setContextNotifications) {
-      setContextNotifications(localNotifications);
-    }
-  }, [contextNotifications, localNotifications, setContextNotifications]);
-
-  const notifications = contextNotifications || localNotifications;
-  const setNotificationState = (updater) => {
-    if (setContextNotifications) {
-      setContextNotifications((prev) => updater(prev || localNotifications));
-      return;
-    }
-    setLocalNotifications(updater);
-  };
-
+  const notifications = contextNotifications || [];
   const unread = notifications.filter((n) => n.unread).length;
   const read = notifications.filter((n) => !n.unread).length;
+
   const visibleNotifications = notifications.filter((notif) => {
     if (activeTab === "Sin Leer") return notif.unread;
     if (activeTab === "Reportes") return notif.type === "Reporte";
@@ -126,32 +29,9 @@ export default function Notificaciones({ onNavigate }) {
     return true;
   });
 
-  const markAllRead = () => {
-    setNotificationState((prev) => prev.map((n) => ({ ...n, unread: false })));
-    setUnreadCount && setUnreadCount(0);
-  };
-
-  const markRead = (id) => {
-    setNotificationState((prev) => {
-      const updated = prev.map((n) =>
-        n.id === id ? { ...n, unread: false } : n,
-      );
-      const newCount = updated.filter((n) => n.unread).length;
-      setUnreadCount && setUnreadCount(newCount);
-      return updated;
-    });
-  };
-
-  const dismiss = (id) => {
-    setNotificationState((prev) => {
-      const item = prev.find((n) => n.id === id);
-      const updated = prev.filter((n) => n.id !== id);
-      if (item?.unread)
-        setUnreadCount &&
-          setUnreadCount(updated.filter((n) => n.unread).length);
-      return updated;
-    });
-  };
+  const handleMarkAllRead = () => markAllAsRead?.();
+  const handleMarkRead = (id) => markAsRead?.(id);
+  const handleDismiss = (id) => dismissNotification?.(id);
 
   return (
     <ScrollView
@@ -171,11 +51,11 @@ export default function Notificaciones({ onNavigate }) {
             Notificaciones
           </Text>
           <Text style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-            Centro de avisos y alertas
+            {loading ? "Cargando avisos..." : "Centro de avisos y alertas"}
           </Text>
         </View>
         <TouchableOpacity
-          onPress={markAllRead}
+          onPress={handleMarkAllRead}
           style={{
             flexDirection: "row",
             alignItems: "center",
@@ -338,13 +218,29 @@ export default function Notificaciones({ onNavigate }) {
                       {notif.proyecto && (
                         <Row style={{ alignItems: "center", gap: 4 }}>
                           <Feather name="folder" size={10} color={C.teal} />
-                          <Text style={{ fontSize: 10, color: C.teal, fontWeight: "600" }}>{notif.proyecto}</Text>
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              color: C.teal,
+                              fontWeight: "600",
+                            }}
+                          >
+                            {notif.proyecto}
+                          </Text>
                         </Row>
                       )}
                       {notif.fase && (
                         <Row style={{ alignItems: "center", gap: 4 }}>
                           <Feather name="layers" size={10} color={C.purple} />
-                          <Text style={{ fontSize: 10, color: C.purple, fontWeight: "600" }}>Fase: {notif.fase}</Text>
+                          <Text
+                            style={{
+                              fontSize: 10,
+                              color: C.purple,
+                              fontWeight: "600",
+                            }}
+                          >
+                            Fase: {notif.fase}
+                          </Text>
                         </Row>
                       )}
                     </Row>
@@ -365,7 +261,7 @@ export default function Notificaciones({ onNavigate }) {
                     <Row style={{ gap: 8 }}>
                       {notif.unread && (
                         <TouchableOpacity
-                          onPress={() => markRead(notif.id)}
+                          onPress={() => handleMarkRead(notif.id)}
                           style={{
                             paddingHorizontal: 10,
                             paddingVertical: 5,
@@ -387,16 +283,35 @@ export default function Notificaciones({ onNavigate }) {
                         </TouchableOpacity>
                       )}
                       {notif.actionScreen && onNavigate && (
-                          <TouchableOpacity
-                            onPress={() => { markRead(notif.id); onNavigate(notif.actionScreen); }}
-                            style={{ flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, backgroundColor: C.teal }}
+                        <TouchableOpacity
+                          onPress={() => {
+                            handleMarkRead(notif.id);
+                            onNavigate(notif.actionScreen);
+                          }}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 4,
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: 6,
+                            backgroundColor: C.teal,
+                          }}
+                        >
+                          <Feather name="arrow-right" size={11} color="white" />
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: "white",
+                              fontWeight: "700",
+                            }}
                           >
-                            <Feather name="arrow-right" size={11} color="white" />
-                            <Text style={{ fontSize: 11, color: "white", fontWeight: "700" }}>{notif.actionLabel}</Text>
-                          </TouchableOpacity>
-                        )}
+                            {notif.actionLabel}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                       <TouchableOpacity
-                        onPress={() => dismiss(notif.id)}
+                        onPress={() => handleDismiss(notif.id)}
                         style={{
                           width: 28,
                           height: 28,

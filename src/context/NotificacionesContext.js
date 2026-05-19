@@ -1,41 +1,114 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
+import C from "../constants/colors";
+import apiClient from "../utils/apiClient";
 
 const Ctx = createContext(null);
-const STORAGE_KEY = "vinculatec:notificaciones";
 
-const loadStoredNotifications = () => {
-  try {
-    const stored = globalThis?.localStorage?.getItem(STORAGE_KEY);
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-};
+export function NotificacionesProvider({ children }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-export function NotificacionesProvider({ children, initialUnread = 4 }) {
-  const [notifications, setNotifications] = useState(loadStoredNotifications);
-  const [unreadCount, setUnreadCount] = useState(() =>
-    notifications ? notifications.filter((n) => n.unread).length : initialUnread,
-  );
+  const unreadCount = notifications
+    ? notifications.filter((n) => n.unread).length
+    : 0;
 
-  useEffect(() => {
-    if (!notifications) return;
+  const fetchNotifications = async () => {
+    setLoading(true);
+    try {
+      const response = await apiClient.get("/api/notificaciones");
+      if (response.ok && response.body?.ok) {
+        setNotifications(response.body.notificaciones ?? []);
+        setError(null);
+      } else {
+        setNotifications([]);
+        setError(
+          response.body?.mensaje || response.error?.message ||
+            "Error al cargar notificaciones",
+        );
+      }
+    } catch (err) {
+      setNotifications([]);
+      setError("Error de conexión con el servidor");
+      console.error("Notificaciones fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    setUnreadCount(notifications.filter((n) => n.unread).length);
+  // reload: llamar desde cada *App.js al montar (después del login)
+  const reload = fetchNotifications;
+
+  // Función para marcar una notificación como leída
+  const markAsRead = async (id) => {
+    setNotifications((prev) =>
+      prev
+        ? prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
+        : prev,
+    );
+    try {
+      await apiClient.put(`/api/notificaciones/${id}`, { leida: true });
+    } catch {
+      // Silencioso: el update optimista ya está aplicado
+    }
+  };
+
+  // Función para marcar todas como leídas
+  const markAllAsRead = async () => {
+    setNotifications((prev) =>
+      prev ? prev.map((n) => ({ ...n, unread: false })) : prev,
+    );
+    try {
+      await apiClient.put("/api/notificaciones/marcar-todas-leidas");
+    } catch {
+      // Silencioso
+    }
+  };
+
+  // Función para eliminar una notificación
+  const dismissNotification = async (id) => {
+    setNotifications((prev) => (prev ? prev.filter((n) => n.id !== id) : prev));
+    try {
+      await apiClient.delete(`/api/notificaciones/${id}`);
+    } catch {
+      // Silencioso
+    }
+  };
+
+  // Función para crear una nueva notificación (para uso interno del sistema)
+  const createNotification = async (notificationData) => {
+    const newNotif = {
+      id: `local-${Date.now()}`,
+      unread: true,
+      time: "Ahora",
+      type: "Sistema",
+      typeBg: C.tealLight,
+      typeColor: C.teal,
+      ...notificationData,
+    };
+    setNotifications((prev) => (prev ? [newNotif, ...prev] : [newNotif]));
 
     try {
-      globalThis?.localStorage?.setItem(
-        STORAGE_KEY,
-        JSON.stringify(notifications),
-      );
+      await apiClient.post("/api/notificaciones", notificationData);
     } catch {
-      // localStorage only exists in web builds.
+      // Silencioso
     }
-  }, [notifications]);
+  };
 
   return (
     <Ctx.Provider
-      value={{ notifications, setNotifications, unreadCount, setUnreadCount }}
+      value={{
+        notifications,
+        setNotifications,
+        unreadCount,
+        loading,
+        error,
+        reload,
+        markAsRead,
+        markAllAsRead,
+        dismissNotification,
+        createNotification,
+      }}
     >
       {children}
     </Ctx.Provider>

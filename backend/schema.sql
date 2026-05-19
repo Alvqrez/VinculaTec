@@ -80,17 +80,18 @@ CREATE TABLE IF NOT EXISTS residentes (
 
 -- ── Proyectos ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS proyectos (
-  id            VARCHAR(50) PRIMARY KEY,  -- ID manual
-  titulo        VARCHAR(200) NOT NULL,
-  descripcion   TEXT,
-  empresa_id    VARCHAR(50),
-  residente_id  VARCHAR(50),
-  asesor_id     VARCHAR(50),
-  estado        ENUM('propuesto','desarrollo','revision','concluido') DEFAULT 'propuesto',
-  prioridad     ENUM('Alta','Media','Baja') DEFAULT 'Media',
-  tecnologias   VARCHAR(255),
-  progreso      DECIMAL(5,2) DEFAULT 0 COMMENT '0-100 porcentaje de avance',
-  created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  id                VARCHAR(50) PRIMARY KEY,  -- ID manual
+  titulo            VARCHAR(200) NOT NULL,
+  descripcion       TEXT,
+  empresa_id        VARCHAR(50),
+  residente_id      VARCHAR(50),
+  asesor_id         VARCHAR(50),
+  estado            ENUM('propuesto','desarrollo','revision','concluido') DEFAULT 'propuesto',
+  prioridad         ENUM('Alta','Media','Baja') DEFAULT 'Media',
+  tecnologias       VARCHAR(255),
+  progreso          DECIMAL(5,2) DEFAULT 0 COMMENT '0-100 porcentaje de avance',
+  solicitud_avance  BOOLEAN DEFAULT FALSE,
+  created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (empresa_id)   REFERENCES empresas(id)   ON DELETE SET NULL,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE SET NULL,
   FOREIGN KEY (asesor_id)    REFERENCES asesores(id)   ON DELETE SET NULL,
@@ -168,4 +169,13 @@ CREATE TABLE IF NOT EXISTS fuentes_informacion (
   FOREIGN KEY (revisado_por) REFERENCES usuarios(id) ON DELETE SET NULL,
   INDEX idx_tipo (tipo),
   INDEX idx_estado (estado)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Fotos de Perfil ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS fotos_perfil (
+  usuario_id  VARCHAR(50) PRIMARY KEY,
+  foto_base64 TEXT,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

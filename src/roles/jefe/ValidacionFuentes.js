@@ -1,70 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, Modal, TextInput } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../../constants/colors";
 import { Row, Card, Badge } from "../../components";
-
-const ESTUDIANTES = [
-  {
-    nombre: "Oscar",
-    carrera: "Ing. en Sistemas de Información",
-    fuenteDeclarada: "Propuesta Propia",
-    tipoFuente: "propia",
-  },
-  {
-    nombre: "Ana García",
-    carrera: "Ing. Industrial",
-    fuenteDeclarada: "Banco de Proyectos",
-    tipoFuente: "banco",
-  },
-  {
-    nombre: "Luis Hernández",
-    carrera: "Ing. en Sistemas",
-    fuenteDeclarada: "Propuesta Empresa",
-    tipoFuente: "empresa",
-  },
-  {
-    nombre: "Sofía Martínez",
-    carrera: "Ing. Industrial",
-    fuenteDeclarada: "Propuesta Propia",
-    tipoFuente: "propia",
-  },
-];
+import apiClient from "../../utils/apiClient";
 
 const FUENTE_STYLES = {
-  banco: { bg: "#e0f2fe", color: "#0369a1", label: "Banco de Proyectos" },
-  propia: { bg: "#fef3c7", color: "#92400e", label: "Propuesta Propia" },
-  empresa: { bg: "#dcfce7", color: "#166534", label: "Propuesta Empresa" },
+  banco:   { bg: "#e0f2fe", color: "#0369a1", label: "Banco de Proyectos" },
+  propia:  { bg: "#fef3c7", color: "#92400e", label: "Propuesta Propia"   },
+  empresa: { bg: "#dcfce7", color: "#166534", label: "Propuesta Empresa"  },
 };
 
 export default function ValidacionFuentes({ onNavigate }) {
-  const [estudiantes, setEstudiantes] = useState(
-    ESTUDIANTES.map((e) => ({ ...e, estado: null }))  // null=pendiente, true=autorizado, false=rechazado
-  );
+  const [fuentes, setFuentes] = useState([]);
   const [showRechazoModal, setShowRechazoModal] = useState(false);
-  const [rechazoIndex, setRechazoIndex] = useState(null);
+  const [rechazoId, setRechazoId] = useState(null);
   const [motivoRechazo, setMotivoRechazo] = useState("");
 
-  const autorizarFuente = (index) => {
-    const copy = [...estudiantes];
-    copy[index].estado = true;
-    setEstudiantes(copy);
+  useEffect(() => {
+    apiClient.get("/api/jefe/fuentes").then((res) => {
+      if (res.ok && res.body?.ok) setFuentes(res.body.fuentes);
+    });
+  }, []);
+
+  const autorizarFuente = async (id) => {
+    const res = await apiClient.put(`/api/jefe/fuentes/${id}`, { estado: "Validada" });
+    if (res.ok) setFuentes((prev) => prev.map((f) => f.id === id ? { ...f, estado: "Validada" } : f));
   };
 
-  const abrirRechazo = (index) => {
-    setRechazoIndex(index);
+  const abrirRechazo = (id) => {
+    setRechazoId(id);
     setMotivoRechazo("");
     setShowRechazoModal(true);
   };
 
-  const confirmarRechazo = () => {
+  const confirmarRechazo = async () => {
     if (!motivoRechazo.trim()) return;
-    const copy = [...estudiantes];
-    copy[rechazoIndex].estado = false;
-    copy[rechazoIndex].motivoRechazo = motivoRechazo.trim();
-    setEstudiantes(copy);
+    const res = await apiClient.put(`/api/jefe/fuentes/${rechazoId}`, { estado: "Rechazada", observaciones: motivoRechazo.trim() });
+    if (res.ok) setFuentes((prev) => prev.map((f) => f.id === rechazoId ? { ...f, estado: "Rechazada", motivoRechazo: motivoRechazo.trim() } : f));
     setShowRechazoModal(false);
-    setRechazoIndex(null);
+    setRechazoId(null);
     setMotivoRechazo("");
   };
 
@@ -106,10 +81,10 @@ export default function ValidacionFuentes({ onNavigate }) {
           </Row>
 
           {/* Filas */}
-          {estudiantes.map((est, i) => {
-            const style = FUENTE_STYLES[est.tipoFuente];
+          {fuentes.map((est, i) => {
+            const style = FUENTE_STYLES[est.tipoFuente] || FUENTE_STYLES.propia;
             return (
-              <Row key={i} style={{ paddingVertical: 20, paddingHorizontal: 32, borderBottomWidth: i < estudiantes.length - 1 ? 1 : 0, borderBottomColor: C.borderLight, alignItems: "center" }}>
+              <Row key={est.id} style={{ paddingVertical: 20, paddingHorizontal: 32, borderBottomWidth: i < fuentes.length - 1 ? 1 : 0, borderBottomColor: C.borderLight, alignItems: "center" }}>
                 <View style={{ flex: 2 }}>
                   <Text style={{ fontSize: 14, fontWeight: "700", color: C.text }}>{est.nombre}</Text>
                   <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 2 }}>{est.carrera}</Text>
@@ -125,12 +100,12 @@ export default function ValidacionFuentes({ onNavigate }) {
                   </View>
                 </View>
                 <View style={{ flex: 1 }}>
-                  {est.estado === true ? (
+                  {est.estado === "Validada" ? (
                     <Row style={{ alignItems: "center", gap: 6 }}>
                       <Feather name="check-circle" size={16} color={C.green} />
                       <Text style={{ fontSize: 13, fontWeight: "600", color: C.green }}>Autorizado</Text>
                     </Row>
-                  ) : est.estado === false ? (
+                  ) : est.estado === "Rechazada" ? (
                     <Row style={{ alignItems: "center", gap: 6 }}>
                       <Feather name="x-circle" size={16} color={C.red} />
                       <Text style={{ fontSize: 13, fontWeight: "600", color: C.red }}>Rechazado</Text>
@@ -138,13 +113,13 @@ export default function ValidacionFuentes({ onNavigate }) {
                   ) : (
                     <Row style={{ gap: 8 }}>
                       <TouchableOpacity
-                        onPress={() => autorizarFuente(i)}
+                        onPress={() => autorizarFuente(est.id)}
                         style={{ backgroundColor: C.teal, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 }}
                       >
                         <Text style={{ color: "white", fontWeight: "600", fontSize: 12 }}>Autorizar</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => abrirRechazo(i)}
+                        onPress={() => abrirRechazo(est.id)}
                         style={{ backgroundColor: "white", paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6, borderWidth: 1, borderColor: C.red }}
                       >
                         <Text style={{ color: C.red, fontWeight: "600", fontSize: 12 }}>Rechazar</Text>
@@ -163,9 +138,9 @@ export default function ValidacionFuentes({ onNavigate }) {
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", alignItems: "center" }}>
           <View style={{ width: 400, backgroundColor: "white", borderRadius: 14, padding: 28, gap: 16 }}>
             <Text style={{ fontSize: 16, fontWeight: "800", color: C.text }}>Rechazar Fuente</Text>
-            {rechazoIndex !== null && (
+            {rechazoId !== null && (
               <Text style={{ fontSize: 13, color: C.textMuted }}>
-                Estudiante: <Text style={{ color: C.text, fontWeight: "600" }}>{estudiantes[rechazoIndex]?.nombre}</Text>
+                Estudiante: <Text style={{ color: C.text, fontWeight: "600" }}>{fuentes.find(f => f.id === rechazoId)?.nombre}</Text>
               </Text>
             )}
             <View>

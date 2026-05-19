@@ -24,9 +24,23 @@ const FASE_TO_REPORTES_ID = {
   Final: "final",
 };
 
+// Secuencia canónica de fases en orden
+const FASE_SEQUENCE = [
+  "Preliminar",
+  "Parcial 1",
+  "Parcial 2",
+  "Parcial 3",
+  "Final",
+];
+
 export default function SeguimientoAsesor() {
-  const { proyectos, updateReporte } = useProyectos() || { proyectos: [] };
-  const { reviewReport } = useReportes() || {};
+  const {
+    proyectos,
+    updateReporte,
+    desbloqueadosPorResidente,
+    desbloquearReporteResidente,
+  } = useProyectos() || { proyectos: [] };
+  const { reviewReport, desbloquearParcial } = useReportes() || {};
   const { setNotifications } = useNotificaciones() || {};
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
@@ -77,14 +91,37 @@ export default function SeguimientoAsesor() {
   // ── Stats globales ────────────────────────────────────────────────────────
   const globalStats = useMemo(() => {
     let aceptados = 0,
-      total = 0;
+      total = 0,
+      pendientes = 0;
+    let fechaMasTemprana = null;
+
     proyectos.forEach((p) => {
       p.reportes.forEach((r) => {
         total++;
         if (r.status === "Aceptado") aceptados++;
+        if (r.status === "Pendiente") {
+          pendientes++;
+          if (!r.fecha) return; // Sin fecha → no se envió aún
+          const f = new Date(r.fecha);
+          if (isNaN(f.getTime())) return; // Fecha inválida
+          if (!fechaMasTemprana || f < fechaMasTemprana) fechaMasTemprana = f;
+        }
       });
     });
-    return { aceptados, total, nextDeadline: "15 May 2026" };
+
+    let esperandoLabel = "Sin pendientes";
+    if (fechaMasTemprana) {
+      const hoy = new Date();
+      const diff = Math.floor((hoy - fechaMasTemprana) / (1000 * 60 * 60 * 24));
+      esperandoLabel =
+        diff === 0
+          ? "Recibido hoy"
+          : diff === 1
+            ? "Hace 1 día"
+            : `Hace ${diff} días`;
+    }
+
+    return { aceptados, total, pendientes, esperandoLabel };
   }, [proyectos]);
 
   // ── Stats del residente seleccionado ──────────────────────────────────────
@@ -115,7 +152,9 @@ export default function SeguimientoAsesor() {
     setFeedbackError(false);
 
     const today = new Date().toISOString().slice(0, 10);
-    const statusFinal = newStatus === "Aceptado" ? "Aceptado" : "Por corregir";
+    // Los reportes preliminares solo se aceptan o no aceptan, no se califican
+    const esPreliminar = reviewingReport.fase === "Preliminar";
+    const statusFinal = newStatus === "Aceptado" ? "Aceptado" : (esPreliminar ? "No aceptado" : "Por corregir");
 
     const historialEntry = {
       status: statusFinal,
@@ -156,11 +195,11 @@ export default function SeguimientoAsesor() {
           icon: isAceptado ? "check-circle" : "x-circle",
           iconBg: isAceptado ? C.greenLight : C.redLight,
           iconColor: isAceptado ? C.green : C.red,
-          title: `${reviewingReport.titulo} — ${isAceptado ? "Aceptado ✓" : "Requiere correcciones"}`,
+          title: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : (isAceptado ? "Aceptado ✓" : "Requiere correcciones")}`,
           body: feedback.trim(),
           time: "Ahora",
           unread: true,
-          type: isAceptado ? "Aceptación" : "Por corregir",
+          type: isAceptado ? "Aceptación" : (esPreliminar ? "No aceptado" : "Por corregir"),
           typeBg: isAceptado ? C.greenLight : C.redLight,
           typeColor: isAceptado ? C.green : C.red,
           proyecto: activeProject.title,
@@ -209,11 +248,16 @@ export default function SeguimientoAsesor() {
           iconColor={C.green}
         />
         <StatCard
-          label="Próx. Vencimiento"
-          value={globalStats.nextDeadline}
+          label="Reportes Pendientes"
+          value={globalStats.pendientes > 0 ? `${globalStats.pendientes}` : "0"}
+          sub={
+            globalStats.pendientes > 0
+              ? globalStats.esperandoLabel
+              : "Todo al día"
+          }
           icon="clock"
-          iconBg={C.redLight}
-          iconColor={C.red}
+          iconBg={globalStats.pendientes > 0 ? C.redLight : C.greenLight}
+          iconColor={globalStats.pendientes > 0 ? C.red : C.green}
         />
       </Row>
 
@@ -547,6 +591,28 @@ export default function SeguimientoAsesor() {
           ) : (
             <View style={{ gap: 12 }}>
               {reportesFiltrados.map((report) => {
+                // ── Determinar si este reporte está bloqueado ──────────────
+                // Bloqueado = no tiene fecha de entrega Y el asesor no lo ha desbloqueado
+                const desbloqueadosDeEsteResidente =
+                  desbloqueadosPorResidente?.[selectedResidente] ?? new Set();
+                const esBloqueado =
+                  !report.fecha &&
+                  !desbloqueadosDeEsteResidente.has(report.fase);
+
+                // ── Determinar si el asesor puede desbloquearlo ahora ─────
+                // Solo si la fase ANTERIOR está Aceptada (o es el primero tras el Preliminar)
+                const idxFase = FASE_SEQUENCE.indexOf(report.fase);
+                const fasePrev =
+                  idxFase > 0 ? FASE_SEQUENCE[idxFase - 1] : null;
+                const reportPrev = fasePrev
+                  ? reportesFiltrados.find((r) => r.fase === fasePrev)
+                  : null;
+                const puedeDesbloquear =
+                  esBloqueado &&
+                  fasePrev !== null && // Preliminar no se desbloquea aquí
+                  reportPrev?.status === "Aceptado";
+
+                // ── Colores según estado ──────────────────────────────────
                 const statusMap = {
                   Aceptado: { color: C.green, bg: C.greenLight, icon: "check" },
                   Pendiente: {
@@ -560,13 +626,17 @@ export default function SeguimientoAsesor() {
                     icon: "alert-circle",
                   },
                 };
-                const st = statusMap[report.status] || {
-                  color: C.textMuted,
-                  bg: C.bg,
-                  icon: "minus",
-                };
+                const st = esBloqueado
+                  ? { color: C.textMuted, bg: C.bg, icon: "lock" }
+                  : statusMap[report.status] || {
+                      color: C.textMuted,
+                      bg: C.bg,
+                      icon: "minus",
+                    };
+
                 const isExpanded = expandedReport === report.id;
                 const canReview =
+                  !esBloqueado &&
                   (report.status === "Pendiente" ||
                     report.status === "Por corregir") &&
                   report.fecha;
@@ -577,15 +647,21 @@ export default function SeguimientoAsesor() {
                     style={{
                       padding: 0,
                       overflow: "hidden",
-                      borderLeftWidth: report.status === "Pendiente" ? 3 : 0,
+                      borderLeftWidth: esBloqueado
+                        ? 0
+                        : report.status === "Pendiente" && report.fecha
+                          ? 3
+                          : 0,
                       borderLeftColor: C.amber,
+                      opacity: esBloqueado ? 0.75 : 1,
                     }}
                   >
                     <TouchableOpacity
                       onPress={() =>
+                        !esBloqueado &&
                         setExpandedReport(isExpanded ? null : report.id)
                       }
-                      activeOpacity={0.9}
+                      activeOpacity={esBloqueado ? 1 : 0.9}
                       style={{ padding: 16 }}
                     >
                       <Row
@@ -618,7 +694,7 @@ export default function SeguimientoAsesor() {
                               style={{
                                 fontSize: 14,
                                 fontWeight: "700",
-                                color: C.text,
+                                color: esBloqueado ? C.textMuted : C.text,
                               }}
                             >
                               {report.titulo}
@@ -632,7 +708,18 @@ export default function SeguimientoAsesor() {
                             >
                               Fase: {report.fase}
                             </Text>
-                            {report.fecha ? (
+                            {esBloqueado ? (
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: C.textLight,
+                                  marginTop: 2,
+                                  fontStyle: "italic",
+                                }}
+                              >
+                                Bloqueado — el residente no puede entregar aún
+                              </Text>
+                            ) : report.fecha ? (
                               <Text
                                 style={{
                                   fontSize: 11,
@@ -646,33 +733,74 @@ export default function SeguimientoAsesor() {
                               <Text
                                 style={{
                                   fontSize: 11,
-                                  color: C.textLight,
+                                  color: C.teal,
                                   marginTop: 2,
                                   fontStyle: "italic",
                                 }}
                               >
-                                Sin entregar
+                                Desbloqueado — esperando entrega del residente
                               </Text>
                             )}
                           </View>
                         </Row>
                         <Row style={{ alignItems: "center", gap: 8 }}>
                           <Badge
-                            text={report.status}
+                            text={esBloqueado ? "Bloqueado" : report.status}
                             color={st.color}
                             bg={st.bg}
                           />
-                          <Feather
-                            name={isExpanded ? "chevron-up" : "chevron-down"}
-                            size={14}
-                            color={C.textMuted}
-                          />
+                          {!esBloqueado && (
+                            <Feather
+                              name={isExpanded ? "chevron-up" : "chevron-down"}
+                              size={14}
+                              color={C.textMuted}
+                            />
+                          )}
                         </Row>
                       </Row>
+
+                      {/* ── Botón Desbloquear (en la card del reporte bloqueado) ── */}
+                      {puedeDesbloquear && (
+                        <TouchableOpacity
+                          onPress={() => {
+                            // Actualizar ProyectosContext (vista del asesor)
+                            desbloquearReporteResidente?.(
+                              selectedResidente,
+                              report.fase,
+                            );
+                            // Actualizar ReportesContext (vista del residente demo)
+                            const resId = FASE_TO_REPORTES_ID[report.fase];
+                            if (typeof resId === "number")
+                              desbloquearParcial?.(resId);
+                          }}
+                          style={{
+                            marginTop: 12,
+                            flexDirection: "row",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8,
+                            backgroundColor: C.navy,
+                            borderRadius: 8,
+                            paddingVertical: 10,
+                          }}
+                        >
+                          <Feather name="unlock" size={14} color="white" />
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: "800",
+                              color: "white",
+                            }}
+                          >
+                            Desbloquear {report.fase} para{" "}
+                            {selectedResidente?.split(" ")[0]}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
                     </TouchableOpacity>
 
-                    {/* Expandido */}
-                    {isExpanded && (
+                    {/* ── Sección expandida (solo reportes no bloqueados) ── */}
+                    {isExpanded && !esBloqueado && (
                       <View
                         style={{
                           paddingHorizontal: 16,
@@ -782,7 +910,7 @@ export default function SeguimientoAsesor() {
                           </View>
                         )}
 
-                        {/* Historial de cambios */}
+                        {/* Historial */}
                         {report.historial && report.historial.length > 0 && (
                           <View style={{ marginBottom: 14 }}>
                             <Text
@@ -838,7 +966,7 @@ export default function SeguimientoAsesor() {
                             <TouchableOpacity
                               onPress={() =>
                                 window.alert(
-                                  `Archivo: ${report.archivo}\n\nEn producción se descargaría el documento enviado por ${report.residente}.`,
+                                  `Archivo: ${report.archivo}\n\nEn producción se descargaría el documento.`,
                                 )
                               }
                               style={{
@@ -904,6 +1032,85 @@ export default function SeguimientoAsesor() {
                               </Text>
                             </TouchableOpacity>
                           )}
+
+                          {/* Desbloquear siguiente (en el reporte Aceptado) */}
+                          {report.status === "Aceptado" &&
+                            (() => {
+                              const idxActual = FASE_SEQUENCE.indexOf(
+                                report.fase,
+                              );
+                              const faseSig = FASE_SEQUENCE[idxActual + 1];
+                              if (!faseSig) return null;
+                              const yaDesbloqueado =
+                                desbloqueadosDeEsteResidente.has(faseSig);
+                              const sigReporte = reportesFiltrados.find(
+                                (r) => r.fase === faseSig,
+                              );
+                              if (!sigReporte) return null;
+                              return yaDesbloqueado ? (
+                                <Row
+                                  style={{
+                                    alignItems: "center",
+                                    gap: 6,
+                                    backgroundColor: C.greenLight,
+                                    borderRadius: 8,
+                                    paddingHorizontal: 10,
+                                    paddingVertical: 8,
+                                  }}
+                                >
+                                  <Feather
+                                    name="unlock"
+                                    size={12}
+                                    color={C.green}
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 11,
+                                      color: C.green,
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    {faseSig} desbloqueado ✓
+                                  </Text>
+                                </Row>
+                              ) : (
+                                <TouchableOpacity
+                                  onPress={() => {
+                                    desbloquearReporteResidente?.(
+                                      selectedResidente,
+                                      faseSig,
+                                    );
+                                    const resId = FASE_TO_REPORTES_ID[faseSig];
+                                    if (typeof resId === "number")
+                                      desbloquearParcial?.(resId);
+                                  }}
+                                  style={{
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    backgroundColor: C.navy,
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 8,
+                                    borderRadius: 8,
+                                  }}
+                                >
+                                  <Feather
+                                    name="unlock"
+                                    size={12}
+                                    color="white"
+                                  />
+                                  <Text
+                                    style={{
+                                      fontSize: 11,
+                                      color: "white",
+                                      fontWeight: "700",
+                                    }}
+                                  >
+                                    Desbloquear {faseSig}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })()}
                         </Row>
                       </View>
                     )}
@@ -914,7 +1121,6 @@ export default function SeguimientoAsesor() {
           )}
         </>
       )}
-
       {/* Placeholder cuando no se ha seleccionado nada */}
       {!activeProject && (
         <Card style={{ padding: 36, alignItems: "center", marginTop: 8 }}>
