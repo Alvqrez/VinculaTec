@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { View, Platform } from "react-native";
+import { useState, useEffect, useRef } from "react";
+import { View, Platform, Animated, ScrollView } from "react-native";
 import C from "../../constants/colors";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
@@ -13,7 +13,6 @@ import SeguimientoAsesor from "../../screens/SeguimientoAsesor";
 import Utilerias from "../../screens/Utilerias";
 import Notificaciones from "../../screens/Notificaciones";
 import CalendarioCitas from "../../screens/CalendarioCitas";
-import { ScrollView } from "react-native";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
@@ -30,7 +29,24 @@ export default function AsesorApp({ usuario, onLogout }) {
   const { reload: reloadNotifs } = useNotificaciones();
   const { reload: reloadProyectos } = useProyectos();
 
-  // Cargar foto, notificaciones y proyectos desde BD al montar
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  const navigateTo = (id) => {
+    if (id === activeNav) return;
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: 100,
+      useNativeDriver: true,
+    }).start(() => {
+      setActiveNav(id);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }).start();
+    });
+  };
+
   useEffect(() => {
     initUser(usuario?.id);
     reloadNotifs();
@@ -41,10 +57,10 @@ export default function AsesorApp({ usuario, onLogout }) {
   const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);
 
   const views = {
-    dashboard: <DashAsesor onNavigate={setActiveNav} />,
+    dashboard: <DashAsesor onNavigate={navigateTo} />,
     proyectos: <ProyectosAsesor />,
     seguimiento: <SeguimientoAsesor />,
-    notificaciones: <Notificaciones onNavigate={setActiveNav} />,
+    notificaciones: <Notificaciones onNavigate={navigateTo} />,
     calendario: <CalendarioCitas />,
     utilerias: (
       <Utilerias
@@ -67,7 +83,7 @@ export default function AsesorApp({ usuario, onLogout }) {
     >
       <Sidebar
         activeNav={activeNav}
-        setActiveNav={setActiveNav}
+        setActiveNav={navigateTo}
         role="Asesor"
         navItems={NAV}
         onLogout={onLogout}
@@ -77,16 +93,21 @@ export default function AsesorApp({ usuario, onLogout }) {
       <View style={{ flex: 1, flexDirection: "column" }}>
         <TopBar
           activeNav={activeNav}
-          setActiveNav={setActiveNav}
+          setActiveNav={navigateTo}
           navItems={NAV}
           role="Asesor"
           onLogout={onLogout}
           usuario={usuario}
           fotoPerfil={fotoPerfil}
         />
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24 }}>
-          {views[activeNav] || views.dashboard}
-        </ScrollView>
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+          <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={{ padding: 24 }}
+          >
+            {views[activeNav] || views.dashboard}
+          </ScrollView>
+        </Animated.View>
       </View>
     </View>
   );

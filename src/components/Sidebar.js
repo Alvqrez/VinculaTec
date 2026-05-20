@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { View, Text, Image, ScrollView, TouchableOpacity } from "react-native";
+import { useState, useRef, useEffect } from "react";
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import Row from "./Row";
@@ -24,48 +31,37 @@ function getRolLabel(role) {
   return role;
 }
 
-export default function Sidebar({
+// Item de navegación con animación de fondo al activarse
+function NavItem({
+  id,
+  label,
+  icon,
+  indent = false,
   activeNav,
   setActiveNav,
-  role,
-  navItems = [],
-  onLogout,
-  usuario,
-  fotoPerfil,
+  unreadCount,
 }) {
-  const { unreadCount } = useNotificaciones() || { unreadCount: 0 };
+  const active = activeNav === id;
+  const count = id === "notificaciones" ? unreadCount : 0;
 
-  const [openGroups, setOpenGroups] = useState(() => {
-    const init = {};
-    navItems.forEach((item) => {
-      if (item.group) init[item.id] = groupHasActive(item, activeNav);
-    });
-    return init;
+  // Animación del fondo al activarse
+  const bgAnim = useRef(new Animated.Value(active ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(bgAnim, {
+      toValue: active ? 1 : 0,
+      duration: 180,
+      useNativeDriver: false,
+    }).start();
+  }, [active]);
+
+  const bgColor = bgAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["rgba(13,148,136,0)", "rgba(13,148,136,0.22)"],
   });
 
-  const toggleGroup = (id) =>
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
-
-  const initials = usuario?.nombre
-    ? usuario.nombre
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "??";
-
-  const saludo = getSaludo();
-  const rolLabel = getRolLabel(role);
-  const nombre = usuario?.nombre || "Usuario";
-
-  const NavItem = ({ id, label, icon, indent = false }) => {
-    const active = activeNav === id;
-    const count = id === "notificaciones" ? unreadCount : 0;
-    return (
-      <TouchableOpacity
-        key={id}
-        onPress={() => setActiveNav(id)}
+  return (
+    <TouchableOpacity onPress={() => setActiveNav(id)} activeOpacity={0.75}>
+      <Animated.View
         style={{
           flexDirection: "row",
           alignItems: "center",
@@ -74,8 +70,12 @@ export default function Sidebar({
           paddingHorizontal: 12,
           paddingLeft: indent ? 28 : 12,
           borderRadius: 9,
-          backgroundColor: active ? "rgba(13,148,136,0.2)" : "transparent",
+          backgroundColor: bgColor,
           marginBottom: 2,
+          // Barra lateral izquierda en el item activo
+          borderLeftWidth: active ? 3 : 0,
+          borderLeftColor: "#5EEAD4",
+          paddingLeft: active ? (indent ? 25 : 9) : indent ? 28 : 12,
         }}
       >
         {indent && (
@@ -121,9 +121,125 @@ export default function Sidebar({
             </Text>
           </View>
         )}
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+// Grupo colapsable con animación del chevron
+function GroupItem({
+  item,
+  activeNav,
+  setActiveNav,
+  unreadCount,
+  openGroups,
+  toggleGroup,
+}) {
+  const isOpen = openGroups[item.id] ?? false;
+  const childActive = groupHasActive(item, activeNav);
+
+  // Rotación animada del chevron
+  const chevronAnim = useRef(new Animated.Value(isOpen ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(chevronAnim, {
+      toValue: isOpen ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [isOpen]);
+
+  const chevronRotate = chevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  return (
+    <View>
+      <TouchableOpacity
+        onPress={() => toggleGroup(item.id)}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingVertical: 9,
+          paddingHorizontal: 12,
+          borderRadius: 9,
+          backgroundColor: childActive ? "rgba(13,148,136,0.1)" : "transparent",
+          marginBottom: 2,
+        }}
+      >
+        <Feather
+          name={item.icon}
+          size={15}
+          color={childActive ? "#5EEAD4" : C.textLight}
+        />
+        <Text
+          style={{
+            flex: 1,
+            color: childActive ? "#5EEAD4" : C.textLight,
+            fontSize: 13,
+            fontWeight: childActive ? "700" : "500",
+          }}
+        >
+          {item.label}
+        </Text>
+        <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
+          <Feather
+            name="chevron-down"
+            size={13}
+            color={childActive ? "#5EEAD4" : "#3D5A8A"}
+          />
+        </Animated.View>
       </TouchableOpacity>
-    );
-  };
+
+      {isOpen && (
+        <View style={{ marginBottom: 4 }}>
+          {item.children.map((child) => (
+            <NavItem
+              key={child.id}
+              {...child}
+              indent
+              activeNav={activeNav}
+              setActiveNav={setActiveNav}
+              unreadCount={unreadCount}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+export default function Sidebar({
+  activeNav,
+  setActiveNav,
+  role,
+  navItems = [],
+  onLogout,
+  usuario,
+  fotoPerfil,
+}) {
+  const { unreadCount } = useNotificaciones() || { unreadCount: 0 };
+
+  const [openGroups, setOpenGroups] = useState(() => {
+    const init = {};
+    navItems.forEach((item) => {
+      if (item.group) init[item.id] = groupHasActive(item, activeNav);
+    });
+    return init;
+  });
+
+  const toggleGroup = (id) =>
+    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+
+  const initials = usuario?.nombre
+    ? usuario.nombre
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "??";
 
   return (
     <View
@@ -134,7 +250,7 @@ export default function Sidebar({
         height: "100%",
       }}
     >
-      {/* ── Sección de perfil ───────────────────────────────────────────────── */}
+      {/* ── Perfil ── */}
       <TouchableOpacity
         onPress={() => setActiveNav && setActiveNav("utilerias")}
         activeOpacity={0.85}
@@ -146,7 +262,6 @@ export default function Sidebar({
           alignItems: "center",
         }}
       >
-        {/* 1 — Saludo */}
         <Text
           style={{
             color: "rgba(255,255,255,0.45)",
@@ -155,10 +270,8 @@ export default function Sidebar({
             marginBottom: 3,
           }}
         >
-          {saludo}
+          {getSaludo()}
         </Text>
-
-        {/* 2 — Nombre */}
         <Text
           style={{
             color: "white",
@@ -169,10 +282,8 @@ export default function Sidebar({
           }}
           numberOfLines={1}
         >
-          {nombre}
+          {usuario?.nombre || "Usuario"}
         </Text>
-
-        {/* 3 — Foto de perfil / avatar */}
         {fotoPerfil ? (
           <Image
             source={{ uri: fotoPerfil }}
@@ -204,8 +315,6 @@ export default function Sidebar({
             </Text>
           </View>
         )}
-
-        {/* 4 — Rol */}
         <View
           style={{
             backgroundColor: "rgba(13,148,136,0.2)",
@@ -218,11 +327,9 @@ export default function Sidebar({
           }}
         >
           <Text style={{ color: "#5EEAD4", fontSize: 10, fontWeight: "700" }}>
-            {rolLabel}
+            {getRolLabel(role)}
           </Text>
         </View>
-
-        {/* 5 — Ver perfil */}
         <Row style={{ alignItems: "center", gap: 3 }}>
           <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>
             Ver perfil
@@ -231,7 +338,7 @@ export default function Sidebar({
         </Row>
       </TouchableOpacity>
 
-      {/* ── Navegación ─────────────────────────────────────────────────────────── */}
+      {/* ── Navegación ── */}
       <ScrollView style={{ flex: 1, padding: 10 }}>
         <Text
           style={{
@@ -246,67 +353,30 @@ export default function Sidebar({
         >
           Navegación
         </Text>
-
-        {navItems.map((item) => {
-          if (!item.group) {
-            return <NavItem key={item.id} {...item} />;
-          }
-
-          const isOpen = openGroups[item.id] ?? false;
-          const childActive = groupHasActive(item, activeNav);
-
-          return (
-            <View key={item.id}>
-              <TouchableOpacity
-                onPress={() => toggleGroup(item.id)}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 10,
-                  paddingVertical: 9,
-                  paddingHorizontal: 12,
-                  borderRadius: 9,
-                  backgroundColor: childActive
-                    ? "rgba(13,148,136,0.1)"
-                    : "transparent",
-                  marginBottom: 2,
-                }}
-              >
-                <Feather
-                  name={item.icon}
-                  size={15}
-                  color={childActive ? "#5EEAD4" : C.textLight}
-                />
-                <Text
-                  style={{
-                    flex: 1,
-                    color: childActive ? "#5EEAD4" : C.textLight,
-                    fontSize: 13,
-                    fontWeight: childActive ? "700" : "500",
-                  }}
-                >
-                  {item.label}
-                </Text>
-                <Feather
-                  name={isOpen ? "chevron-up" : "chevron-down"}
-                  size={13}
-                  color={childActive ? "#5EEAD4" : "#3D5A8A"}
-                />
-              </TouchableOpacity>
-
-              {isOpen && (
-                <View style={{ marginBottom: 4 }}>
-                  {item.children.map((child) => (
-                    <NavItem key={child.id} {...child} indent />
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        })}
+        {navItems.map((item) =>
+          item.group ? (
+            <GroupItem
+              key={item.id}
+              item={item}
+              activeNav={activeNav}
+              setActiveNav={setActiveNav}
+              unreadCount={unreadCount}
+              openGroups={openGroups}
+              toggleGroup={toggleGroup}
+            />
+          ) : (
+            <NavItem
+              key={item.id}
+              {...item}
+              activeNav={activeNav}
+              setActiveNav={setActiveNav}
+              unreadCount={unreadCount}
+            />
+          ),
+        )}
       </ScrollView>
 
-      {/* ── Logout ─────────────────────────────────────────────────────────────── */}
+      {/* ── Logout ── */}
       <TouchableOpacity
         onPress={onLogout}
         style={{
