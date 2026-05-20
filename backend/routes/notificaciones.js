@@ -1,6 +1,6 @@
 const express = require("express");
-const jwt     = require("jsonwebtoken");
-const db      = require("../db");
+const jwt = require("jsonwebtoken");
+const db = require("../db");
 
 const router = express.Router();
 
@@ -10,7 +10,12 @@ const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          mensaje: "JWT_SECRET no está configurado en el servidor.",
+        });
     }
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
@@ -24,7 +29,7 @@ const auth = (req, res, next) => {
 router.get("/", auth, async (req, res) => {
   try {
     const [rows] = await db.execute(
-      `SELECT id, tipo, titulo, cuerpo AS body, leida AS unread, 
+      `SELECT id, tipo, titulo, cuerpo AS body, leida,
               icono AS icon, url_accion AS actionScreen, created_at AS time
        FROM notificaciones
        WHERE usuario_id = ?
@@ -62,7 +67,12 @@ router.post("/", auth, async (req, res) => {
   const { usuario_id, tipo, titulo, cuerpo, icono, url_accion } = req.body;
 
   if (!usuario_id || !tipo || !titulo) {
-    return res.status(400).json({ ok: false, mensaje: "usuario_id, tipo y titulo son requeridos." });
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "usuario_id, tipo y titulo son requeridos.",
+      });
   }
 
   try {
@@ -169,7 +179,11 @@ function formatTime(dateString) {
   if (diffMins < 60) return `Hace ${diffMins} min`;
   if (diffHours < 24) return `Hace ${diffHours} h`;
   if (diffDays < 7) return `Hace ${diffDays} días`;
-  return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+  return date.toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function getActionLabel(tipo, actionScreen) {
@@ -181,5 +195,20 @@ function getActionLabel(tipo, actionScreen) {
   };
   return labels[actionScreen] || "Ver detalles";
 }
+
+// ── DELETE /api/notificaciones/todas-leidas ───────────────────────────────────
+// Elimina todas las notificaciones leídas del usuario
+router.delete("/todas-leidas", auth, async (req, res) => {
+  try {
+    const [result] = await db.execute(
+      "DELETE FROM notificaciones WHERE usuario_id = ? AND leida = true",
+      [req.user.id],
+    );
+    return res.json({ ok: true, eliminadas: result.affectedRows });
+  } catch (err) {
+    console.error("Error al eliminar notificaciones leídas:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
 
 module.exports = router;

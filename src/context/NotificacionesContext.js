@@ -9,9 +9,7 @@ export function NotificacionesProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const unreadCount = notifications
-    ? notifications.filter((n) => n.unread).length
-    : 0;
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -23,7 +21,8 @@ export function NotificacionesProvider({ children }) {
       } else {
         setNotifications([]);
         setError(
-          response.body?.mensaje || response.error?.message ||
+          response.body?.mensaje ||
+            response.error?.message ||
             "Error al cargar notificaciones",
         );
       }
@@ -36,46 +35,61 @@ export function NotificacionesProvider({ children }) {
     }
   };
 
-  // reload: llamar desde cada *App.js al montar (después del login)
   const reload = fetchNotifications;
 
-  // Función para marcar una notificación como leída
+  // Marcar una como leída (optimista + BD)
   const markAsRead = async (id) => {
     setNotifications((prev) =>
-      prev
-        ? prev.map((n) => (n.id === id ? { ...n, unread: false } : n))
-        : prev,
+      prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
     );
-    try {
-      await apiClient.put(`/api/notificaciones/${id}`, { leida: true });
-    } catch {
-      // Silencioso: el update optimista ya está aplicado
+    const res = await apiClient.put(`/api/notificaciones/${id}`, {
+      leida: true,
+    });
+    if (!res.ok) {
+      console.error(
+        "Error al marcar notificación como leída:",
+        res.body?.mensaje,
+      );
+      // Revertir si falla
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, unread: true } : n)),
+      );
     }
   };
 
-  // Función para marcar todas como leídas
+  // Marcar todas como leídas (optimista + BD)
   const markAllAsRead = async () => {
-    setNotifications((prev) =>
-      prev ? prev.map((n) => ({ ...n, unread: false })) : prev,
-    );
-    try {
-      await apiClient.put("/api/notificaciones/marcar-todas-leidas");
-    } catch {
-      // Silencioso
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    const res = await apiClient.put("/api/notificaciones/marcar-todas-leidas");
+    if (!res.ok) {
+      console.error("Error al marcar todas como leídas:", res.body?.mensaje);
+      // Revertir si falla
+      fetchNotifications();
     }
   };
 
-  // Función para eliminar una notificación
+  // Eliminar una notificación
   const dismissNotification = async (id) => {
-    setNotifications((prev) => (prev ? prev.filter((n) => n.id !== id) : prev));
-    try {
-      await apiClient.delete(`/api/notificaciones/${id}`);
-    } catch {
-      // Silencioso
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const res = await apiClient.delete(`/api/notificaciones/${id}`);
+    if (!res.ok)
+      console.error("Error al eliminar notificación:", res.body?.mensaje);
+  };
+
+  // Eliminar todas las notificaciones ya leídas
+  const dismissAllRead = async () => {
+    setNotifications((prev) => prev.filter((n) => n.unread));
+    const res = await apiClient.delete("/api/notificaciones/todas-leidas");
+    if (!res.ok) {
+      console.error(
+        "Error al eliminar notificaciones leídas:",
+        res.body?.mensaje,
+      );
+      fetchNotifications();
     }
   };
 
-  // Función para crear una nueva notificación (para uso interno del sistema)
+  // Crear una notificación (uso interno del sistema)
   const createNotification = async (notificationData) => {
     const newNotif = {
       id: `local-${Date.now()}`,
@@ -86,12 +100,11 @@ export function NotificacionesProvider({ children }) {
       typeColor: C.teal,
       ...notificationData,
     };
-    setNotifications((prev) => (prev ? [newNotif, ...prev] : [newNotif]));
-
+    setNotifications((prev) => [newNotif, ...prev]);
     try {
       await apiClient.post("/api/notificaciones", notificationData);
     } catch {
-      // Silencioso
+      /* silencioso */
     }
   };
 
@@ -107,6 +120,7 @@ export function NotificacionesProvider({ children }) {
         markAsRead,
         markAllAsRead,
         dismissNotification,
+        dismissAllRead,
         createNotification,
       }}
     >

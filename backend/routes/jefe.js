@@ -9,12 +9,10 @@ const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET)
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          mensaje: "JWT_SECRET no está configurado en el servidor.",
-        });
+      return res.status(500).json({
+        ok: false,
+        mensaje: "JWT_SECRET no está configurado en el servidor.",
+      });
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch {
@@ -363,12 +361,10 @@ router.put("/proyectos/:id/aprobar-avance", auth, async (req, res) => {
 
     const { estado, solicitud_avance } = rows[0];
     if (!solicitud_avance)
-      return res
-        .status(400)
-        .json({
-          ok: false,
-          mensaje: "El proyecto no tiene una solicitud de avance pendiente.",
-        });
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El proyecto no tiene una solicitud de avance pendiente.",
+      });
 
     const idx = phases.indexOf(estado);
     if (idx < 0 || idx >= phases.length - 1)
@@ -421,6 +417,133 @@ router.put("/fuentes/:id", auth, async (req, res) => {
   } catch (err) {
     console.error("Error en PUT /jefe/fuentes/:id:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── GET /api/jefe/usuarios-registrados ───────────────────────────────────────
+// Lista los usuarios registrados por el jefe (residentes y asesores) más recientes
+router.get("/usuarios-registrados", auth, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT u.id, u.nombre, u.apellidos, u.correo, u.rol, u.created_at AS fecha
+       FROM usuarios u
+       WHERE u.rol IN ('residente', 'asesor')
+       ORDER BY u.created_at DESC
+       LIMIT 20`,
+    );
+    const usuarios = rows.map((u) => ({
+      id: u.id,
+      nombre: `${u.nombre} ${u.apellidos}`,
+      correo: u.correo,
+      rol: u.rol,
+      fecha: new Date(u.fecha).toLocaleDateString("es-MX"),
+    }));
+    return res.json({ ok: true, usuarios });
+  } catch (err) {
+    console.error("Error en GET /jefe/usuarios-registrados:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── POST /api/jefe/registrar-usuario ─────────────────────────────────────────
+// Crea un nuevo usuario (residente o asesor) con sus datos de perfil
+router.post("/registrar-usuario", auth, async (req, res) => {
+  const bcrypt = require("bcryptjs");
+  const {
+    rol,
+    nombre,
+    apellidos,
+    correo,
+    password,
+    numControl,
+    carrera,
+    semestre,
+    departamento,
+    numEmpleado,
+  } = req.body;
+
+  if (!["residente", "asesor"].includes(rol))
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Rol inválido. Debe ser 'residente' o 'asesor'.",
+      });
+  if (!nombre?.trim() || !apellidos?.trim() || !correo?.trim() || !password)
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Nombre, apellidos, correo y contraseña son requeridos.",
+      });
+  if (password.length < 6)
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "La contraseña debe tener al menos 6 caracteres.",
+      });
+
+  try {
+    // Verificar que el correo no esté registrado
+    const [existing] = await db.execute(
+      "SELECT id FROM usuarios WHERE correo = ?",
+      [correo.trim().toLowerCase()],
+    );
+    if (existing.length)
+      return res
+        .status(409)
+        .json({ ok: false, mensaje: "Ya existe un usuario con ese correo." });
+
+    const userId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const passHash = await bcrypt.hash(password, 10);
+
+    // Insertar en usuarios
+    await db.execute(
+      `INSERT INTO usuarios (id, nombre, apellidos, correo, password_hash, rol, activo)
+       VALUES (?,?,?,?,?,?,1)`,
+      [
+        userId,
+        nombre.trim(),
+        apellidos.trim(),
+        correo.trim().toLowerCase(),
+        passHash,
+        rol,
+      ],
+    );
+
+    if (rol === "residente") {
+      const resId = `res_${Date.now()}`;
+      await db.execute(
+        `INSERT INTO residentes (id, usuario_id, num_control, carrera, semestre)
+         VALUES (?,?,?,?,?)`,
+        [
+          resId,
+          userId,
+          numControl?.trim() || null,
+          carrera || null,
+          semestre || null,
+        ],
+      );
+    } else if (rol === "asesor") {
+      const asesorId = `ase_${Date.now()}`;
+      await db.execute(
+        `INSERT INTO asesores (id, usuario_id, departamento, num_empleado)
+         VALUES (?,?,?,?)`,
+        [asesorId, userId, departamento || null, numEmpleado?.trim() || null],
+      );
+    }
+
+    return res.json({
+      ok: true,
+      id: userId,
+      mensaje: `${rol === "residente" ? "Residente" : "Asesor"} registrado correctamente.`,
+    });
+  } catch (err) {
+    console.error("Error en POST /jefe/registrar-usuario:", err);
+    return res
+      .status(500)
+      .json({ ok: false, mensaje: "Error interno al registrar usuario." });
   }
 });
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Platform, Animated } from "react-native";
+import { View, Platform, Animated, ScrollView } from "react-native";
 import C from "../../constants/colors";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
@@ -11,16 +11,17 @@ import GestionEmpresas from "../../screens/GestionEmpresas";
 import GestionProyectos from "../../screens/GestionProyectos";
 import SeguimientoJefe from "../../screens/SeguimientoJefe";
 import AsignacionJefe from "../../screens/AsignacionJefe";
+import RegistrarUsuario from "../../screens/RegistrarUsuario";
 import Utilerias from "../../screens/Utilerias";
 import Notificaciones from "../../screens/Notificaciones";
 import CalendarioCitas from "../../screens/CalendarioCitas";
-import { ScrollView } from "react-native";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
   { id: "empresas", label: "Empresas", icon: "briefcase" },
   { id: "proyectos", label: "Proyectos", icon: "folder" },
   { id: "asignacion", label: "Asignación", icon: "user-plus" },
+  { id: "registrar", label: "Registrar", icon: "user-plus" },
   { id: "seguimiento", label: "Seguimiento", icon: "file-text" },
   { id: "notificaciones", label: "Notificaciones", icon: "bell" },
   { id: "calendario", label: "Calendario", icon: "calendar" },
@@ -32,12 +33,10 @@ function JefeAppInner({ usuario, onLogout }) {
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
 
-  // Animación de fade al cambiar de sección
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const navigateTo = (id) => {
     if (id === activeNav) return;
-    // Fade out → cambiar vista → fade in
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 100,
@@ -65,6 +64,7 @@ function JefeAppInner({ usuario, onLogout }) {
     empresas: <GestionEmpresas />,
     proyectos: <GestionProyectos />,
     asignacion: <AsignacionJefe />,
+    registrar: <RegistrarUsuario />,
     seguimiento: <SeguimientoJefe />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
     calendario: <CalendarioCitas />,
