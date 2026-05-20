@@ -15,6 +15,9 @@ const STATUS_STYLE = {
 export default function DashJefe({ onNavigate }) {
   const [stats, setStats] = useState({ totalResidentes: 0, empresasVinculadas: 0, proyectosActivos: 0, reportesPendientes: 0 });
   const [topEmpresas, setTopEmpresas] = useState([]);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState("Todos");
+  
+  const PERIODOS = ["Todos", "Ene-Jun 2026", "Ago-Dic 2026", "Ene-Jun 2027", "Ago-Dic 2027"];
 
   useEffect(() => {
     apiClient.get("/api/jefe/dashboard").then((res) => {
@@ -49,6 +52,34 @@ export default function DashJefe({ onNavigate }) {
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24 }}>
       <SectionTitle title="Dashboard — Departamento de Sistemas" />
+
+      {/* Filtro por periodo */}
+      <Row style={{ gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+        {PERIODOS.map((periodo) => (
+          <TouchableOpacity
+            key={periodo}
+            onPress={() => setPeriodoSeleccionado(periodo)}
+            style={{
+              paddingHorizontal: 14,
+              paddingVertical: 8,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: periodoSeleccionado === periodo ? C.teal : C.border,
+              backgroundColor: periodoSeleccionado === periodo ? C.tealLight : C.card,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "600",
+                color: periodoSeleccionado === periodo ? C.teal : C.textMuted,
+              }}
+            >
+              {periodo}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </Row>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>

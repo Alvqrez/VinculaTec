@@ -91,10 +91,6 @@ export default function GestionEmpresas() {
             <Text style={{ fontSize:22, fontWeight:"800", color:C.text }}>Gestión de Empresas</Text>
             <Text style={{ fontSize:13, color:C.textMuted, marginTop:2 }}>Directorio y convenios vigentes</Text>
           </View>
-          <TouchableOpacity onPress={openNew} style={{ flexDirection:"row", alignItems:"center", gap:6, backgroundColor:C.teal, paddingHorizontal:16, paddingVertical:10, borderRadius:10 }}>
-            <Feather name="plus" size={15} color="white" />
-            <Text style={{ color:"white", fontWeight:"700", fontSize:13 }}>Nueva Empresa</Text>
-          </TouchableOpacity>
         </Row>
 
         {/* Stat Cards */}
@@ -112,7 +108,7 @@ export default function GestionEmpresas() {
               <Text style={{ fontSize:15, fontWeight:"800", color:C.text }}>Directorio de Empresas</Text>
 
               {/* Botón Filtrar */}
-              <View style={{ position:"relative" }}>
+              <View style={{ position:"relative", zIndex:1000 }}>
                 <TouchableOpacity onPress={()=>setFilter(!showFilter)}
                   style={{ flexDirection:"row", alignItems:"center", gap:5, borderWidth:1, borderColor: activeFilterCount>0?C.teal:C.border,
                     paddingHorizontal:12, paddingVertical:7, borderRadius:8, backgroundColor: activeFilterCount>0?C.tealLighter:"white" }}>
@@ -125,7 +121,7 @@ export default function GestionEmpresas() {
                 {/* Menú flotante de filtros */}
                 {showFilter && (
                   <View style={{ position:"absolute", top:40, right:0, width:280, backgroundColor:C.card, borderRadius:12, borderWidth:1, borderColor:C.border,
-                    shadowColor:"#000", shadowOpacity:0.12, shadowRadius:12, shadowOffset:{width:0,height:4}, elevation:10, zIndex:999, padding:16 }}>
+                    shadowColor:"#000", shadowOpacity:0.12, shadowRadius:12, shadowOffset:{width:0,height:4}, elevation:20, zIndex:10000, padding:16 }}>
                     <Row style={{ justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                       <Text style={{ fontSize:13, fontWeight:"800", color:C.text }}>Filtros</Text>
                       <Row style={{ gap:8 }}>

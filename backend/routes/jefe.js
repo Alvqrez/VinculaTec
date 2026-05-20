@@ -177,19 +177,20 @@ router.delete("/empresas/:id", auth, async (req, res) => {
 router.get("/proyectos", auth, async (req, res) => {
   try {
     const [rows] = await db.execute(
-      `SELECT p.id, p.titulo AS title, p.estado AS phase, p.prioridad AS priority,
+      `SELECT p.id, p.titulo AS title, LOWER(p.estado) AS phase, p.prioridad AS priority,
               p.tecnologias AS tags,
               e.nombre AS company,
               CONCAT(u.nombre,' ',u.apellidos) AS asesor,
               CONCAT(ur.nombre,' ',ur.apellidos) AS residente,
-              CONCAT(LEFT(ur.nombre,1),LEFT(ur.apellidos,1)) AS residenteIniciales
+              CONCAT(LEFT(ur.nombre,1),LEFT(ur.apellidos,1)) AS residenteIniciales,
+              COALESCE(p.solicitud_avance, 0) AS solicitud_avance
        FROM proyectos p
        LEFT JOIN empresas e ON p.empresa_id = e.id
        LEFT JOIN asesores a ON p.asesor_id = a.id
        LEFT JOIN usuarios u ON a.usuario_id = u.id
        LEFT JOIN residentes res ON p.residente_id = res.id
        LEFT JOIN usuarios ur ON res.usuario_id = ur.id
-       WHERE p.estado IN ('desarrollo','revision','concluido')
+       WHERE LOWER(p.estado) IN ('desarrollo','revision','concluido')
        ORDER BY p.created_at DESC`,
     );
     return res.json({ ok: true, proyectos: rows });
@@ -216,7 +217,7 @@ router.put("/proyectos/:id", auth, async (req, res) => {
 });
 
 // ── GET /api/jefe/asignacion/datos ────────────────────────────────────────────
-// Devuelve asesores, empresas y residentes sin asesor para el wizard de asignación
+// Devuelve asesores, empresas y residentes activos para el wizard de asignación
 router.get("/asignacion/datos", auth, async (req, res) => {
   try {
     // Contar proyectos activos por asesor usando la tabla junction
@@ -233,13 +234,13 @@ router.get("/asignacion/datos", auth, async (req, res) => {
     const [empresas] = await db.execute(
       "SELECT id, nombre FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC",
     );
-    // Residentes activos sin asesor asignado (disponibles para nueva asignación)
+    // Residentes activos (con o sin asesor asignado)
     const [residentes] = await db.execute(
       `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre,
-              r.num_control AS matricula, r.carrera
+              r.num_control AS matricula, r.carrera, r.asesor_id
        FROM residentes r
        JOIN usuarios u ON r.usuario_id = u.id
-       WHERE r.estado = 'activo' AND r.asesor_id IS NULL
+       WHERE r.estado = 'activo'
        ORDER BY u.nombre ASC`,
     );
     return res.json({ ok: true, asesores, empresas, residentes });

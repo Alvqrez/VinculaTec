@@ -5,6 +5,7 @@ import C from "../constants/colors";
 import { Row, Card, Badge } from "../components";
 import { useReportes } from "../context/ReportesContext";
 import { useProyectos } from "../context/ProyectosContext";
+import apiClient from "../utils/apiClient";
 
 export default function ReportePreliminar() {
   // ── Contextos — conexión al flujo de revisión ─────────────────────────────
@@ -16,6 +17,7 @@ export default function ReportePreliminar() {
   const [empresa, setEmpresa] = useState("");
   const [uploadedFile, setUploadedFile] = useState(null);
   const [savedAt, setSavedAt] = useState(null);
+  const [fileData, setFileData] = useState(null); // Para guardar el archivo en base64
 
   const selectFile = () => {
     if (!globalThis?.document?.createElement) {
@@ -29,11 +31,18 @@ export default function ReportePreliminar() {
       const file = e.target.files?.[0];
       if (!file) return;
       setUploadedFile({ name: file.name, size: `${(file.size / (1024 * 1024)).toFixed(2)} MB` });
+      
+      // Convertir archivo a base64 para enviar al backend
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFileData(event.target.result);
+      };
+      reader.readAsDataURL(file);
     };
     input.click();
   };
 
-  const uploadReport = () => {
+  const uploadReport = async () => {
     if (!empresa.trim()) {
       Alert.alert("Falta información", "Escribe el nombre de la empresa antes de subir.");
       return;
@@ -52,22 +61,40 @@ export default function ReportePreliminar() {
     }
 
     const today = new Date().toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
-    setSavedAt(new Date().toLocaleString());
 
-    // 1. Actualizar ReportesContext (el Residente ve el estado)
-    if (updateReport) {
-      updateReport("preliminar", { status: "Pendiente", submitted: today, feedback: null, empresa });
+    try {
+      // Enviar archivo al backend
+      const res = await apiClient.put("/api/residente/reportes/preliminar", {
+        archivo: fileData,
+        nombre_archivo: uploadedFile.name,
+        empresa: empresa,
+      });
+
+      if (!res.ok) {
+        Alert.alert("Error", res.body?.mensaje || "No se pudo subir el reporte.");
+        return;
+      }
+
+      setSavedAt(new Date().toLocaleString());
+
+      // 1. Actualizar ReportesContext (el Residente ve el estado)
+      if (updateReport) {
+        updateReport("preliminar", { status: "Pendiente", submitted: today, feedback: null, empresa });
+      }
+
+      // 2. Sincronizar a ProyectosContext (el Asesor lo ve en SeguimientoAsesor)
+      if (submitReporteFromResidente) {
+        submitReporteFromResidente("Preliminar");
+      }
+
+      Alert.alert(
+        "Reporte Preliminar enviado",
+        "Tu reporte fue enviado correctamente. Tu asesor lo revisará y recibirás retroalimentación en breve."
+      );
+    } catch (error) {
+      console.error("Error al subir reporte:", error);
+      Alert.alert("Error", "No se pudo conectar con el servidor.");
     }
-
-    // 2. Sincronizar a ProyectosContext (el Asesor lo ve en SeguimientoAsesor)
-    if (submitReporteFromResidente) {
-      submitReporteFromResidente("Preliminar");
-    }
-
-    Alert.alert(
-      "Reporte Preliminar enviado",
-      "Tu reporte fue enviado correctamente. Tu asesor lo revisará y recibirás retroalimentación en breve."
-    );
   };
 
   // ── Mostrar estado si ya fue enviado/revisado ─────────────────────────────

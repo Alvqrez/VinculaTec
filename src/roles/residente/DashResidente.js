@@ -249,16 +249,50 @@ export default function DashResidente({ onNavigate }) {
 
           {/* Mis Reportes */}
           <Card>
-            <Text
-              style={{
-                fontSize: 16,
-                fontWeight: "700",
-                color: C.text,
-                marginBottom: 16,
-              }}
-            >
-              Mis Reportes
-            </Text>
+            <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: C.text,
+                }}
+              >
+                Mis Reportes
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  // Función para exportar reportes a CSV
+                  const csvContent = [
+                    ["Reporte", "Límite", "Entrega", "Estado"],
+                    ...reportesTabla.map(r => [r.nombre, r.fechaLimite, r.fechaEntrega, r.estado])
+                  ].map(row => row.join(",")).join("\n");
+                  
+                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                  const link = document.createElement("a");
+                  const url = URL.createObjectURL(blob);
+                  link.setAttribute("href", url);
+                  link.setAttribute("download", "mis_reportes.csv");
+                  link.style.visibility = "hidden";
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 6,
+                  backgroundColor: C.teal,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 8,
+                }}
+              >
+                <Feather name="download" size={14} color="white" />
+                <Text style={{ color: "white", fontSize: 13, fontWeight: "600" }}>
+                  Exportar
+                </Text>
+              </TouchableOpacity>
+            </Row>
             <Row
               style={{
                 paddingHorizontal: 12,

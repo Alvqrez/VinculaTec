@@ -344,7 +344,7 @@ export default function ReportesParciales() {
                   marginBottom: 3,
                 }}
               >
-                Parcial {activeTab} bloqueado
+                Parcial {activeTab} bloqueado por tu asesor
               </Text>
               <Text
                 style={{
@@ -353,8 +353,17 @@ export default function ReportesParciales() {
                   lineHeight: 17,
                 }}
               >
-                Tu asesor debe revisar y aceptar el Parcial {activeTab - 1}{" "}
-                antes de que puedas entregar este reporte.
+                Motivo: El Parcial {activeTab - 1} debe ser aceptado antes de que puedas entregar este reporte.
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: "rgba(255,255,255,0.5)",
+                  marginTop: 4,
+                  fontStyle: "italic",
+                }}
+              >
+                Contacta a tu asesor para más información sobre el bloqueo.
               </Text>
             </View>
           </Row>
