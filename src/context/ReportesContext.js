@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import apiClient from "../utils/apiClient";
 
 const ReportesCtx = createContext(null);
@@ -16,35 +16,37 @@ function derivarDesbloqueados(reports) {
 }
 
 const TIPO_MAP = {
-  "preliminar": "preliminar",
+  preliminar: "preliminar",
   1: "parcial1",
   2: "parcial2",
   3: "parcial3",
-  "final": "final",
+  final: "final",
 };
 
 export function ReportesProvider({ children }) {
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [parcialesDesbloqueados, setParcialesDesbloqueados] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [parcialesDesbloqueados, setParcialesDesbloqueados] = useState(
+    new Set(),
+  );
 
-  useEffect(() => {
-    const fetchReportes = async () => {
-      try {
-        const response = await apiClient.get("/api/residente/reportes");
-        if (response.ok && response.body?.ok) {
-          const data = response.body.reportes;
-          setReports(data);
-          setParcialesDesbloqueados(derivarDesbloqueados(data));
-        }
-      } catch (err) {
-        console.error("Error al cargar reportes:", err);
-      } finally {
-        setLoading(false);
+  // NO auto-fetch en mount: el token aún no existe en ese momento.
+  // Llamar reload() desde ResidenteApp.useEffect, después del login.
+  const reload = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.get("/api/residente/reportes");
+      if (response.ok && response.body?.ok) {
+        const data = response.body.reportes;
+        setReports(data);
+        setParcialesDesbloqueados(derivarDesbloqueados(data));
       }
-    };
-    fetchReportes();
-  }, []);
+    } catch (err) {
+      console.error("Error al cargar reportes:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   /** Actualiza campos de un reporte (optimista) y persiste en BD */
   const updateReport = async (id, changes) => {
@@ -101,6 +103,7 @@ export function ReportesProvider({ children }) {
     <ReportesCtx.Provider
       value={{
         reports,
+        reload,
         updateReport,
         reviewReport,
         desbloquearParcial,

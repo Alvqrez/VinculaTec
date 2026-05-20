@@ -5,6 +5,7 @@ import TopBar from "../../components/TopBar";
 import { useState, useEffect } from "react";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
+import { useReportes } from "../../context/ReportesContext";
 
 import DashResidente from "./DashResidente";
 import Seguimiento from "../../screens/Seguimiento";
@@ -38,10 +39,12 @@ export default function ResidenteApp({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
+  const { reload: reloadReportes } = useReportes();
 
   useEffect(() => {
     initUser(usuario?.id);
     reloadNotifs();
+    reloadReportes();
   }, [usuario?.id]);
 
   const fotoPerfil = getFoto(usuario?.id);
