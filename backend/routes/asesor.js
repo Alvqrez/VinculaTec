@@ -1,6 +1,3 @@
-
-//Comprobacion de cambios en GitHub
-
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
@@ -8,7 +5,6 @@ const db = require("../db");
 const router = express.Router();
 
 // ── Helpers de normalización ──────────────────────────────────────────────────
-// Convierte el tipo de BD ("parcial1") al formato que espera el frontend ("Parcial 1")
 const TIPO_TO_FASE = {
   preliminar: "Preliminar",
   parcial1: "Parcial 1",
@@ -17,10 +13,9 @@ const TIPO_TO_FASE = {
   final: "Final",
 };
 
-// Convierte estado de BD a los valores que usa el frontend
 const ESTADO_TO_STATUS = {
   Aprobado: "Aceptado",
-  "En Revisión": "Pendiente", // Entregado y en revisión = Pendiente para el asesor
+  "En Revisión": "Pendiente",
   Entregado: "Pendiente",
   Pendiente: "Pendiente",
   Rechazado: "Por corregir",
@@ -40,12 +35,14 @@ function authMiddleware(req, res, next) {
   if (!auth) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          mensaje: "JWT_SECRET no está configurado en el servidor.",
+        });
     }
-    req.user = jwt.verify(
-      auth.split(" ")[1],
-      process.env.JWT_SECRET,
-    );
+    req.user = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
     next();
   } catch {
     return res.status(401).json({ ok: false, mensaje: "Token inválido." });
@@ -74,9 +71,12 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       [asesorId],
     );
 
-    // Proyectos activos (en desarrollo o revisión)
+    // Proyectos activos del asesor (vía tabla junction proyecto_asesores)
     const [projRows] = await db.execute(
-      "SELECT COUNT(*) AS total FROM proyectos WHERE asesor_id = ? AND estado IN ('desarrollo','revision')",
+      `SELECT COUNT(*) AS total
+       FROM proyectos p
+       JOIN proyecto_asesores pa ON pa.proyecto_id = p.id AND pa.asesor_id = ?
+       WHERE p.estado IN ('desarrollo','revision')`,
       [asesorId],
     );
 
@@ -121,12 +121,11 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 // ── GET /api/asesor/proyectos ─────────────────────────────────────────────────
-// Obtiene todos los proyectos asignados al asesor con datos relacionados
+// Obtiene todos los proyectos donde el asesor está en proyecto_asesores
 router.get("/proyectos", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Verificar que el usuario es asesor
     const [asesorRows] = await db.execute(
       "SELECT id FROM asesores WHERE usuario_id = ?",
       [userId],
@@ -138,53 +137,78 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
 
     const asesorId = asesorRows[0].id;
 
-    // Obtener todos los proyectos del asesor
+    // Proyectos donde el asesor aparece en proyecto_asesores
     const [projects] = await db.execute(
       `SELECT p.id, p.titulo AS title, p.descripcion AS description,
               p.estado AS phase, p.prioridad AS priority,
               e.nombre AS company, e.id AS empresa_id,
               p.progreso, p.tecnologias AS habilidades,
+              p.residente_id,
               COALESCE(res.horas_completadas, 0) AS horasDocumentadas,
               COALESCE(res.horas_requeridas, 480) AS horasTotales,
               res.fecha_inicio AS fechaInicio,
               res.fecha_fin AS fechaFin,
               p.solicitud_avance
        FROM proyectos p
+       JOIN proyecto_asesores pa ON pa.proyecto_id = p.id AND pa.asesor_id = ?
        LEFT JOIN empresas e ON p.empresa_id = e.id
        LEFT JOIN residentes res ON p.residente_id = res.id
-       WHERE p.asesor_id = ?
        ORDER BY p.created_at DESC`,
       [asesorId],
     );
 
-    // Para cada proyecto, obtener residentes, reportes y reuniones
+    // Para cada proyecto obtener residentes, reportes y reuniones
     const projectsWithDetails = await Promise.all(
       projects.map(async (project) => {
-        // Residentes asignados al proyecto
-        const [residentes] = await db.execute(
-          `SELECT r.id, u.nombre, u.apellidos, 
-                  r.carrera, r.num_control,
-                  r.horas_completadas, r.horas_requeridas, r.estado
-           FROM residentes r
-           JOIN usuarios u ON r.usuario_id = u.id
-           WHERE r.asesor_id = ? AND r.empresa_id = ?`,
-          [asesorId, project.empresa_id],
-        );
+        // Residentes: todos los residentes cuyo asesor es este asesor y están en este proyecto.
+        // Un proyecto tiene un residente_id principal; adicionalmente todos los residentes
+        // de este asesor que pertenecen a la misma empresa son co-residentes del proyecto.
+        let residentes = [];
+        if (project.residente_id) {
+          // Residente principal del proyecto
+          const [mainRes] = await db.execute(
+            `SELECT r.id, u.nombre, u.apellidos,
+                    r.carrera, r.num_control,
+                    r.horas_completadas, r.horas_requeridas, r.estado
+             FROM residentes r
+             JOIN usuarios u ON r.usuario_id = u.id
+             WHERE r.id = ?`,
+            [project.residente_id],
+          );
+          residentes = mainRes;
+        } else if (project.empresa_id) {
+          // Sin residente asignado explícito: usar los residentes del asesor en esa empresa
+          const [empRes] = await db.execute(
+            `SELECT r.id, u.nombre, u.apellidos,
+                    r.carrera, r.num_control,
+                    r.horas_completadas, r.horas_requeridas, r.estado
+             FROM residentes r
+             JOIN usuarios u ON r.usuario_id = u.id
+             WHERE r.asesor_id = ? AND r.empresa_id = ?`,
+            [asesorId, project.empresa_id],
+          );
+          residentes = empRes;
+        }
 
-        // Reportes del proyecto
-        const [reportes] = await db.execute(
-          `SELECT r.id, r.tipo AS fase, u.nombre AS residente,
-                  r.estado AS status, r.calificacion AS score,
-                  r.fecha_entrega AS fecha, r.feedback,
-                  r.fecha_limite, r.archivo_url AS archivo
-           FROM reportes r
-           LEFT JOIN residentes res ON r.residente_id = res.id
-           LEFT JOIN usuarios u ON res.usuario_id = u.id
-           WHERE res.asesor_id = ? AND res.empresa_id = ?`,
-          [asesorId, project.empresa_id],
-        );
+        // Reportes vinculados al residente principal del proyecto
+        let reportes = [];
+        if (project.residente_id) {
+          const [reps] = await db.execute(
+            `SELECT r.id, r.tipo AS fase, u.nombre AS residente,
+                    r.estado AS status, r.calificacion AS score,
+                    r.fecha_entrega AS fecha, r.feedback,
+                    r.fecha_limite, r.archivo_url AS archivo
+             FROM reportes r
+             JOIN residentes res ON r.residente_id = res.id
+             JOIN usuarios u ON res.usuario_id = u.id
+             WHERE res.id = ?
+             ORDER BY FIELD(r.tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
+            [project.residente_id],
+          );
+          reportes = reps;
+        }
 
-        // Citas/reuniones del proyecto (usando citas table)
+        // Citas/reuniones del asesor relacionadas con el proyecto
         const [reuniones] = await db.execute(
           `SELECT c.id, c.motivo AS titulo, c.fecha_hora,
                   c.lugar, c.tipo AS tipo, c.estado
@@ -197,15 +221,14 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
 
         return {
           ...project,
-          title: project.title,
           phase: project.phase.toLowerCase(),
-          // Convertir string "React, Node.js" → ["React", "Node.js"]
           habilidades: project.habilidades
             ? project.habilidades
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean)
             : [],
+          solicitudAvance: Boolean(project.solicitud_avance),
           residentes: residentes.map((r) => ({
             id: r.id,
             nombre: `${r.nombre} ${r.apellidos}`,
@@ -218,7 +241,6 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
           reportes: reportes.map((rep) => {
             const faseNorm = normalizarFase(rep.fase);
             const statusNorm = normalizarStatus(rep.status);
-            // Solo usar fecha_entrega si existe y el reporte fue realmente enviado
             const fechaISO =
               rep.fecha && rep.fecha !== null
                 ? new Date(rep.fecha).toISOString().split("T")[0]
@@ -256,10 +278,7 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
       }),
     );
 
-    return res.json({
-      ok: true,
-      proyectos: projectsWithDetails,
-    });
+    return res.json({ ok: true, proyectos: projectsWithDetails });
   } catch (err) {
     console.error("Error en /asesor/proyectos:", err);
     return res
@@ -268,8 +287,7 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
   }
 });
 
-// ── POST /api/asesor/proyectos/:id/solicitar-avance ───────────────────────────────
-// Solicita avance de fase para un proyecto
+// ── POST /api/asesor/proyectos/:id/solicitar-avance ───────────────────────────
 router.post(
   "/proyectos/:id/solicitar-avance",
   authMiddleware,
@@ -278,7 +296,6 @@ router.post(
       const userId = req.user.id;
       const proyectoId = req.params.id;
 
-      // Verificar que el usuario es asesor
       const [asesorRows] = await db.execute(
         "SELECT id FROM asesores WHERE usuario_id = ?",
         [userId],
@@ -290,23 +307,30 @@ router.post(
 
       const asesorId = asesorRows[0].id;
 
-      // Verificar que el proyecto pertenece al asesor
-      const [projectRows] = await db.execute(
-        "SELECT id, estado FROM proyectos WHERE id = ? AND asesor_id = ?",
+      // Verificar que el asesor pertenece al proyecto (vía junction table)
+      const [paRows] = await db.execute(
+        "SELECT 1 FROM proyecto_asesores WHERE proyecto_id = ? AND asesor_id = ?",
         [proyectoId, asesorId],
+      );
+      if (!paRows.length)
+        return res
+          .status(404)
+          .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+      const [projectRows] = await db.execute(
+        "SELECT id, estado FROM proyectos WHERE id = ?",
+        [proyectoId],
       );
       if (!projectRows.length)
         return res
           .status(404)
           .json({ ok: false, mensaje: "Proyecto no encontrado." });
 
-      // Verificar que el proyecto no está concluido
       if (projectRows[0].estado === "concluido")
         return res
           .status(400)
           .json({ ok: false, mensaje: "El proyecto ya está concluido." });
 
-      // Actualizar el proyecto para marcar la solicitud de avance
       await db.execute(
         "UPDATE proyectos SET solicitud_avance = 1 WHERE id = ?",
         [proyectoId],

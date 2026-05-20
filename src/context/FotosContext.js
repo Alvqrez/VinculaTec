@@ -1,20 +1,14 @@
 /**
  * FotosContext
- * Almacén centralizado de fotos de perfil de todos los usuarios.
- * Las fotos se persisten en la base de datos a través de la API.
+ * Almacén centralizado de fotos de perfil.
+ * Las fotos se guardan en la BD (base64) para que sean visibles
+ * desde cualquier dispositivo (no solo el que las subió).
+ * Usa apiClient para mantener la misma URL base que el resto de la app.
  */
 import { createContext, useContext, useState, useCallback } from "react";
-import { API_BASE } from "../config/api";
+import apiClient from "../utils/apiClient";
 
 const FotosCtx = createContext(null);
-
-const getAuthToken = () => {
-  try {
-    return globalThis?.localStorage?.getItem("authToken") ?? null;
-  } catch {
-    return null;
-  }
-};
 
 export function FotosProvider({ children }) {
   const [fotos, setFotos] = useState({});
@@ -25,15 +19,10 @@ export function FotosProvider({ children }) {
    */
   const initUser = useCallback(async (userId) => {
     if (!userId) return;
-    const token = getAuthToken();
-    if (!token) return;
     try {
-      const res = await fetch(`${API_BASE}/fotos/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.ok && json.foto) {
-        setFotos((prev) => ({ ...prev, [String(userId)]: json.foto }));
+      const res = await apiClient.get(`/api/fotos/${userId}`);
+      if (res.ok && res.body?.ok && res.body.foto) {
+        setFotos((prev) => ({ ...prev, [String(userId)]: res.body.foto }));
       }
     } catch (err) {
       console.error("FotosContext initUser error:", err);
@@ -48,30 +37,27 @@ export function FotosProvider({ children }) {
   const setFoto = useCallback(async (userId, base64OrNull) => {
     if (!userId) return;
     const key = String(userId);
-    const token = getAuthToken();
-    if (!token) { console.error("setFoto: sin token"); return; }
 
     try {
       if (base64OrNull === null) {
-        await fetch(`${API_BASE}/fotos`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setFotos((prev) => { const n = { ...prev }; delete n[key]; return n; });
+        const res = await apiClient.delete("/api/fotos");
+        if (res.ok) {
+          setFotos((prev) => {
+            const n = { ...prev };
+            delete n[key];
+            return n;
+          });
+        } else {
+          console.error("setFoto delete error:", res.body?.mensaje);
+        }
       } else {
-        const res = await fetch(`${API_BASE}/fotos`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ foto_base64: base64OrNull }),
+        const res = await apiClient.post("/api/fotos", {
+          foto_base64: base64OrNull,
         });
-        const json = await res.json();
-        if (json.ok) {
+        if (res.ok && res.body?.ok) {
           setFotos((prev) => ({ ...prev, [key]: base64OrNull }));
         } else {
-          console.error("setFoto error:", json.mensaje);
+          console.error("setFoto error:", res.body?.mensaje);
         }
       }
     } catch (err) {
@@ -81,16 +67,11 @@ export function FotosProvider({ children }) {
 
   const loadFoto = useCallback(async (userId) => {
     if (!userId) return null;
-    const token = getAuthToken();
-    if (!token) return null;
     try {
-      const res = await fetch(`${API_BASE}/fotos/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.ok && json.foto) {
-        setFotos((prev) => ({ ...prev, [String(userId)]: json.foto }));
-        return json.foto;
+      const res = await apiClient.get(`/api/fotos/${userId}`);
+      if (res.ok && res.body?.ok && res.body.foto) {
+        setFotos((prev) => ({ ...prev, [String(userId)]: res.body.foto }));
+        return res.body.foto;
       }
       return null;
     } catch (err) {

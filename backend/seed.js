@@ -451,6 +451,18 @@ async function seed() {
     }
     console.log(`🗂️   ${PROYECTOS.length} proyectos insertados.`);
 
+    // Poblar proyecto_asesores desde proyectos.asesor_id
+    for (const p of PROYECTOS) {
+      const aid = asesorPorProyecto[p.id];
+      if (aid) {
+        await conn.execute(
+          "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
+          [p.id, aid],
+        );
+      }
+    }
+    console.log(`🔗   proyecto_asesores poblado.`);
+
     let totalReportes = 0;
     for (let ri = 0; ri < REPORTES_CONFIG.length; ri++) {
       const [aprobados, tienePendiente, diasAtras] = REPORTES_CONFIG[ri];

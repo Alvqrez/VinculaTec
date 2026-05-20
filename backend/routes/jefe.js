@@ -9,7 +9,12 @@ const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET)
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          mensaje: "JWT_SECRET no está configurado en el servidor.",
+        });
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch {
@@ -21,16 +26,16 @@ const auth = (req, res, next) => {
 router.get("/dashboard", auth, async (req, res) => {
   try {
     const [[{ totalResidentes }]] = await db.execute(
-      "SELECT COUNT(*) AS totalResidentes FROM residentes WHERE estado = 'activo'"
+      "SELECT COUNT(*) AS totalResidentes FROM residentes WHERE estado = 'activo'",
     );
     const [[{ empresasVinculadas }]] = await db.execute(
-      "SELECT COUNT(*) AS empresasVinculadas FROM empresas"
+      "SELECT COUNT(*) AS empresasVinculadas FROM empresas",
     );
     const [[{ proyectosActivos }]] = await db.execute(
-      "SELECT COUNT(*) AS proyectosActivos FROM proyectos WHERE estado IN ('desarrollo','revision')"
+      "SELECT COUNT(*) AS proyectosActivos FROM proyectos WHERE estado IN ('desarrollo','revision')",
     );
     const [[{ reportesPendientes }]] = await db.execute(
-      "SELECT COUNT(*) AS reportesPendientes FROM reportes WHERE estado IN ('Pendiente','En Revisión')"
+      "SELECT COUNT(*) AS reportesPendientes FROM reportes WHERE estado IN ('Pendiente','En Revisión')",
     );
 
     // Top empresas con más residentes
@@ -43,12 +48,17 @@ router.get("/dashboard", auth, async (req, res) => {
        LEFT JOIN residentes r ON r.empresa_id = e.id AND r.estado = 'activo'
        GROUP BY e.id
        ORDER BY residentes DESC
-       LIMIT 6`
+       LIMIT 6`,
     );
 
     return res.json({
       ok: true,
-      stats: { totalResidentes, empresasVinculadas, proyectosActivos, reportesPendientes },
+      stats: {
+        totalResidentes,
+        empresasVinculadas,
+        proyectosActivos,
+        reportesPendientes,
+      },
       topEmpresas,
     });
   } catch (err) {
@@ -70,7 +80,7 @@ router.get("/empresas", auth, async (req, res) => {
        FROM empresas e
        LEFT JOIN residentes r ON r.empresa_id = e.id AND r.estado = 'activo'
        GROUP BY e.id
-       ORDER BY e.nombre ASC`
+       ORDER BY e.nombre ASC`,
     );
     return res.json({ ok: true, empresas: rows });
   } catch (err) {
@@ -81,15 +91,36 @@ router.get("/empresas", auth, async (req, res) => {
 
 // ── POST /api/jefe/empresas ───────────────────────────────────────────────────
 router.post("/empresas", auth, async (req, res) => {
-  const { name, sector, ciudad, convenio, contactoNombre, contactoEmail, contactoTel, status } = req.body;
-  if (!name?.trim()) return res.status(400).json({ ok: false, mensaje: "El nombre es requerido." });
+  const {
+    name,
+    sector,
+    ciudad,
+    convenio,
+    contactoNombre,
+    contactoEmail,
+    contactoTel,
+    status,
+  } = req.body;
+  if (!name?.trim())
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "El nombre es requerido." });
   try {
     const newId = `emp_${Date.now()}`;
     await db.execute(
       `INSERT INTO empresas (id, nombre, sector, ciudad, estado, convenio_vencimiento, contacto_nombre, contacto_email, contacto_telefono)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      [newId, name.trim(), sector || null, ciudad || null, status || "Nueva",
-       convenio || null, contactoNombre || null, contactoEmail || null, contactoTel || null]
+      [
+        newId,
+        name.trim(),
+        sector || null,
+        ciudad || null,
+        status || "Nueva",
+        convenio || null,
+        contactoNombre || null,
+        contactoEmail || null,
+        contactoTel || null,
+      ],
     );
     return res.json({ ok: true, id: newId });
   } catch (err) {
@@ -100,14 +131,31 @@ router.post("/empresas", auth, async (req, res) => {
 
 // ── PUT /api/jefe/empresas/:id ────────────────────────────────────────────────
 router.put("/empresas/:id", auth, async (req, res) => {
-  const { name, sector, ciudad, convenio, contactoNombre, contactoEmail, contactoTel, status } = req.body;
+  const {
+    name,
+    sector,
+    ciudad,
+    convenio,
+    contactoNombre,
+    contactoEmail,
+    contactoTel,
+    status,
+  } = req.body;
   try {
     await db.execute(
       `UPDATE empresas SET nombre=?, sector=?, ciudad=?, estado=?, convenio_vencimiento=?,
        contacto_nombre=?, contacto_email=?, contacto_telefono=? WHERE id=?`,
-      [name, sector || null, ciudad || null, status || "Activa",
-       convenio || null, contactoNombre || null, contactoEmail || null, contactoTel || null,
-       req.params.id]
+      [
+        name,
+        sector || null,
+        ciudad || null,
+        status || "Activa",
+        convenio || null,
+        contactoNombre || null,
+        contactoEmail || null,
+        contactoTel || null,
+        req.params.id,
+      ],
     );
     return res.json({ ok: true });
   } catch (err) {
@@ -144,7 +192,7 @@ router.get("/proyectos", auth, async (req, res) => {
        LEFT JOIN residentes res ON p.residente_id = res.id
        LEFT JOIN usuarios ur ON res.usuario_id = ur.id
        WHERE p.estado IN ('desarrollo','revision','concluido')
-       ORDER BY p.created_at DESC`
+       ORDER BY p.created_at DESC`,
     );
     return res.json({ ok: true, proyectos: rows });
   } catch (err) {
@@ -157,7 +205,11 @@ router.get("/proyectos", auth, async (req, res) => {
 router.put("/proyectos/:id", auth, async (req, res) => {
   const { title, asesorNombre } = req.body;
   try {
-    if (title) await db.execute("UPDATE proyectos SET titulo=? WHERE id=?", [title, req.params.id]);
+    if (title)
+      await db.execute("UPDATE proyectos SET titulo=? WHERE id=?", [
+        title,
+        req.params.id,
+      ]);
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error en PUT /jefe/proyectos/:id:", err);
@@ -166,28 +218,31 @@ router.put("/proyectos/:id", auth, async (req, res) => {
 });
 
 // ── GET /api/jefe/asignacion/datos ────────────────────────────────────────────
-// Devuelve asesores, empresas y residentes sin proyecto para el wizard
+// Devuelve asesores, empresas y residentes sin asesor para el wizard de asignación
 router.get("/asignacion/datos", auth, async (req, res) => {
   try {
+    // Contar proyectos activos por asesor usando la tabla junction
     const [asesores] = await db.execute(
       `SELECT a.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre, a.departamento,
-              COUNT(p.id) AS activos
+              COUNT(DISTINCT pa.proyecto_id) AS activos
        FROM asesores a
        JOIN usuarios u ON a.usuario_id = u.id
-       LEFT JOIN proyectos p ON p.asesor_id = a.id AND p.estado IN ('desarrollo','revision')
+       LEFT JOIN proyecto_asesores pa ON pa.asesor_id = a.id
+       LEFT JOIN proyectos p ON p.id = pa.proyecto_id AND p.estado IN ('desarrollo','revision')
        GROUP BY a.id
-       ORDER BY u.nombre ASC`
+       ORDER BY u.nombre ASC`,
     );
     const [empresas] = await db.execute(
-      "SELECT id, nombre FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC"
+      "SELECT id, nombre FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC",
     );
+    // Residentes activos sin asesor asignado (disponibles para nueva asignación)
     const [residentes] = await db.execute(
       `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre,
               r.num_control AS matricula, r.carrera
        FROM residentes r
        JOIN usuarios u ON r.usuario_id = u.id
        WHERE r.estado = 'activo' AND r.asesor_id IS NULL
-       ORDER BY u.nombre ASC`
+       ORDER BY u.nombre ASC`,
     );
     return res.json({ ok: true, asesores, empresas, residentes });
   } catch (err) {
@@ -197,29 +252,138 @@ router.get("/asignacion/datos", auth, async (req, res) => {
 });
 
 // ── POST /api/jefe/asignacion ─────────────────────────────────────────────────
+// Crea un proyecto y lo asigna a uno o varios asesores y a los residentes indicados.
+// Regla: cada residente tiene UN SOLO asesor (el primero de asesorIds).
+// Todos los asesorIds quedan vinculados al proyecto en proyecto_asesores.
 router.post("/asignacion", auth, async (req, res) => {
-  const { proyectoNombre, empresaId, descripcion, asesorId, residentesIds } = req.body;
-  if (!proyectoNombre?.trim() || !empresaId || !asesorId || !residentesIds?.length)
-    return res.status(400).json({ ok: false, mensaje: "Faltan datos requeridos." });
+  // Soporta tanto asesorId (legacy, string) como asesorIds (array)
+  let {
+    proyectoNombre,
+    empresaId,
+    descripcion,
+    asesorId,
+    asesorIds,
+    residentesIds,
+  } = req.body;
+
+  // Normalizar a array
+  if (!asesorIds?.length && asesorId) asesorIds = [asesorId];
+  const asesorIdPrimario = asesorIds?.[0];
+
+  if (
+    !proyectoNombre?.trim() ||
+    !empresaId ||
+    !asesorIdPrimario ||
+    !residentesIds?.length
+  )
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "Faltan datos requeridos." });
 
   try {
     const proyectoId = `p_${Date.now()}`;
-    // Usar el primer residente como residente_id principal del proyecto
+
+    // Insertar proyecto con el asesor principal como referencia rápida
     await db.execute(
       `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, estado, prioridad)
        VALUES (?,?,?,?,?,?,'propuesto','Media')`,
-      [proyectoId, proyectoNombre.trim(), descripcion || null, empresaId, asesorId, residentesIds[0]]
+      [
+        proyectoId,
+        proyectoNombre.trim(),
+        descripcion || null,
+        empresaId,
+        asesorIdPrimario,
+        residentesIds[0],
+      ],
     );
-    // Asignar asesor a todos los residentes
-    for (const rId of residentesIds) {
+
+    // Vincular TODOS los asesores en proyecto_asesores
+    for (const aId of asesorIds) {
       await db.execute(
-        "UPDATE residentes SET asesor_id = ? WHERE id = ?",
-        [asesorId, rId]
+        "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
+        [proyectoId, aId],
       );
     }
+
+    // Asignar el asesor PRINCIPAL a todos los residentes seleccionados
+    for (const rId of residentesIds) {
+      await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [
+        asesorIdPrimario,
+        rId,
+      ]);
+    }
+
     return res.json({ ok: true, id: proyectoId });
   } catch (err) {
     console.error("Error en POST /jefe/asignacion:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── POST /api/jefe/proyectos/:id/asesores ────────────────────────────────────
+// Agrega un asesor adicional a un proyecto existente
+router.post("/proyectos/:id/asesores", auth, async (req, res) => {
+  const { asesorId } = req.body;
+  if (!asesorId)
+    return res.status(400).json({ ok: false, mensaje: "asesorId requerido." });
+  try {
+    // Verificar que el proyecto existe
+    const [pRows] = await db.execute("SELECT id FROM proyectos WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (!pRows.length)
+      return res
+        .status(404)
+        .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+    await db.execute(
+      "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
+      [req.params.id, asesorId],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error en POST /jefe/proyectos/:id/asesores:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── PUT /api/jefe/proyectos/:id/aprobar-avance ────────────────────────────────
+// Aprueba la solicitud de avance de fase de un proyecto
+router.put("/proyectos/:id/aprobar-avance", auth, async (req, res) => {
+  const phases = ["propuesto", "desarrollo", "revision", "concluido"];
+  try {
+    const [rows] = await db.execute(
+      "SELECT estado, solicitud_avance FROM proyectos WHERE id = ?",
+      [req.params.id],
+    );
+    if (!rows.length)
+      return res
+        .status(404)
+        .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+    const { estado, solicitud_avance } = rows[0];
+    if (!solicitud_avance)
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          mensaje: "El proyecto no tiene una solicitud de avance pendiente.",
+        });
+
+    const idx = phases.indexOf(estado);
+    if (idx < 0 || idx >= phases.length - 1)
+      return res
+        .status(400)
+        .json({ ok: false, mensaje: "El proyecto ya está en la fase final." });
+
+    const nuevoEstado = phases[idx + 1];
+    await db.execute(
+      "UPDATE proyectos SET estado = ?, solicitud_avance = 0 WHERE id = ?",
+      [nuevoEstado, req.params.id],
+    );
+    return res.json({ ok: true, nuevoEstado });
+  } catch (err) {
+    console.error("Error en PUT /jefe/proyectos/:id/aprobar-avance:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
   }
 });
@@ -234,7 +398,7 @@ router.get("/fuentes", auth, async (req, res) => {
        FROM fuentes_informacion f
        JOIN residentes r ON f.residente_id = r.id
        JOIN usuarios u ON r.usuario_id = u.id
-       ORDER BY f.id ASC`
+       ORDER BY f.id ASC`,
     );
     return res.json({ ok: true, fuentes: rows });
   } catch (err) {
@@ -251,7 +415,7 @@ router.put("/fuentes/:id", auth, async (req, res) => {
   try {
     await db.execute(
       "UPDATE fuentes_informacion SET estado=?, revisado_por=?, fecha_revision=CURDATE(), observaciones=? WHERE id=?",
-      [estado, req.user.id, observaciones || null, req.params.id]
+      [estado, req.user.id, observaciones || null, req.params.id],
     );
     return res.json({ ok: true });
   } catch (err) {
