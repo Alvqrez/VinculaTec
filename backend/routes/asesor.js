@@ -71,12 +71,11 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       [asesorId],
     );
 
-    // Proyectos activos del asesor (vía tabla junction proyecto_asesores)
+    // Proyectos activos del asesor
     const [projRows] = await db.execute(
       `SELECT COUNT(*) AS total
        FROM proyectos p
-       JOIN proyecto_asesores pa ON pa.proyecto_id = p.id AND pa.asesor_id = ?
-       WHERE p.estado IN ('desarrollo','revision')`,
+       WHERE p.asesor_id = ? AND p.estado IN ('desarrollo','revision')`,
       [asesorId],
     );
 
@@ -137,7 +136,7 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
 
     const asesorId = asesorRows[0].id;
 
-    // Proyectos donde el asesor es principal o aparece en proyecto_asesores
+    // Proyectos del asesor
     const [projects] = await db.execute(
       `SELECT p.id, p.titulo AS title, p.descripcion AS description,
               p.estado AS phase, p.prioridad AS priority,
@@ -150,12 +149,11 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
               res.fecha_fin AS fechaFin,
               p.solicitud_avance
        FROM proyectos p
-       LEFT JOIN proyecto_asesores pa ON pa.proyecto_id = p.id AND pa.asesor_id = ?
        LEFT JOIN empresas e ON p.empresa_id = e.id
        LEFT JOIN residentes res ON p.residente_id = res.id
-       WHERE p.asesor_id = ? OR pa.asesor_id = ?
+       WHERE p.asesor_id = ?
        ORDER BY p.created_at DESC`,
-      [asesorId, asesorId, asesorId],
+      [asesorId],
     );
 
     // Para cada proyecto obtener residentes, reportes y reuniones

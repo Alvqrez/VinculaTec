@@ -220,14 +220,13 @@ router.put("/proyectos/:id", auth, async (req, res) => {
 // Devuelve asesores, empresas y residentes activos para el wizard de asignación
 router.get("/asignacion/datos", auth, async (req, res) => {
   try {
-    // Contar proyectos activos por asesor usando la tabla junction
+    // Contar proyectos activos por asesor
     const [asesores] = await db.execute(
       `SELECT a.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre, a.departamento,
-              COUNT(DISTINCT pa.proyecto_id) AS activos
+              COUNT(DISTINCT p.id) AS activos
        FROM asesores a
        JOIN usuarios u ON a.usuario_id = u.id
-       LEFT JOIN proyecto_asesores pa ON pa.asesor_id = a.id
-       LEFT JOIN proyectos p ON p.id = pa.proyecto_id AND p.estado IN ('desarrollo','revision')
+       LEFT JOIN proyectos p ON p.asesor_id = a.id AND p.estado IN ('desarrollo','revision')
        GROUP BY a.id
        ORDER BY u.nombre ASC`,
     );
@@ -251,9 +250,8 @@ router.get("/asignacion/datos", auth, async (req, res) => {
 });
 
 // ── POST /api/jefe/asignacion ─────────────────────────────────────────────────
-// Crea un proyecto y lo asigna a uno o varios asesores y a los residentes indicados.
-// Regla: cada residente tiene UN SOLO asesor (el primero de asesorIds).
-// Todos los asesorIds quedan vinculados al proyecto en proyecto_asesores.
+// Crea un proyecto y lo asigna a un asesor principal y a los residentes indicados.
+// Regla: cada residente tiene UN SOLO asesor (el asesor principal).
 router.post("/asignacion", auth, async (req, res) => {
   // Soporta tanto asesorId (legacy, string) como asesorIds (array)
   let {
@@ -296,14 +294,6 @@ router.post("/asignacion", auth, async (req, res) => {
       ],
     );
 
-    // Vincular TODOS los asesores en proyecto_asesores
-    for (const aId of asesorIds) {
-      await db.execute(
-        "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
-        [proyectoId, aId],
-      );
-    }
-
     // Asignar el asesor PRINCIPAL a todos los residentes seleccionados
     for (const rId of residentesIds) {
       await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [
@@ -335,9 +325,10 @@ router.post("/proyectos/:id/asesores", auth, async (req, res) => {
         .status(404)
         .json({ ok: false, mensaje: "Proyecto no encontrado." });
 
+    // Actualizar asesor principal del proyecto
     await db.execute(
-      "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
-      [req.params.id, asesorId],
+      "UPDATE proyectos SET asesor_id = ? WHERE id = ?",
+      [asesorId, req.params.id],
     );
     return res.json({ ok: true });
   } catch (err) {
