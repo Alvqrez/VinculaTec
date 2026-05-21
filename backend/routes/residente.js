@@ -11,7 +11,12 @@ const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET)
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          mensaje: "JWT_SECRET no está configurado en el servidor.",
+        });
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
   } catch {
@@ -47,7 +52,7 @@ const TIPO_TO_SUBTITLE = {
 const ESTADO_TO_STATUS = {
   Pendiente: "Pendiente",
   Entregado: "Pendiente",
-  "En Revisión": "En Revisión",  // Corrección: Debería ser "En Revisión", no "Pendiente"
+  "En Revisión": "En Revisión", // Corrección: Debería ser "En Revisión", no "Pendiente"
   Aprobado: "Aceptado",
   Rechazado: "Por corregir",
 };
@@ -57,10 +62,12 @@ router.get("/reportes", auth, async (req, res) => {
   try {
     const [resRows] = await db.execute(
       "SELECT r.id, r.asesor_id FROM residentes r WHERE r.usuario_id = ?",
-      [req.user.id]
+      [req.user.id],
     );
     if (!resRows.length)
-      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
     const asesorId = resRows[0].asesor_id;
@@ -70,7 +77,7 @@ router.get("/reportes", auth, async (req, res) => {
     if (asesorId) {
       const [asesorRows] = await db.execute(
         "SELECT u.nombre, u.apellidos FROM usuarios u JOIN asesores a ON a.usuario_id = u.id WHERE a.id = ?",
-        [asesorId]
+        [asesorId],
       );
       if (asesorRows.length)
         asesorNombre = `${asesorRows[0].nombre} ${asesorRows[0].apellidos}`;
@@ -80,7 +87,7 @@ router.get("/reportes", auth, async (req, res) => {
       // MODIFICADO: Agregado nombre_archivo para que el frontend pueda mostrar el nombre del archivo
       `SELECT tipo, estado, fecha_entrega, feedback, archivo_url, nombre_archivo
        FROM reportes WHERE residente_id = ? ORDER BY FIELD(tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
-      [residenteId]
+      [residenteId],
     );
 
     // Construir lista completa (si no existe en BD, status Pendiente sin entregar)
@@ -88,14 +95,22 @@ router.get("/reportes", auth, async (req, res) => {
     const reportes = TIPOS.map((tipo) => {
       const row = rows.find((r) => r.tipo === tipo);
       const fechaEntrega = row?.fecha_entrega
-        ? new Date(row.fecha_entrega).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+        ? new Date(row.fecha_entrega).toLocaleDateString("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
         : null;
       // Corrección: Agregar trim() para eliminar espacios en blanco del estado
       const estadoNormalizado = row?.estado?.trim() || "";
-      const status = row ? (ESTADO_TO_STATUS[estadoNormalizado] || "Pendiente") : "Pendiente";
+      const status = row
+        ? ESTADO_TO_STATUS[estadoNormalizado] || "Pendiente"
+        : "Pendiente";
       // Agregado: Log para depurar discrepancia de estado
       if (tipo === "preliminar") {
-        console.log(`[DEBUG] Reporte preliminar: BD estado="${row?.estado}", Normalizado="${estadoNormalizado}", Frontend status="${status}"`);
+        console.log(
+          `[DEBUG] Reporte preliminar: BD estado="${row?.estado}", Normalizado="${estadoNormalizado}", Frontend status="${status}"`,
+        );
       }
       return {
         id: TIPO_TO_ID[tipo],
@@ -105,8 +120,8 @@ router.get("/reportes", auth, async (req, res) => {
         submitted: fechaEntrega,
         reviewer: asesorNombre,
         feedback: row?.feedback || null,
-        archivo_url: row?.archivo_url || null,  // Agregado: URL del archivo (data URI)
-        nombre_archivo: row?.nombre_archivo || null,  // Agregado: nombre del archivo
+        archivo_url: row?.archivo_url || null, // Agregado: URL del archivo (data URI)
+        nombre_archivo: row?.nombre_archivo || null, // Agregado: nombre del archivo
         items: [],
       };
     });
@@ -122,28 +137,40 @@ router.get("/reportes", auth, async (req, res) => {
 // Residente entrega un reporte (crea o actualiza)
 // MODIFICADO: Ahora acepta y guarda el archivo (base64) y nombre_archivo
 router.put("/reportes/:tipo", auth, async (req, res) => {
-  const tiposValidos = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+  const tiposValidos = [
+    "preliminar",
+    "parcial1",
+    "parcial2",
+    "parcial3",
+    "final",
+  ];
   const { tipo } = req.params;
   if (!tiposValidos.includes(tipo))
-    return res.status(400).json({ ok: false, mensaje: "Tipo de reporte inválido." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "Tipo de reporte inválido." });
 
   try {
     const [resRows] = await db.execute(
       "SELECT id FROM residentes WHERE usuario_id = ?",
-      [req.user.id]
+      [req.user.id],
     );
     if (!resRows.length)
-      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
     const today = new Date().toISOString().split("T")[0];
 
     // Obtener archivo y nombre_archivo del cuerpo de la petición (enviados desde el frontend)
     const { archivo, nombre_archivo, empresa } = req.body || {};
-    
+
     // Agregado: Log para depurar si se recibe el archivo
-    console.log(`[DEBUG] Subiendo reporte: tipo=${tipo}, archivo=${archivo ? 'recibido (' + archivo.length + ' chars)' : 'null'}, nombre_archivo=${nombre_archivo}`);
-    
+    console.log(
+      `[DEBUG] Subiendo reporte: tipo=${tipo}, archivo=${archivo ? "recibido (" + archivo.length + " chars)" : "null"}, nombre_archivo=${nombre_archivo}`,
+    );
+
     // Agregado: Función para guardar archivo en disco
     // Por qué: El archivo no debe guardarse en la base de datos como base64, sino en el disco del servidor
     // Para qué: Ahorrar espacio en la base de datos y permitir descargar el archivo correctamente
@@ -151,23 +178,25 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
     if (archivo && nombre_archivo) {
       try {
         // Crear carpeta uploads si no existe
-        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        const uploadsDir = path.join(__dirname, "..", "uploads");
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
-        
+
         // Generar nombre único para el archivo
         const extension = path.extname(nombre_archivo);
         const nombreUnico = `${residenteId}_${tipo}_${Date.now()}${extension}`;
         const rutaArchivo = path.join(uploadsDir, nombreUnico);
-        
+
         // Extraer datos base64 (quitar el prefijo "data:application/pdf;base64,")
-        const base64Data = archivo.includes(',') ? archivo.split(',')[1] : archivo;
-        const buffer = Buffer.from(base64Data, 'base64');
-        
+        const base64Data = archivo.includes(",")
+          ? archivo.split(",")[1]
+          : archivo;
+        const buffer = Buffer.from(base64Data, "base64");
+
         // Guardar archivo en disco
         fs.writeFileSync(rutaArchivo, buffer);
-        
+
         // Guardar la ruta relativa para usar en la URL
         archivoUrl = `/uploads/${nombreUnico}`;
         console.log(`[DEBUG] Archivo guardado en disco: ${rutaArchivo}`);
@@ -179,7 +208,7 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
 
     const [existing] = await db.execute(
       "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
-      [residenteId, tipo]
+      [residenteId, tipo],
     );
 
     if (existing.length) {
@@ -191,29 +220,64 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
         await db.execute(
           `UPDATE reportes SET estado = 'Pendiente', fecha_entrega = NULL, archivo_url = NULL, nombre_archivo = NULL
            WHERE residente_id = ? AND tipo = ?`,
-          [residenteId, tipo]
+          [residenteId, tipo],
         );
       } else {
         await db.execute(
           `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
            WHERE residente_id = ? AND tipo = ?`,
-          [today, archivoUrl || null, nombre_archivo || null, residenteId, tipo]
+          [
+            today,
+            archivoUrl || null,
+            nombre_archivo || null,
+            residenteId,
+            tipo,
+          ],
         );
       }
     } else {
       // Crear nuevo reporte: guardar archivo, nombre_archivo y estado "En Revisión"
-      const newId = `rep_${residenteId}_${tipo}_${Date.now()}`;
-      await db.execute(
-        `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url, nombre_archivo)
-         VALUES (?,?,?,'En Revisión',?,?,?)`,
-        [newId, residenteId, tipo, today, archivoUrl || null, nombre_archivo || null]
-      );
+      const tsShort = Date.now().toString().slice(-8); // evitar overflow en VARCHAR(50)
+      const newId = `r_${residenteId}_${tipo}_${tsShort}`;
+      try {
+        await db.execute(
+          `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url, nombre_archivo)
+           VALUES (?,?,?,'En Revisión',?,?,?)`,
+          [
+            newId,
+            residenteId,
+            tipo,
+            today,
+            archivoUrl || null,
+            nombre_archivo || null,
+          ],
+        );
+      } catch (insertErr) {
+        // Fallback si nombre_archivo no existe en la BD: intentar sin esa columna
+        if (
+          insertErr.code === "ER_BAD_FIELD_ERROR" ||
+          String(insertErr).includes("nombre_archivo")
+        ) {
+          await db.execute(
+            `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url)
+             VALUES (?,?,?,'En Revisión',?,?)`,
+            [newId, residenteId, tipo, today, archivoUrl || null],
+          );
+        } else {
+          throw insertErr;
+        }
+      }
     }
 
     return res.json({ ok: true, archivo_url: archivo, nombre_archivo });
   } catch (err) {
     console.error("Error en PUT /residente/reportes/:tipo:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+    return res
+      .status(500)
+      .json({
+        ok: false,
+        mensaje: "Error interno: " + (err?.message || String(err)),
+      });
   }
 });
 
@@ -223,22 +287,22 @@ router.get("/asesor", auth, async (req, res) => {
   try {
     const [resRows] = await db.execute(
       "SELECT asesor_id FROM residentes WHERE usuario_id = ?",
-      [req.user.id]
+      [req.user.id],
     );
     if (!resRows.length)
-      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es residente." });
 
     const asesorId = resRows[0].asesor_id;
-    if (!asesorId)
-      return res.json({ ok: true, asesor: null });
+    if (!asesorId) return res.json({ ok: true, asesor: null });
 
     const [rows] = await db.execute(
       `SELECT u.nombre, u.apellidos, u.correo, a.departamento, a.num_empleado
        FROM asesores a JOIN usuarios u ON a.usuario_id = u.id WHERE a.id = ?`,
-      [asesorId]
+      [asesorId],
     );
-    if (!rows.length)
-      return res.json({ ok: true, asesor: null });
+    if (!rows.length) return res.json({ ok: true, asesor: null });
 
     const a = rows[0];
     return res.json({
@@ -266,10 +330,12 @@ router.get("/proyecto", auth, async (req, res) => {
   try {
     const [resRows] = await db.execute(
       "SELECT id FROM residentes WHERE usuario_id = ?",
-      [req.user.id]
+      [req.user.id],
     );
     if (!resRows.length)
-      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
 
@@ -284,11 +350,10 @@ router.get("/proyecto", auth, async (req, res) => {
        LEFT JOIN asesores a ON p.asesor_id = a.id
        LEFT JOIN usuarios u ON a.usuario_id = u.id
        WHERE p.residente_id = ?`,
-      [residenteId]
+      [residenteId],
     );
 
-    if (!rows.length)
-      return res.json({ ok: true, proyecto: null });
+    if (!rows.length) return res.json({ ok: true, proyecto: null });
 
     const p = rows[0];
     return res.json({
@@ -328,7 +393,7 @@ router.get("/proyecto", auth, async (req, res) => {
 router.get("/empresas", auth, async (req, res) => {
   try {
     const [rows] = await db.execute(
-      "SELECT id, nombre, estado FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC"
+      "SELECT id, nombre, estado FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC",
     );
     return res.json({ ok: true, empresas: rows });
   } catch (err) {
