@@ -302,9 +302,21 @@ router.post("/asignacion", auth, async (req, res) => {
       ]);
     }
 
+    // Agregado: Insertar todos los asesores en la tabla proyecto_asesores
+    // Por qué: El sistema soporta múltiples asesores por proyecto
+    // Para qué: Guardar la relación de todos los asesores seleccionados con el proyecto
+    // Corrección: Antes solo se guardaba el asesor principal, los adicionales se ignoraban
+    for (const aId of asesorIds) {
+      await db.execute(
+        "INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
+        [proyectoId, aId]
+      );
+    }
+
     // Agregado: Crear reportes vacíos para cada residente asignado
     // Por qué: El residente necesita tener reportes creados para poder subir archivos
     // Para qué: Evitar errores al intentar subir reportes cuando no existen en la base de datos
+    // Corrección: Verificar si el reporte ya existe antes de insertarlo para evitar duplicados
     const tiposReportes = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
     const fechasLimite = [
       "2026-02-28",  // preliminar
@@ -315,18 +327,41 @@ router.post("/asignacion", auth, async (req, res) => {
     ];
     for (const rId of residentesIds) {
       for (let i = 0; i < tiposReportes.length; i++) {
-        await db.execute(
-          `INSERT INTO reportes (id, residente_id, tipo, fecha_limite, estado)
-           VALUES (?, ?, ?, ?, 'Pendiente')`,
-          [`REP-${rId}-${i + 1}`, rId, tiposReportes[i], fechasLimite[i]],
+        // Verificar si el reporte ya existe
+        const [existing] = await db.execute(
+          "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
+          [rId, tiposReportes[i]]
         );
+        // Solo insertar si no existe
+        if (existing.length === 0) {
+          await db.execute(
+            `INSERT INTO reportes (id, residente_id, tipo, fecha_limite, estado)
+             VALUES (?, ?, ?, ?, 'Pendiente')`,
+            [`REP-${rId}-${i + 1}`, rId, tiposReportes[i], fechasLimite[i]],
+          );
+        }
       }
     }
 
     return res.json({ ok: true, id: proyectoId });
   } catch (err) {
     console.error("Error en POST /jefe/asignacion:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+    // Agregado: Manejo de errores específicos para dar mensajes más descriptivos
+    // Por qué: El usuario necesita saber qué salió mal para corregirlo
+    // Para qué: Mostrar mensajes de error específicos en el frontend
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Ya existe un registro duplicado. Verifica que no estés intentando crear reportes que ya existen."
+      });
+    }
+    if (err.code === 'ER_BAD_FIELD_ERROR') {
+      return res.status(500).json({
+        ok: false,
+        mensaje: "Error en la estructura de la base de datos. Contacta al administrador."
+      });
+    }
+    return res.status(500).json({ ok: false, mensaje: "Error interno: " + err.message });
   }
 });
 

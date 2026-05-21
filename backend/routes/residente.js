@@ -219,7 +219,7 @@ router.get("/proyecto", auth, async (req, res) => {
 
     const [rows] = await db.execute(
       `SELECT p.id, p.titulo, p.descripcion, p.estado, p.prioridad, p.tecnologias,
-              p.fecha_inicio, p.fecha_fin, p.progreso,
+              p.progreso, p.created_at,
               e.id AS empresa_id, e.nombre AS empresa_nombre, e.estado AS empresa_estado,
               a.id AS asesor_id, CONCAT(u.nombre, ' ', u.apellidos) AS asesor_nombre,
               a.departamento AS asesor_departamento
@@ -244,9 +244,8 @@ router.get("/proyecto", auth, async (req, res) => {
         estado: p.estado,
         prioridad: p.prioridad,
         tecnologias: p.tecnologias,
-        fecha_inicio: p.fecha_inicio,
-        fecha_fin: p.fecha_fin,
         progreso: p.progreso,
+        created_at: p.created_at,
         empresa: {
           id: p.empresa_id,
           nombre: p.empresa_nombre,
