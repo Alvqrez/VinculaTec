@@ -19,6 +19,60 @@ export default function ReportePreliminar() {
   const [savedAt, setSavedAt] = useState(null);
   const [fileData, setFileData] = useState(null); // Para guardar el archivo en base64
 
+  // Agregado: Función para descargar el archivo guardado
+  const downloadFile = () => {
+    if (!preliminarReport?.archivo_url) return;
+    const link = document.createElement("a");
+    link.href = preliminarReport.archivo_url;
+    link.download = preliminarReport.nombre_archivo || "reporte_preliminar.pdf";
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Agregado: Función para deshacer el envío (solo si no está aceptado)
+  const undoUpload = async () => {
+    if (preliminarReport?.status === "Aceptado") {
+      Alert.alert("No permitido", "No puedes deshacer el envío de un reporte ya aceptado.");
+      return;
+    }
+    Alert.alert(
+      "Deshacer envío",
+      "¿Estás seguro de que quieres deshacer el envío? Podrás volver a subir el archivo.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Deshacer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Llamar al backend para limpiar el archivo
+              const res = await apiClient.put("/api/residente/reportes/preliminar", {
+                archivo: null,
+                nombre_archivo: null,
+                empresa: empresa,
+              });
+              if (res.ok) {
+                // Actualizar el estado local
+                if (updateReport) {
+                  updateReport("preliminar", { status: "Pendiente", submitted: null, feedback: null, archivo_url: null, nombre_archivo: null });
+                }
+                setUploadedFile(null);
+                setFileData(null);
+                setSavedAt(null);
+                Alert.alert("Envío deshecho", "Puedes volver a subir tu reporte.");
+              }
+            } catch (error) {
+              console.error("Error al deshacer envío:", error);
+              Alert.alert("Error", "No se pudo deshacer el envío.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const selectFile = () => {
     if (!globalThis?.document?.createElement) {
       Alert.alert("Seleccionar archivo", "La selección de archivos está disponible en la versión web.");
@@ -184,12 +238,33 @@ export default function ReportePreliminar() {
             <Text style={{ fontSize: 11, color: C.textMuted }}>{uploadedFile ? uploadedFile.size : "PDF, DOCX · máx 25 MB"}</Text>
           </TouchableOpacity>
         ) : (
-          <Row style={{ alignItems: "center", gap: 10, padding: 12, backgroundColor: C.tealLighter, borderRadius: 10 }}>
-            <Feather name="file-text" size={18} color={C.teal} />
-            <Text style={{ fontSize: 13, color: C.teal, fontWeight: "600" }}>
-              Documento enviado el {preliminarReport?.submitted || "—"}
-            </Text>
-          </Row>
+          // MODIFICADO: Mostrar el nombre del archivo guardado y permitir descargarlo
+          <View>
+            <Row style={{ alignItems: "center", gap: 10, padding: 12, backgroundColor: C.tealLighter, borderRadius: 10, marginBottom: 8 }}>
+              <Feather name="file-text" size={18} color={C.teal} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, color: C.teal, fontWeight: "600" }}>
+                  {preliminarReport?.nombre_archivo || "Archivo enviado"}
+                </Text>
+                <Text style={{ fontSize: 11, color: C.textMuted }}>
+                  Enviado el {preliminarReport?.submitted || "—"}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={downloadFile} style={{ padding: 8 }}>
+                <Feather name="download" size={16} color={C.teal} />
+              </TouchableOpacity>
+            </Row>
+            {/* Agregado: Botón para deshacer el envío (solo si no está aceptado) */}
+            {preliminarReport?.status !== "Aceptado" && (
+              <TouchableOpacity
+                onPress={undoUpload}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 8, backgroundColor: C.redLight, borderRadius: 8, borderWidth: 1, borderColor: C.red }}
+              >
+                <Feather name="rotate-ccw" size={14} color={C.red} />
+                <Text style={{ fontSize: 12, color: C.red, fontWeight: "600" }}>Deshacer envío</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </Card>
 

@@ -75,7 +75,8 @@ router.get("/reportes", auth, async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      `SELECT tipo, estado, fecha_entrega, feedback, archivo_url
+      // MODIFICADO: Agregado nombre_archivo para que el frontend pueda mostrar el nombre del archivo
+      `SELECT tipo, estado, fecha_entrega, feedback, archivo_url, nombre_archivo
        FROM reportes WHERE residente_id = ? ORDER BY FIELD(tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
       [residenteId]
     );
@@ -95,6 +96,8 @@ router.get("/reportes", auth, async (req, res) => {
         submitted: fechaEntrega,
         reviewer: asesorNombre,
         feedback: row?.feedback || null,
+        archivo_url: row?.archivo_url || null,  // Agregado: URL del archivo (data URI)
+        nombre_archivo: row?.nombre_archivo || null,  // Agregado: nombre del archivo
         items: [],
       };
     });
@@ -108,6 +111,7 @@ router.get("/reportes", auth, async (req, res) => {
 
 // ── PUT /api/residente/reportes/:tipo ─────────────────────────────────────────
 // Residente entrega un reporte (crea o actualiza)
+// MODIFICADO: Ahora acepta y guarda el archivo (base64) y nombre_archivo
 router.put("/reportes/:tipo", auth, async (req, res) => {
   const tiposValidos = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
   const { tipo } = req.params;
@@ -125,25 +129,32 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
     const residenteId = resRows[0].id;
     const today = new Date().toISOString().split("T")[0];
 
+    // Obtener archivo y nombre_archivo del cuerpo de la petición (enviados desde el frontend)
+    const { archivo, nombre_archivo, empresa } = req.body || {};
+
     const [existing] = await db.execute(
       "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
       [residenteId, tipo]
     );
 
     if (existing.length) {
+      // Actualizar reporte existente: guardar archivo, nombre_archivo y cambiar estado a "En Revisión"
       await db.execute(
-        "UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ? WHERE residente_id = ? AND tipo = ?",
-        [today, residenteId, tipo]
+        `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
+         WHERE residente_id = ? AND tipo = ?`,
+        [today, archivo || null, nombre_archivo || null, residenteId, tipo]
       );
     } else {
+      // Crear nuevo reporte: guardar archivo, nombre_archivo y estado "En Revisión"
       const newId = `rep_${residenteId}_${tipo}_${Date.now()}`;
       await db.execute(
-        "INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega) VALUES (?,?,?,'En Revisión',?)",
-        [newId, residenteId, tipo, today]
+        `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url, nombre_archivo)
+         VALUES (?,?,?,'En Revisión',?,?,?)`,
+        [newId, residenteId, tipo, today, archivo || null, nombre_archivo || null]
       );
     }
 
-    return res.json({ ok: true });
+    return res.json({ ok: true, archivo_url: archivo, nombre_archivo });
   } catch (err) {
     console.error("Error en PUT /residente/reportes/:tipo:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });

@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS reportes (
   calificacion  DECIMAL(5,2),
   feedback      TEXT,
   archivo_url   VARCHAR(500),
+  nombre_archivo VARCHAR(255),  -- Agregado: nombre del archivo enviado por el residente (ej: "reporte_preliminar.pdf")
   revisado_por  VARCHAR(50),
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE CASCADE,
@@ -128,6 +129,11 @@ CREATE TABLE IF NOT EXISTS reportes (
   INDEX idx_estado (estado),
   INDEX idx_residente (residente_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Agregado: ALTER TABLE para agregar el campo nombre_archivo si la tabla ya existe
+-- Por qué: Para compatibilidad con bases de datos existentes que no tienen este campo
+-- Para qué: Evitar errores al ejecutar el schema en bases de datos ya creadas sin perder datos
+ALTER TABLE reportes ADD COLUMN IF NOT EXISTS nombre_archivo VARCHAR(255) AFTER archivo_url;
 
 -- ── Notificaciones ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notificaciones (

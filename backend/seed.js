@@ -468,27 +468,42 @@ async function seed() {
       const [aprobados, tienePendiente, diasAtras] = REPORTES_CONFIG[ri];
       const resid = residenteIds[ri];
       for (let t = 0; t < TIPOS.length; t++) {
-        let estado, fechaEntrega, calificacion, feedback;
+        let estado, fechaEntrega, calificacion, feedback, archivoUrl, nombreArchivo;
         if (t < aprobados) {
           estado = "Aprobado";
           fechaEntrega = ENTREGAS[t];
           calificacion = 75 + Math.floor(Math.random() * 25);
           feedback = FEEDBACKS[t];
+          // Agregado: Simular archivo para reportes aprobados (data URI de un PDF vacío)
+          // Por qué: Para probar la funcionalidad de descarga de archivos en el frontend
+          // Para qué: El residente pueda descargar el archivo que supuestamente envió
+          archivoUrl = "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICUgcGFnZXMgYXJyYXkKPDwKICAvVHlwZSAvUGFnZXwogIC9NZWRpYUJveCBbIDAgMCA1OTUuMjggODQxLjg5IF0KICAvQ291bnQgMQogIC9LaWRzIFsgMyAwIFIgXQo+PgplbmRvYmoKCjMgMCBvYmogICUgcGFnZSBvYmplY3QKPDwKICAvVHlwZSAvUGFnZQogIC9QYXJlbnQgMiAwIFIKICAvUmVzb3VyY2VzIDw8CiAgICAvRm9udCA8PAogICAgICAvRjEgNCAwIFIKICAgID4+CiAgPj4KICAvQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCgo0IDAgb2JqICAlIGZvbnQKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKNSAwIG9iaiAlIHBhZ2UgY29udGVudAo8PAogIC9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCjcwIDUwIFRECi9GMSAyNCBUZgooUmVwb3J0ZSBkZSBQcnVlYmEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI2MiAwMDAwMCBuIAowMDAwMDAwMzUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ1NgolJUVPRgo=";
+          nombreArchivo = `reporte_${TIPOS[t]}_${resid}.pdf`;
         } else if (t === aprobados && tienePendiente) {
           estado = "Pendiente";
           fechaEntrega = fechaAtras(diasAtras); // ← fecha real reciente
           calificacion = null;
           feedback = null;
+          // Agregado: Simular archivo para reporte pendiente de revisión
+          // Por qué: Para probar la funcionalidad de descarga de archivos en el frontend
+          // Para qué: El residente pueda descargar el archivo que supuestamente envió
+          archivoUrl = "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICUgcGFnZXMgYXJyYXkKPDwKICAvVHlwZSAvUGFnZXwogIC9NZWRpYUJveCBbIDAgMCA1OTUuMjggODQxLjg5IF0KICAvQ291bnQgMQogIC9LaWRzIFsgMyAwIFIgXQo+PgplbmRvYmoKCjMgMCBvYmogICUgcGFnZSBvYmplY3QKPDwKICAvVHlwZSAvUGFnZQogIC9QYXJlbnQgMiAwIFIKICAvUmVzb3VyY2VzIDw8CiAgICAvRm9udCA8PAogICAgICAvRjEgNCAwIFIKICAgID4+CiAgPj4KICAvQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCgo0IDAgb2JqICAlIGZvbnQKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKNSAwIG9iaiAlIHBhZ2UgY29udGVudAo8PAogIC9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCjcwIDUwIFRECi9GMSAyNCBUZgooUmVwb3J0ZSBkZSBQcnVlYmEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI2MiAwMDAwMCBuIAowMDAwMDAwMzUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ1NgolJUVPRgo=";
+          nombreArchivo = `reporte_${TIPOS[t]}_${resid}.pdf`;
         } else {
           estado = "Pendiente";
           fechaEntrega = null; // ← null para no entregados aún
           calificacion = null;
           feedback = null;
+          archivoUrl = null; // ← null para no entregados
+          nombreArchivo = null;
         }
         await conn.execute(
+          // MODIFICADO: Agregado archivo_url y nombre_archivo para simular archivos enviados
+          // Por qué: El frontend necesita estos datos para mostrar el archivo y permitir descargarlo
+          // Para qué: El residente pueda ver qué archivo envió y descargarlo
           `INSERT INTO reportes
-             (id,residente_id,tipo,fecha_limite,fecha_entrega,estado,calificacion,feedback)
-           VALUES (?,?,?,?,?,?,?,?)`,
+             (id,residente_id,tipo,fecha_limite,fecha_entrega,estado,calificacion,feedback,archivo_url,nombre_archivo)
+           VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [
             `REP-${resid}-${t + 1}`,
             resid,
@@ -498,6 +513,8 @@ async function seed() {
             estado,
             calificacion,
             feedback,
+            archivoUrl,
+            nombreArchivo,
           ],
         );
         totalReportes++;
