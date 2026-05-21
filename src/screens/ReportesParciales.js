@@ -1,83 +1,104 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  Alert,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
+  View, Text, TouchableOpacity, ScrollView,
+  TextInput, Alert, Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
-import { Row, Card, Badge } from "../components";
+import { Row, Card } from "../components";
 import { useReportes } from "../context/ReportesContext";
-import { useProyectos } from "../context/ProyectosContext";
 
+// ── Metadatos de cada parcial ─────────────────────────────────────────────────
 const PARCIALES = [
-  {
-    id: 1,
-    label: "Parcial 1",
-    weeks: "Semana 1–4",
-    focus: "Diagnóstico inicial",
-  },
-  { id: 2, label: "Parcial 2", weeks: "Semana 5–8", focus: "Desarrollo" },
-  { id: 3, label: "Parcial 3", weeks: "Semana 9–12", focus: "Integración" },
+  { num: 1, focus: "Diagnóstico e inicio",       color: C.teal  },
+  { num: 2, focus: "Desarrollo del proyecto",    color: C.blue  },
+  { num: 3, focus: "Avance final y conclusiones", color: C.amber },
 ];
 
-const FASE_LABEL = { 1: "Parcial 1", 2: "Parcial 2", 3: "Parcial 3" };
-
-const EMPTY_FORM = {
-  actividadesRealizadas: "",
-  avanceObjetivos: "",
-  problemas: "",
-  observaciones: "",
+const ESTADO_STYLE = {
+  Aceptado:     { color: C.green,  bg: C.greenLight,  label: "Aceptado"     },
+  Pendiente:    { color: C.amber,  bg: C.amberLight,  label: "En revisión"  },
+  "Por corregir":{ color: C.red,   bg: C.redLight,    label: "Por corregir" },
 };
 
-const todayStr = () =>
-  new Date().toLocaleDateString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-
+// ── Componente principal ──────────────────────────────────────────────────────
 export default function ReportesParciales() {
-  const { reports, updateReport, preliminarAprobado, parcialesDesbloqueados } =
-    useReportes() || {};
-  const { submitReporteFromResidente } = useProyectos() || {};
+  const {
+    reports,
+    submitReporte,
+    undoSubmit,
+    desbloquearParcial,
+    parcialesDesbloqueados,
+  } = useReportes() || {};
 
   const [activeTab, setActiveTab] = useState(1);
-  const [forms, setForms] = useState({
-    1: EMPTY_FORM,
-    2: EMPTY_FORM,
-    3: EMPTY_FORM,
-  });
-  const [selectedFile, setSelectedFile] = useState({
-    1: null,
-    2: null,
-    3: null,
-  });
+  const [forms, setForms] = useState({ 1: {}, 2: {}, 3: {} });
+  const [selectedFile, setSelectedFile] = useState({ 1: null, 2: null, 3: null });
 
-  const parcialReport = (id) => reports?.find((r) => r.id === id);
-  const form = forms[activeTab];
+  // ── Estado del banner "Deshacer" ───────────────────────────────────────────
+  const [undoBanner, setUndoBanner] = useState(null); // { tipoId, segundos }
+  const undoTimerRef = useRef(null);
+  const bannerAnim   = useRef(new Animated.Value(0)).current;
+
+  // Limpiar timer al desmontar
+  useEffect(() => () => { if (undoTimerRef.current) clearInterval(undoTimerRef.current); }, []);
+
+  const showUndoBanner = (tipoId) => {
+    // Limpiar cualquier banner anterior
+    if (undoTimerRef.current) clearInterval(undoTimerRef.current);
+
+    setUndoBanner({ tipoId, segundos: 8 });
+
+    // Animar entrada
+    Animated.timing(bannerAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
+
+    // Cuenta regresiva
+    undoTimerRef.current = setInterval(() => {
+      setUndoBanner((prev) => {
+        if (!prev || prev.segundos <= 1) {
+          clearInterval(undoTimerRef.current);
+          // Animar salida
+          Animated.timing(bannerAnim, { toValue: 0, duration: 280, useNativeDriver: true }).start();
+          return null;
+        }
+        return { ...prev, segundos: prev.segundos - 1 };
+      });
+    }, 1000);
+  };
+
+  const handleUndo = async () => {
+    if (!undoBanner) return;
+    clearInterval(undoTimerRef.current);
+    Animated.timing(bannerAnim, { toValue: 0, duration: 280, useNativeDriver: true }).start();
+    const { tipoId } = undoBanner;
+    setUndoBanner(null);
+    await undoSubmit?.(tipoId);
+    setSelectedFile((prev) => ({ ...prev, [tipoId]: null }));
+  };
+
+  const dismissBanner = () => {
+    if (!undoBanner) return;
+    clearInterval(undoTimerRef.current);
+    Animated.timing(bannerAnim, { toValue: 0, duration: 280, useNativeDriver: true }).start();
+    setUndoBanner(null);
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getParcialReport = (num) =>
+    reports?.find((r) => r.id === num) || { status: "Pendiente", submitted: null };
+
+  const isDesbloqueado = (num) =>
+    parcialesDesbloqueados ? parcialesDesbloqueados.has(num) : num === 1;
 
   const updateForm = (key, val) =>
-    setForms((prev) => ({
-      ...prev,
-      [activeTab]: { ...prev[activeTab], [key]: val },
-    }));
+    setForms((prev) => ({ ...prev, [activeTab]: { ...prev[activeTab], [key]: val } }));
 
   const selectFile = () => {
-    if (!globalThis?.document?.createElement) {
-      Alert.alert(
-        "Seleccionar archivo",
-        "La selección de archivos está disponible en la versión web.",
-      );
-      return;
-    }
-    const input = globalThis.document.createElement("input");
-    input.type = "file";
-    input.accept = ".pdf,.doc,.docx";
-    input.onchange = (e) => {
+    if (typeof globalThis.document === "undefined") return;
+    const input       = globalThis.document.createElement("input");
+    input.type        = "file";
+    input.accept      = ".pdf,.doc,.docx";
+    input.onchange    = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
       setSelectedFile((prev) => ({
@@ -91,537 +112,326 @@ export default function ReportesParciales() {
     input.click();
   };
 
-  const submitReport = () => {
-    const r = parcialReport(activeTab);
+  const handleSubmit = async () => {
+    const form = forms[activeTab] || {};
+    const file = selectedFile[activeTab];
 
-    if (r?.status === "Aceptado") {
-      Alert.alert("Ya aceptado", "Este reporte ya fue aceptado por tu asesor.");
+    if (!form.actividadesRealizadas?.trim()) {
+      Alert.alert("Campo requerido", "Describe las actividades realizadas antes de enviar.");
       return;
     }
-    // FIXED: solo bloquea si está "Pendiente" (en revisión activa).
-    // Si está "Por corregir", permite re-envío.
-    if (r?.status === "Pendiente" && r?.submitted) {
-      Alert.alert(
-        "En revisión",
-        "Este reporte ya fue enviado y está pendiente de revisión por tu asesor.",
-      );
-      return;
-    }
-    if (!form.actividadesRealizadas.trim()) {
-      Alert.alert("Falta información", "Describe las actividades realizadas.");
+    if (!file) {
+      Alert.alert("Sin archivo", "Selecciona el documento del reporte antes de enviarlo.");
       return;
     }
 
-    const today = todayStr();
-
-    // 1. Actualizar ReportesContext (vista del Residente)
-    updateReport(activeTab, {
-      status: "Pendiente",
-      submitted: today,
-      feedback: null,
-    });
-
-    // 2. Sincronizar a ProyectosContext para que el ASESOR lo vea en SeguimientoAsesor
-    if (submitReporteFromResidente) {
-      submitReporteFromResidente(FASE_LABEL[activeTab]);
-    }
-
-    Alert.alert(
-      "Reporte enviado",
-      `El Parcial ${activeTab} fue enviado a tu asesor para revisión.\n\n${r?.status === "Por corregir" ? "Tu corrección fue registrada." : ""}`,
-    );
+    const tipoId = activeTab; // número 1, 2 o 3
+    await submitReporte?.(tipoId, file.name);
+    showUndoBanner(tipoId);
   };
 
-  // ── Lock si no tiene preliminar aprobado ─────────────────────────────────
-  if (!preliminarAprobado) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: C.bg,
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 40,
-        }}
-      >
-        <View
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 18,
-            backgroundColor: C.amberLight,
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 20,
-          }}
-        >
-          <Feather name="lock" size={32} color={C.amber} />
-        </View>
-        <Text
-          style={{
-            fontSize: 20,
-            fontWeight: "800",
-            color: C.text,
-            textAlign: "center",
-            marginBottom: 10,
-          }}
-        >
-          Reportes Parciales bloqueados
-        </Text>
-        <Text
-          style={{
-            fontSize: 14,
-            color: C.textMuted,
-            textAlign: "center",
-            lineHeight: 22,
-            maxWidth: 380,
-          }}
-        >
-          Tu Reporte Preliminar debe ser aceptado por tu asesor antes de poder
-          entregar los reportes parciales.
-        </Text>
-      </View>
-    );
-  }
-
-  const activeReport = parcialReport(activeTab);
-  // Este parcial está desbloqueado si el asesor lo habilitó explícitamente
-  const tabDesbloqueado = parcialesDesbloqueados?.has(activeTab) ?? true;
-  // FIXED: "Por corregir" NO se bloquea → el residente puede reenviar con correcciones
-  const isLocked =
-    !tabDesbloqueado ||
-    activeReport?.status === "Aceptado" ||
-    (activeReport?.status === "Pendiente" && activeReport?.submitted);
-
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 24 }}
-    >
-      {/* ── Header ── */}
-      <View style={{ marginBottom: 22 }}>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>
-          Reportes Parciales
-        </Text>
-        <Text style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-          Entrega tu avance por periodo de residencia
-        </Text>
-      </View>
+    <View style={{ flex: 1, backgroundColor: C.bg }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Tabs de parciales ── */}
+        <Row style={{ gap: 8, marginBottom: 20 }}>
+          {PARCIALES.map(({ num, color }) => {
+            const rep        = getParcialReport(num);
+            const desbloq    = isDesbloqueado(num);
+            const isActive   = activeTab === num;
+            const estado     = ESTADO_STYLE[rep.status] || ESTADO_STYLE.Pendiente;
 
-      {/* ── Tabs ── */}
-      <Row style={{ gap: 10, marginBottom: 22 }}>
-        {PARCIALES.map((p) => {
-          const rep = parcialReport(p.id);
-          const active = activeTab === p.id;
-          const desbloqueado = parcialesDesbloqueados?.has(p.id) ?? true;
-          const statusColor =
-            {
-              Aceptado: C.green,
-              Pendiente: C.amber,
-              "Por corregir": C.red,
-            }[rep?.status] || C.textMuted;
-
-          return (
-            <TouchableOpacity
-              key={p.id}
-              onPress={() => setActiveTab(p.id)}
-              style={{
-                flex: 1,
-                borderRadius: 12,
-                padding: 14,
-                borderWidth: active ? 2 : 1,
-                borderColor: active
-                  ? C.teal
-                  : desbloqueado
-                    ? C.border
-                    : C.textLight,
-                backgroundColor: active
-                  ? C.tealLighter
-                  : desbloqueado
-                    ? C.card
-                    : C.bg,
-                opacity: desbloqueado ? 1 : 0.6,
-              }}
-            >
-              <Row
+            return (
+              <TouchableOpacity
+                key={num}
+                onPress={() => { if (desbloq) setActiveTab(num); }}
                 style={{
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 4,
+                  flex:            1,
+                  paddingVertical: 12,
+                  paddingHorizontal: 8,
+                  borderRadius:    12,
+                  backgroundColor: isActive ? color : C.card,
+                  borderWidth:     1,
+                  borderColor:     isActive ? color : C.border,
+                  alignItems:      "center",
+                  opacity:         desbloq ? 1 : 0.45,
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontWeight: "800",
-                    color: active ? C.teal : C.text,
-                  }}
-                >
-                  {p.label}
+                <Text style={{ fontSize: 13, fontWeight: "800", color: isActive ? "white" : C.textSub }}>
+                  P{num}
                 </Text>
-                {!desbloqueado ? (
-                  <Feather name="lock" size={12} color={C.textMuted} />
-                ) : rep?.status ? (
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: statusColor,
-                    }}
-                  />
-                ) : null}
-              </Row>
-              <Text style={{ fontSize: 11, color: C.textMuted }}>
-                {p.weeks}
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: active ? C.teal : C.textMuted,
-                  fontWeight: "600",
-                }}
-              >
-                {p.focus}
-              </Text>
-              {!desbloqueado ? (
-                <Text
-                  style={{
-                    fontSize: 10,
-                    color: C.textMuted,
-                    marginTop: 6,
-                    fontStyle: "italic",
-                  }}
-                >
-                  Bloqueado
-                </Text>
-              ) : rep?.status ? (
-                <View style={{ marginTop: 6 }}>
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      color: statusColor,
-                      fontWeight: "700",
-                    }}
-                  >
-                    {rep.status}
+                <View style={{
+                  marginTop:       5,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius:    6,
+                  backgroundColor: isActive ? "rgba(255,255,255,0.2)" : estado.bg,
+                }}>
+                  <Text style={{ fontSize: 9, fontWeight: "700", color: isActive ? "white" : estado.color }}>
+                    {rep.submitted ? estado.label : (desbloq ? "Sin enviar" : "Bloqueado")}
                   </Text>
                 </View>
-              ) : null}
-            </TouchableOpacity>
-          );
-        })}
-      </Row>
+              </TouchableOpacity>
+            );
+          })}
+        </Row>
 
-      {/* ── Banner: parcial bloqueado por el asesor ── */}
-      {!tabDesbloqueado && (
-        <Card
-          style={{
-            marginBottom: 16,
-            backgroundColor: C.navyLight ?? "#1e293b",
-            borderWidth: 0,
-          }}
-        >
-          <Row style={{ alignItems: "center", gap: 14 }}>
-            <View
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: 12,
-                backgroundColor: "rgba(255,255,255,0.1)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Feather name="lock" size={20} color="white" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 14,
-                  fontWeight: "800",
-                  color: "white",
-                  marginBottom: 3,
-                }}
-              >
-                Parcial {activeTab} bloqueado por tu asesor
-              </Text>
-              <Text
-                style={{
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.7)",
-                  lineHeight: 17,
-                }}
-              >
-                Motivo: El Parcial {activeTab - 1} debe ser aceptado antes de que puedas entregar este reporte.
-              </Text>
-              <Text
-                style={{
-                  fontSize: 11,
-                  color: "rgba(255,255,255,0.5)",
-                  marginTop: 4,
-                  fontStyle: "italic",
-                }}
-              >
-                Contacta a tu asesor para más información sobre el bloqueo.
-              </Text>
-            </View>
-          </Row>
-        </Card>
-      )}
+        {/* ── Contenido del parcial activo ── */}
+        {(() => {
+          const parcial   = PARCIALES[activeTab - 1];
+          const rep       = getParcialReport(activeTab);
+          const desbloq   = isDesbloqueado(activeTab);
+          const isLocked  = rep.status === "Aceptado" || !desbloq;
+          const form      = forms[activeTab] || {};
+          const file      = selectedFile[activeTab];
+          const estado    = ESTADO_STYLE[rep.status] || ESTADO_STYLE.Pendiente;
 
-      {/* ── Banner de estado ── */}
-      {activeReport?.status &&
-        !(activeReport.status === "Pendiente" && !activeReport.submitted) && (
-          <Card
-            style={{
-              marginBottom: 16,
-              backgroundColor:
-                activeReport.status === "Aceptado"
-                  ? C.greenLight
-                  : activeReport.status === "Por corregir"
-                    ? C.redLight
-                    : C.amberLight,
-              borderWidth: 0,
-            }}
-          >
-            <Row style={{ alignItems: "center", gap: 12 }}>
-              <Feather
-                name={
-                  activeReport.status === "Aceptado"
-                    ? "check-circle"
-                    : activeReport.status === "Por corregir"
-                      ? "x-circle"
-                      : "clock"
-                }
-                size={22}
-                color={
-                  activeReport.status === "Aceptado"
-                    ? C.green
-                    : activeReport.status === "Por corregir"
-                      ? C.red
-                      : C.amber
-                }
-              />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{ fontSize: 14, fontWeight: "800", color: C.text }}
-                >
-                  {activeReport.status === "Aceptado"
-                    ? "Reporte aceptado ✓"
-                    : activeReport.status === "Por corregir"
-                      ? "Se requieren correcciones — puedes reenviar"
-                      : "En revisión por tu asesor"}
+          if (!desbloq) {
+            return (
+              <Card style={{ alignItems: "center", padding: 32 }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: C.border, alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+                  <Feather name="lock" size={24} color={C.textMuted} />
+                </View>
+                <Text style={{ fontSize: 16, fontWeight: "800", color: C.text, marginBottom: 8 }}>
+                  Parcial {activeTab} bloqueado
                 </Text>
-                {activeReport.feedback && (
-                  <Text
+                <Text style={{ fontSize: 13, color: C.textMuted, textAlign: "center", lineHeight: 20 }}>
+                  {activeTab === 1
+                    ? "Tu asesor desbloqueará este parcial cuando tu reporte preliminar sea aceptado."
+                    : `Tu asesor desbloqueará este parcial cuando el Parcial ${activeTab - 1} sea aceptado.`}
+                </Text>
+              </Card>
+            );
+          }
+
+          return (
+            <>
+              {/* Cabecera */}
+              <Card style={{ marginBottom: 16 }}>
+                <Row style={{ alignItems: "center", justifyContent: "space-between" }}>
+                  <View>
+                    <Text style={{ fontSize: 16, fontWeight: "800", color: C.text }}>
+                      Reporte Parcial {activeTab}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 3 }}>
+                      {parcial.focus}
+                    </Text>
+                  </View>
+                  <View style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, backgroundColor: estado.bg }}>
+                    <Text style={{ fontSize: 11, fontWeight: "700", color: estado.color }}>{estado.label}</Text>
+                  </View>
+                </Row>
+                {rep.submitted && (
+                  <Row style={{ alignItems: "center", gap: 6, marginTop: 10 }}>
+                    <Feather name="check-circle" size={13} color={C.green} />
+                    <Text style={{ fontSize: 11, color: C.green }}>Enviado el {rep.submitted}</Text>
+                  </Row>
+                )}
+              </Card>
+
+              {/* Feedback del asesor */}
+              {rep.feedback && (
+                <Card style={{
+                  marginBottom: 16,
+                  backgroundColor: rep.status === "Aceptado" ? C.greenLight : C.amberLight,
+                  borderColor: rep.status === "Aceptado" ? C.green : C.amber,
+                }}>
+                  <Row style={{ alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <Feather name="message-circle" size={14} color={rep.status === "Aceptado" ? C.green : C.amber} />
+                    <Text style={{ fontSize: 12, fontWeight: "700", color: rep.status === "Aceptado" ? C.green : C.amber }}>
+                      Retroalimentación del asesor
+                    </Text>
+                  </Row>
+                  <Text style={{ fontSize: 13, color: C.textSub, lineHeight: 20 }}>{rep.feedback}</Text>
+                </Card>
+              )}
+
+              {/* Formulario */}
+              <Card style={{ marginBottom: 16, opacity: isLocked ? 0.65 : 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: C.text, marginBottom: 16 }}>
+                  Contenido del Reporte
+                </Text>
+                <Field
+                  label="Actividades realizadas *"
+                  placeholder="Describe las actividades y tareas completadas durante el periodo..."
+                  value={form.actividadesRealizadas}
+                  onChangeText={(v) => updateForm("actividadesRealizadas", v)}
+                  multiline
+                  editable={!isLocked}
+                />
+                <Field
+                  label="Avance en objetivos"
+                  placeholder="¿Qué porcentaje de los objetivos se cumplió? Describe brevemente..."
+                  value={form.avanceObjetivos}
+                  onChangeText={(v) => updateForm("avanceObjetivos", v)}
+                  multiline
+                  editable={!isLocked}
+                />
+                <Field
+                  label="Problemas / obstáculos"
+                  placeholder="Menciona dificultades encontradas y cómo se resolvieron..."
+                  value={form.problemas}
+                  onChangeText={(v) => updateForm("problemas", v)}
+                  multiline
+                  editable={!isLocked}
+                />
+                <Field
+                  label="Observaciones adicionales"
+                  placeholder="Cualquier comentario extra para tu asesor..."
+                  value={form.observaciones}
+                  onChangeText={(v) => updateForm("observaciones", v)}
+                  multiline
+                  editable={!isLocked}
+                  last
+                />
+              </Card>
+
+              {/* Subir archivo */}
+              <Card style={{ marginBottom: 16 }}>
+                <Text style={{ fontSize: 14, fontWeight: "800", color: C.text, marginBottom: 12 }}>
+                  Archivo del reporte
+                </Text>
+                {!isLocked ? (
+                  <TouchableOpacity
+                    onPress={selectFile}
                     style={{
-                      fontSize: 12,
-                      color: C.textSub,
-                      marginTop: 4,
-                      lineHeight: 18,
+                      borderWidth: 2,
+                      borderStyle: "dashed",
+                      borderColor: file ? parcial.color : C.border,
+                      borderRadius: 12,
+                      padding: 24,
+                      alignItems: "center",
+                      backgroundColor: file ? parcial.color + "11" : C.bg,
                     }}
                   >
-                    {activeReport.feedback}
-                  </Text>
+                    <Feather name="upload-cloud" size={28} color={file ? parcial.color : C.textMuted} style={{ marginBottom: 8 }} />
+                    <Text style={{ fontSize: 13, fontWeight: "700", color: file ? parcial.color : C.text, marginBottom: 4 }}>
+                      {file ? file.name : "Seleccionar archivo"}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: C.textMuted }}>
+                      {file ? file.size : "PDF, DOCX · máx 25 MB"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <Row style={{ alignItems: "center", gap: 10, padding: 12, backgroundColor: C.bg, borderRadius: 10 }}>
+                    <Feather name="file-text" size={18} color={C.textMuted} />
+                    <Text style={{ fontSize: 13, color: C.textMuted }}>
+                      {rep.archivo || (rep.submitted ? "Archivo entregado" : "Aún sin archivo")}
+                    </Text>
+                  </Row>
                 )}
-              </View>
-            </Row>
-          </Card>
-        )}
+              </Card>
 
-      {/* ── Formulario ── */}
-      <Card style={{ opacity: isLocked ? 0.65 : 1 }}>
-        <Text
+              {/* Botón de envío */}
+              {!isLocked && (
+                <TouchableOpacity
+                  onPress={handleSubmit}
+                  style={{
+                    backgroundColor: parcial.color,
+                    borderRadius: 12,
+                    padding: 16,
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <Row style={{ alignItems: "center", gap: 8 }}>
+                    <Feather name="send" size={16} color="white" />
+                    <Text style={{ color: "white", fontWeight: "800", fontSize: 15 }}>
+                      {rep.submitted ? "Reenviar Reporte" : `Enviar Parcial ${activeTab}`}
+                    </Text>
+                  </Row>
+                </TouchableOpacity>
+              )}
+            </>
+          );
+        })()}
+      </ScrollView>
+
+      {/* ── Banner flotante "Deshacer envío" ────────────────────────────────── */}
+      {undoBanner && (
+        <Animated.View
           style={{
-            fontSize: 16,
-            fontWeight: "800",
-            color: C.text,
-            marginBottom: 16,
+            position:       "absolute",
+            bottom:         24,
+            left:           16,
+            right:          16,
+            opacity:        bannerAnim,
+            transform:      [{ translateY: bannerAnim.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }],
+            borderRadius:   14,
+            backgroundColor:"#0F172A",
+            paddingVertical: 14,
+            paddingHorizontal: 18,
+            flexDirection:  "row",
+            alignItems:     "center",
+            shadowColor:    "#000",
+            shadowOpacity:  0.25,
+            shadowRadius:   12,
+            elevation:      8,
           }}
         >
-          Reporte Parcial {activeTab} — {PARCIALES[activeTab - 1].focus}
-        </Text>
+          {/* Ícono + texto */}
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: C.green + "22", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+            <Feather name="check" size={16} color={C.green} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 13, fontWeight: "700", color: "#F1F5F9" }}>
+              Reporte enviado
+            </Text>
+            <Text style={{ fontSize: 11, color: "#94A3B8", marginTop: 1 }}>
+              Puedes deshacer en {undoBanner.segundos}s
+            </Text>
+          </View>
 
-        <Field
-          label="Actividades realizadas *"
-          placeholder="Describe las actividades y tareas completadas durante el periodo..."
-          value={form.actividadesRealizadas}
-          onChangeText={(v) => updateForm("actividadesRealizadas", v)}
-          multiline
-          editable={!isLocked}
-        />
-        <Field
-          label="Avance en objetivos"
-          placeholder="¿Qué porcentaje de los objetivos se cumplió? Describe brevemente..."
-          value={form.avanceObjetivos}
-          onChangeText={(v) => updateForm("avanceObjetivos", v)}
-          multiline
-          editable={!isLocked}
-        />
-        <Field
-          label="Problemas / obstáculos"
-          placeholder="Menciona dificultades encontradas y cómo se resolvieron..."
-          value={form.problemas}
-          onChangeText={(v) => updateForm("problemas", v)}
-          multiline
-          editable={!isLocked}
-        />
-        <Field
-          label="Observaciones adicionales"
-          placeholder="Cualquier comentario extra para tu asesor..."
-          value={form.observaciones}
-          onChangeText={(v) => updateForm("observaciones", v)}
-          multiline
-          editable={!isLocked}
-          last
-        />
-      </Card>
-
-      {/* ── Subir archivo ── */}
-      <Card style={{ marginTop: 16 }}>
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: "800",
-            color: C.text,
-            marginBottom: 12,
-          }}
-        >
-          Archivo del reporte
-        </Text>
-        {!isLocked ? (
+          {/* Botón Deshacer */}
           <TouchableOpacity
-            onPress={selectFile}
+            onPress={handleUndo}
             style={{
-              borderWidth: 2,
-              borderStyle: "dashed",
-              borderColor: selectedFile[activeTab] ? C.teal : C.border,
-              borderRadius: 12,
-              padding: 24,
-              alignItems: "center",
-              backgroundColor: selectedFile[activeTab] ? C.tealLighter : C.bg,
+              paddingHorizontal: 14,
+              paddingVertical:   8,
+              borderRadius:      8,
+              backgroundColor:   C.teal,
+              marginRight:       8,
             }}
           >
-            <Feather
-              name="upload-cloud"
-              size={28}
-              color={selectedFile[activeTab] ? C.teal : C.textMuted}
-              style={{ marginBottom: 8 }}
-            />
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "700",
-                color: selectedFile[activeTab] ? C.teal : C.text,
-                marginBottom: 4,
-              }}
-            >
-              {selectedFile[activeTab]
-                ? selectedFile[activeTab].name
-                : "Seleccionar archivo"}
-            </Text>
-            <Text style={{ fontSize: 11, color: C.textMuted }}>
-              {selectedFile[activeTab]
-                ? selectedFile[activeTab].size
-                : "PDF, DOCX · máx 25 MB"}
-            </Text>
+            <Text style={{ fontSize: 12, fontWeight: "800", color: "white" }}>Deshacer</Text>
           </TouchableOpacity>
-        ) : (
-          <Row
-            style={{
-              alignItems: "center",
-              gap: 10,
-              padding: 12,
-              backgroundColor: C.bg,
-              borderRadius: 10,
-            }}
-          >
-            <Feather name="file-text" size={18} color={C.textMuted} />
-            <Text style={{ fontSize: 13, color: C.textMuted }}>
-              {activeReport?.submitted
-                ? `Enviado el ${activeReport.submitted}`
-                : "Sin archivo"}
-            </Text>
-          </Row>
-        )}
-      </Card>
 
-      {/* ── Botón enviar / reenviar ── */}
-      {!isLocked && (
-        <TouchableOpacity
-          onPress={submitReport}
-          style={{
-            backgroundColor:
-              activeReport?.status === "Por corregir" ? C.amber : C.teal,
-            borderRadius: 12,
-            padding: 16,
-            alignItems: "center",
-            marginTop: 16,
-            marginBottom: 40,
-          }}
-        >
-          <Row style={{ alignItems: "center", gap: 8 }}>
-            <Feather
-              name={
-                activeReport?.status === "Por corregir" ? "refresh-cw" : "send"
-              }
-              size={16}
-              color="white"
-            />
-            <Text style={{ fontSize: 14, fontWeight: "800", color: "white" }}>
-              {activeReport?.status === "Por corregir"
-                ? `Reenviar Parcial ${activeTab} con correcciones`
-                : `Enviar Parcial ${activeTab}`}
-            </Text>
-          </Row>
-        </TouchableOpacity>
+          {/* Cerrar */}
+          <TouchableOpacity onPress={dismissBanner}>
+            <Feather name="x" size={18} color="#64748B" />
+          </TouchableOpacity>
+        </Animated.View>
       )}
-    </ScrollView>
+    </View>
   );
 }
 
-// ── Field helper ─────────────────────────────────────────────────────────────
-function Field({
-  label,
-  placeholder,
-  value,
-  onChangeText,
-  multiline,
-  editable = true,
-  last = false,
-}) {
+// ── Campo de formulario ───────────────────────────────────────────────────────
+function Field({ label, value, onChangeText, placeholder, multiline, editable = true, last }) {
   return (
-    <View style={{ marginBottom: last ? 0 : 16 }}>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "700",
-          color: C.textMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 6,
-        }}
-      >
-        {label}
-      </Text>
+    <View style={{ marginBottom: last ? 0 : 14 }}>
+      <Text style={{ fontSize: 12, fontWeight: "700", color: C.textSub, marginBottom: 6 }}>{label}</Text>
       <TextInput
-        value={value}
+        value={value || ""}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={C.textLight}
         multiline={multiline}
+        numberOfLines={multiline ? 4 : 1}
         editable={editable}
         style={{
-          padding: 11,
-          borderRadius: 9,
-          borderWidth: 1,
-          borderColor: editable ? C.border : C.borderLight,
-          fontSize: 13,
-          color: editable ? C.text : C.textMuted,
+          padding:         11,
+          borderRadius:    8,
+          borderWidth:     1,
+          borderColor:     C.border,
+          fontSize:        13,
+          color:           C.text,
           backgroundColor: editable ? "#FAFAFA" : C.bg,
-          textAlignVertical: multiline ? "top" : "center",
-          minHeight: multiline ? 88 : undefined,
+          ...(multiline ? { textAlignVertical: "top", minHeight: 90 } : {}),
         }}
       />
     </View>
