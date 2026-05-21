@@ -1,6 +1,8 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
+const fs = require("fs");
+const path = require("path");
 
 const router = express.Router();
 
@@ -138,6 +140,42 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
 
     // Obtener archivo y nombre_archivo del cuerpo de la petición (enviados desde el frontend)
     const { archivo, nombre_archivo, empresa } = req.body || {};
+    
+    // Agregado: Log para depurar si se recibe el archivo
+    console.log(`[DEBUG] Subiendo reporte: tipo=${tipo}, archivo=${archivo ? 'recibido (' + archivo.length + ' chars)' : 'null'}, nombre_archivo=${nombre_archivo}`);
+    
+    // Agregado: Función para guardar archivo en disco
+    // Por qué: El archivo no debe guardarse en la base de datos como base64, sino en el disco del servidor
+    // Para qué: Ahorrar espacio en la base de datos y permitir descargar el archivo correctamente
+    let archivoUrl = null;
+    if (archivo && nombre_archivo) {
+      try {
+        // Crear carpeta uploads si no existe
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        // Generar nombre único para el archivo
+        const extension = path.extname(nombre_archivo);
+        const nombreUnico = `${residenteId}_${tipo}_${Date.now()}${extension}`;
+        const rutaArchivo = path.join(uploadsDir, nombreUnico);
+        
+        // Extraer datos base64 (quitar el prefijo "data:application/pdf;base64,")
+        const base64Data = archivo.includes(',') ? archivo.split(',')[1] : archivo;
+        const buffer = Buffer.from(base64Data, 'base64');
+        
+        // Guardar archivo en disco
+        fs.writeFileSync(rutaArchivo, buffer);
+        
+        // Guardar la ruta relativa para usar en la URL
+        archivoUrl = `/uploads/${nombreUnico}`;
+        console.log(`[DEBUG] Archivo guardado en disco: ${rutaArchivo}`);
+      } catch (error) {
+        console.error(`[ERROR] Error al guardar archivo en disco:`, error);
+        // Continuar sin archivo si hay error
+      }
+    }
 
     const [existing] = await db.execute(
       "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
@@ -159,7 +197,7 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
         await db.execute(
           `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
            WHERE residente_id = ? AND tipo = ?`,
-          [today, archivo || null, nombre_archivo || null, residenteId, tipo]
+          [today, archivoUrl || null, nombre_archivo || null, residenteId, tipo]
         );
       }
     } else {
@@ -168,7 +206,7 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
       await db.execute(
         `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url, nombre_archivo)
          VALUES (?,?,?,'En Revisión',?,?,?)`,
-        [newId, residenteId, tipo, today, archivo || null, nombre_archivo || null]
+        [newId, residenteId, tipo, today, archivoUrl || null, nombre_archivo || null]
       );
     }
 

@@ -964,11 +964,13 @@ export default function SeguimientoAsesor() {
                         <Row style={{ gap: 10, flexWrap: "wrap" }}>
                           {report.archivo && (
                             <TouchableOpacity
-                              onPress={() =>
-                                window.alert(
-                                  `Archivo: ${report.archivo}\n\nEn producción se descargaría el documento.`,
-                                )
-                              }
+                              onPress={() => {
+                                // Modificado: Descargar el archivo desde el servidor
+                                // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
+                                // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
+                                const url = `http://0.0.0.0:3001${report.archivo}`;
+                                window.open(url, '_blank');
+                              }}
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
@@ -1259,9 +1261,13 @@ export default function SeguimientoAsesor() {
                 {/* Archivo adjunto */}
                 {reviewingReport.archivo && (
                   <TouchableOpacity
-                    onPress={() =>
-                      window.alert(`Archivo: ${reviewingReport.archivo}`)
-                    }
+                    onPress={() => {
+                      // Modificado: Descargar el archivo desde el servidor
+                      // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
+                      // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
+                      const url = `http://0.0.0.0:3001${reviewingReport.archivo}`;
+                      window.open(url, '_blank');
+                    }}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",

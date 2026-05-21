@@ -36,6 +36,12 @@ app.use(
 
 app.use(express.json({ limit: "10mb" })); // limit ampliado para fotos base64
 
+// ── Archivos estáticos (uploads) ─────────────────────────────────────────────
+// Agregado: Servir archivos estáticos desde la carpeta uploads
+// Por qué: Los archivos subidos por los residentes se guardan en el disco del servidor
+// Para qué: Permitir que el asesor pueda descargar y ver los archivos PDF
+app.use("/uploads", express.static("uploads"));
+
 // ── Rutas ────────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/citas", citasRoutes);
