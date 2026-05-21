@@ -302,6 +302,27 @@ router.post("/asignacion", auth, async (req, res) => {
       ]);
     }
 
+    // Agregado: Crear reportes vacíos para cada residente asignado
+    // Por qué: El residente necesita tener reportes creados para poder subir archivos
+    // Para qué: Evitar errores al intentar subir reportes cuando no existen en la base de datos
+    const tiposReportes = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+    const fechasLimite = [
+      "2026-02-28",  // preliminar
+      "2026-04-30",  // parcial1
+      "2026-06-30",  // parcial2
+      "2026-08-30",  // parcial3
+      "2026-10-31",  // final
+    ];
+    for (const rId of residentesIds) {
+      for (let i = 0; i < tiposReportes.length; i++) {
+        await db.execute(
+          `INSERT INTO reportes (id, residente_id, tipo, fecha_limite, estado)
+           VALUES (?, ?, ?, ?, 'Pendiente')`,
+          [`REP-${rId}-${i + 1}`, rId, tiposReportes[i], fechasLimite[i]],
+        );
+      }
+    }
+
     return res.json({ ok: true, id: proyectoId });
   } catch (err) {
     console.error("Error en POST /jefe/asignacion:", err);

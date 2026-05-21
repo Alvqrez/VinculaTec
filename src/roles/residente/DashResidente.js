@@ -19,10 +19,17 @@ const FECHA_FIN_RESIDENCIA = new Date("2026-06-15");
 export default function DashResidente({ onNavigate }) {
   const { reports } = useReportes() || {};
   const [asesor, setAsesor] = useState(null);
+  const [proyecto, setProyecto] = useState(null);
 
   useEffect(() => {
     apiClient.get("/api/residente/asesor").then((res) => {
       if (res.ok && res.body?.ok && res.body.asesor) setAsesor(res.body.asesor);
+    });
+    // Agregado: Cargar datos del proyecto asignado al residente
+    // Por qué: El residente necesita ver en qué proyecto está asignado
+    // Para qué: Mostrar información del proyecto en el dashboard
+    apiClient.get("/api/residente/proyecto").then((res) => {
+      if (res.ok && res.body?.ok && res.body.proyecto) setProyecto(res.body.proyecto);
     });
   }, []);
 
@@ -138,6 +145,151 @@ export default function DashResidente({ onNavigate }) {
       <Row style={{ gap: 20, alignItems: "flex-start" }}>
         {/* Columna izquierda */}
         <View style={{ flex: 1, gap: 20 }}>
+          {/* Mi Proyecto */}
+          {proyecto ? (
+            <Card>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: C.text,
+                  marginBottom: 16,
+                }}
+              >
+                Mi Proyecto
+              </Text>
+              <View style={{ gap: 12 }}>
+                <Row style={{ gap: 12, alignItems: "flex-start" }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 10,
+                      backgroundColor: C.blueLight,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name="folder" size={18} color={C.blue} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      style={{ fontSize: 14, fontWeight: "700", color: C.text }}
+                    >
+                      {proyecto.titulo}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: C.textMuted }}>
+                      {proyecto.empresa?.nombre || "Sin empresa"}
+                    </Text>
+                  </View>
+                  <Badge
+                    text={proyecto.estado}
+                    color={
+                      proyecto.estado === "desarrollo"
+                        ? C.blue
+                        : proyecto.estado === "revision"
+                        ? C.amber
+                        : C.green
+                    }
+                    bg={
+                      proyecto.estado === "desarrollo"
+                        ? C.blueLight
+                        : proyecto.estado === "revision"
+                        ? C.amberLight
+                        : C.greenLight
+                    }
+                  />
+                </Row>
+                {proyecto.descripcion && (
+                  <View
+                    style={{
+                      backgroundColor: C.bg,
+                      borderRadius: 8,
+                      padding: 12,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: C.textMuted,
+                        marginBottom: 4,
+                      }}
+                    >
+                      DESCRIPCIÓN
+                    </Text>
+                    <Text style={{ fontSize: 13, color: C.textSub, lineHeight: 19 }}>
+                      {proyecto.descripcion}
+                    </Text>
+                  </View>
+                )}
+                {proyecto.tecnologias && (
+                  <View>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "700",
+                        color: C.textMuted,
+                        marginBottom: 6,
+                      }}
+                    >
+                      TECNOLOGÍAS
+                    </Text>
+                    <Row style={{ gap: 8, flexWrap: "wrap" }}>
+                      {proyecto.tecnologias.split(",").map((tech, i) => (
+                        <View
+                          key={i}
+                          style={{
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 12,
+                            backgroundColor: C.tealLight,
+                          }}
+                        >
+                          <Text
+                            style={{ fontSize: 11, color: C.teal, fontWeight: "600" }}
+                          >
+                            {tech.trim()}
+                          </Text>
+                        </View>
+                      ))}
+                    </Row>
+                  </View>
+                )}
+              </View>
+            </Card>
+          ) : (
+            <Card>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "700",
+                  color: C.text,
+                  marginBottom: 16,
+                }}
+              >
+                Mi Proyecto
+              </Text>
+              <View
+                style={{
+                  backgroundColor: C.amberLight,
+                  borderRadius: 8,
+                  padding: 12,
+                }}
+              >
+                <Row style={{ gap: 10, alignItems: "center" }}>
+                  <Feather name="alert-circle" size={18} color={C.amber} />
+                  <Text style={{ fontSize: 13, color: C.amber, fontWeight: "600" }}>
+                    No tienes un proyecto asignado
+                  </Text>
+                </Row>
+                <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                  Contacta al Jefe de Vinculación para que te asigne un proyecto.
+                </Text>
+              </View>
+            </Card>
+          )}
+
           {/* Progreso de Residencia */}
           <Card>
             <Text

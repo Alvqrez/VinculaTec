@@ -201,4 +201,68 @@ router.get("/asesor", auth, async (req, res) => {
   }
 });
 
+// ── GET /api/residente/proyecto ───────────────────────────────────────────────
+// Datos del proyecto asignado al residente
+// Agregado: Para que el residente pueda ver en qué proyecto está asignado
+// Por qué: El residente necesita saber su proyecto, empresa y asesor
+// Para qué: Mostrar información del proyecto en el dashboard del residente
+router.get("/proyecto", auth, async (req, res) => {
+  try {
+    const [resRows] = await db.execute(
+      "SELECT id FROM residentes WHERE usuario_id = ?",
+      [req.user.id]
+    );
+    if (!resRows.length)
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
+
+    const residenteId = resRows[0].id;
+
+    const [rows] = await db.execute(
+      `SELECT p.id, p.titulo, p.descripcion, p.estado, p.prioridad, p.tecnologias,
+              p.fecha_inicio, p.fecha_fin, p.progreso,
+              e.id AS empresa_id, e.nombre AS empresa_nombre, e.estado AS empresa_estado,
+              a.id AS asesor_id, CONCAT(u.nombre, ' ', u.apellidos) AS asesor_nombre,
+              a.departamento AS asesor_departamento
+       FROM proyectos p
+       LEFT JOIN empresas e ON p.empresa_id = e.id
+       LEFT JOIN asesores a ON p.asesor_id = a.id
+       LEFT JOIN usuarios u ON a.usuario_id = u.id
+       WHERE p.residente_id = ?`,
+      [residenteId]
+    );
+
+    if (!rows.length)
+      return res.json({ ok: true, proyecto: null });
+
+    const p = rows[0];
+    return res.json({
+      ok: true,
+      proyecto: {
+        id: p.id,
+        titulo: p.titulo,
+        descripcion: p.descripcion,
+        estado: p.estado,
+        prioridad: p.prioridad,
+        tecnologias: p.tecnologias,
+        fecha_inicio: p.fecha_inicio,
+        fecha_fin: p.fecha_fin,
+        progreso: p.progreso,
+        empresa: {
+          id: p.empresa_id,
+          nombre: p.empresa_nombre,
+          estado: p.empresa_estado,
+        },
+        asesor: {
+          id: p.asesor_id,
+          nombre: p.asesor_nombre,
+          departamento: p.asesor_departamento,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("Error en /residente/proyecto:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 module.exports = router;
