@@ -4,29 +4,29 @@ const ThemeCtx = createContext(null);
 
 // ── Paletas ───────────────────────────────────────────────────────────────────
 const DARK = {
-  bg: "#0F172A",
-  card: "#1E293B",
+  bg: "#0D1117",
+  card: "#161B22",
   sidebar: "#080E1A",
-  border: "#334155",
-  borderLight: "#1E293B",
-  text: "#F1F5F9",
-  textSub: "#CBD5E1",
-  textMuted: "#94A3B8",
-  textLight: "#64748B",
+  border: "#30363D",
+  borderLight: "#21262D",
+  text: "#E6EDF3",
+  textSub: "#8B949E",
+  textMuted: "#6E7681",
+  textLight: "#484F58",
   teal: "#2DD4BF",
-  tealLight: "#0F3330",
-  tealLighter: "#0A2420",
+  tealLight: "#0D2E2B",
+  tealLighter: "#0A2220",
   navy: "#1E3A5F",
-  navyLight: "#1E3A5F",
-  green: "#34D399",
-  greenLight: "#064E3B44",
-  amber: "#FBBF24",
-  amberLight: "#78350F44",
-  red: "#F87171",
-  redLight: "#7F1D1D44",
-  blue: "#60A5FA",
-  blueLight: "#1E3A5F44",
-  white: "#F1F5F9",
+  navyLight: "#1C2734",
+  green: "#3FB950",
+  greenLight: "#0F2A0F",
+  amber: "#D29922",
+  amberLight: "#2D2009",
+  red: "#F85149",
+  redLight: "#2A0E0E",
+  blue: "#58A6FF",
+  blueLight: "#1C2C48",
+  white: "#E6EDF3",
 };
 
 const LIGHT = {
@@ -55,87 +55,97 @@ const LIGHT = {
   white: "#FFFFFF",
 };
 
-// ── CSS para modo oscuro ──────────────────────────────────────────────────────
-// Usa selectores de atributo para sobrescribir los estilos inline de React Native Web.
-// React Native Web convierte los colores hex a rgb() en los estilos inline del DOM,
-// por lo que necesitamos usar !important con los valores rgb exactos.
+// ── CSS oscuro ────────────────────────────────────────────────────────────────
+// React Native Web convierte colores HEX a RGBA en el DOM:
+//   #FFFFFF  → background-color: rgba(255, 255, 255, 1)
+//   #F8FAFC  → background-color: rgba(248, 250, 252, 1)
+// Los selectores deben usar rgba() para hacer match con los estilos inline.
 const DARK_CSS = `
-  body { background-color: #0F172A !important; }
+  body { background-color: #0D1117 !important; }
 
-  /* ── Fondos blancos → fondo de tarjeta oscura ── */
-  [data-theme="dark"] *[style*="background-color: rgb(255, 255, 255)"],
-  [data-theme="dark"] *[style*="background-color:rgb(255, 255, 255)"],
-  [data-theme="dark"] *[style*="background-color: white"] {
-    background-color: #1E293B !important;
+  /* ── Blanco puro (#FFFFFF) → card oscura ── */
+  [data-theme="dark"] *[style*="rgba(255, 255, 255, 1)"],
+  [data-theme="dark"] *[style*="rgba(255,255,255,1)"],
+  [data-theme="dark"] *[style*="rgb(255, 255, 255)"],
+  [data-theme="dark"] *[style*="rgb(255,255,255)"] {
+    background-color: #161B22 !important;
   }
 
-  /* ── Fondo gris claro (bg principal de la app) → oscuro profundo ── */
-  [data-theme="dark"] *[style*="background-color: rgb(248, 250, 252)"],
-  [data-theme="dark"] *[style*="background-color:rgb(248, 250, 252)"] {
-    background-color: #0F172A !important;
+  /* ── Gris muy claro (#F8FAFC) → fondo principal oscuro ── */
+  [data-theme="dark"] *[style*="rgba(248, 250, 252, 1)"],
+  [data-theme="dark"] *[style*="rgba(248,250,252,1)"],
+  [data-theme="dark"] *[style*="rgb(248, 250, 252)"],
+  [data-theme="dark"] *[style*="rgb(248,250,252)"] {
+    background-color: #0D1117 !important;
   }
 
-  /* ── Fondo F1F5F9 (hover, secundario) ── */
-  [data-theme="dark"] *[style*="background-color: rgb(241, 245, 249)"],
-  [data-theme="dark"] *[style*="background-color:rgb(241, 245, 249)"] {
-    background-color: #1E293B !important;
+  /* ── #F1F5F9 (secciones alt, borderLight) → intermedio ── */
+  [data-theme="dark"] *[style*="rgba(241, 245, 249, 1)"],
+  [data-theme="dark"] *[style*="rgba(241,245,249,1)"],
+  [data-theme="dark"] *[style*="rgb(241, 245, 249)"],
+  [data-theme="dark"] *[style*="rgb(241,245,249)"] {
+    background-color: #1C2130 !important;
   }
 
-  /* ── Inputs y textareas ── */
-  [data-theme="dark"] *[style*="background-color: rgb(250, 250, 250)"],
-  [data-theme="dark"] *[style*="background-color:rgb(250, 250, 250)"] {
-    background-color: #0F172A !important;
+  /* ── #FAFAFA (inputs) ── */
+  [data-theme="dark"] *[style*="rgba(250, 250, 250, 1)"],
+  [data-theme="dark"] *[style*="rgba(250,250,250,1)"],
+  [data-theme="dark"] *[style*="rgb(250, 250, 250)"],
+  [data-theme="dark"] *[style*="rgb(250,250,250)"] {
+    background-color: #0D1117 !important;
   }
 
-  /* ── Texto oscuro (color principal) → claro ── */
-  [data-theme="dark"] *[style*="color: rgb(15, 23, 42)"],
-  [data-theme="dark"] *[style*="color:rgb(15, 23, 42)"] {
-    color: #F1F5F9 !important;
+  /* ── Texto oscuro (#0F172A = rgb 15,23,42) → claro ── */
+  [data-theme="dark"] *[style*="rgba(15, 23, 42, 1)"],
+  [data-theme="dark"] *[style*="rgba(15,23,42,1)"],
+  [data-theme="dark"] *[style*="rgb(15, 23, 42)"],
+  [data-theme="dark"] *[style*="rgb(15,23,42)"] {
+    color: #E6EDF3 !important;
   }
 
-  /* ── Texto sub (475569) → claro ── */
-  [data-theme="dark"] *[style*="color: rgb(71, 85, 105)"],
-  [data-theme="dark"] *[style*="color:rgb(71, 85, 105)"] {
-    color: #CBD5E1 !important;
+  /* ── Texto sub (#475569 = rgb 71,85,105) → gris claro ── */
+  [data-theme="dark"] *[style*="rgba(71, 85, 105, 1)"],
+  [data-theme="dark"] *[style*="rgba(71,85,105,1)"],
+  [data-theme="dark"] *[style*="rgb(71, 85, 105)"],
+  [data-theme="dark"] *[style*="rgb(71,85,105)"] {
+    color: #8B949E !important;
   }
 
-  /* ── Bordes claros → oscuros ── */
-  [data-theme="dark"] *[style*="border-color: rgb(226, 232, 240)"],
-  [data-theme="dark"] *[style*="border-top-color: rgb(226, 232, 240)"],
-  [data-theme="dark"] *[style*="border-bottom-color: rgb(226, 232, 240)"],
-  [data-theme="dark"] *[style*="border-left-color: rgb(226, 232, 240)"],
-  [data-theme="dark"] *[style*="border-right-color: rgb(226, 232, 240)"] {
-    border-color: #334155 !important;
+  /* ── Bordes claros (#E2E8F0 = rgb 226,232,240) ── */
+  [data-theme="dark"] *[style*="rgba(226, 232, 240, 1)"],
+  [data-theme="dark"] *[style*="rgba(226,232,240,1)"],
+  [data-theme="dark"] *[style*="rgb(226, 232, 240)"],
+  [data-theme="dark"] *[style*="rgb(226,232,240)"] {
+    border-color: #30363D !important;
+  }
+  [data-theme="dark"] *[style*="border-top-color: rgba(226, 232, 240, 1)"],
+  [data-theme="dark"] *[style*="border-bottom-color: rgba(226, 232, 240, 1)"],
+  [data-theme="dark"] *[style*="border-left-color: rgba(226, 232, 240, 1)"],
+  [data-theme="dark"] *[style*="border-right-color: rgba(226, 232, 240, 1)"] {
+    border-color: #30363D !important;
   }
 
-  /* ── Border F1F5F9 (borderLight) ── */
-  [data-theme="dark"] *[style*="border-color: rgb(241, 245, 249)"],
-  [data-theme="dark"] *[style*="border-top-color: rgb(241, 245, 249)"],
-  [data-theme="dark"] *[style*="border-bottom-color: rgb(241, 245, 249)"] {
-    border-color: #1E293B !important;
+  /* ── Borde borderLight (#F1F5F9 = rgb 241,245,249) ── */
+  [data-theme="dark"] *[style*="border-top-color: rgba(241, 245, 249, 1)"],
+  [data-theme="dark"] *[style*="border-bottom-color: rgba(241, 245, 249, 1)"] {
+    border-color: #21262D !important;
   }
 
-  /* ── ScrollView outer wrapper (the main container) ── */
-  [data-theme="dark"] div[style*="flex: 1"] > div[style*="background-color: rgb(248"] {
-    background-color: #0F172A !important;
+  /* ── Inputs HTML nativos ── */
+  [data-theme="dark"] input,
+  [data-theme="dark"] textarea,
+  [data-theme="dark"] select {
+    background-color: #0D1117 !important;
+    color: #E6EDF3 !important;
+    border-color: #30363D !important;
   }
-
-  /* ── Inputs de texto ── */
-  [data-theme="dark"] input, [data-theme="dark"] textarea {
-    background-color: #1E293B !important;
-    color: #F1F5F9 !important;
-    border-color: #334155 !important;
-  }
-
-  /* ── Placeholder ── */
-  [data-theme="dark"] input::placeholder, [data-theme="dark"] textarea::placeholder {
-    color: #64748B !important;
+  [data-theme="dark"] input::placeholder,
+  [data-theme="dark"] textarea::placeholder {
+    color: #6E7681 !important;
   }
 `;
 
-const LIGHT_CSS = `
-  body { background-color: #F8FAFC !important; }
-`;
+const LIGHT_CSS = `body { background-color: #F8FAFC !important; }`;
 
 export function ThemeProvider({ children }) {
   const [isDark, setIsDark] = useState(() => {
@@ -150,8 +160,8 @@ export function ThemeProvider({ children }) {
     try {
       localStorage.setItem("vt_dark_mode", String(isDark));
     } catch {}
-
     if (typeof document === "undefined") return;
+
     document.documentElement.setAttribute(
       "data-theme",
       isDark ? "dark" : "light",
