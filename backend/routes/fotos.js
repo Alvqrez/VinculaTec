@@ -49,8 +49,11 @@ router.post("/", auth, async (req, res) => {
   }
 
   // Validar que el string base64 sea válido y no sea demasiado grande
-  if (typeof foto_base64 !== "string" || foto_base64.length > 5000000) {
-    return res.status(400).json({ ok: false, mensaje: "foto_base64 inválido o demasiado grande." });
+  // MODIFICADO: Reducido de 5MB a 2MB para evitar error ER_NET_PACKET_TOO_LARGE de MySQL
+  // Por qué: MySQL tiene un límite de max_allowed_packet (por defecto 4MB)
+  // Para qué: Evitar que el paquete exceda el límite de MySQL y cause errores
+  if (typeof foto_base64 !== "string" || foto_base64.length > 2000000) {
+    return res.status(400).json({ ok: false, mensaje: "La foto es demasiado grande. Máximo 2MB." });
   }
 
   try {
