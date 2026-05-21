@@ -322,8 +322,8 @@ export default function ReportePreliminar() {
                 <Feather name="download" size={16} color={C.teal} />
               </TouchableOpacity>
             </Row>
-            {/* Agregado: Botón para deshacer el envío (solo si no está aceptado) */}
-            {preliminarReport?.status !== "Aceptado" && (
+            {/* Agregado: Botón para deshacer el envío (solo si no está aceptado y tiene archivo) */}
+            {preliminarReport?.status !== "Aceptado" && preliminarReport?.nombre_archivo && (
               <TouchableOpacity
                 onPress={undoUpload}
                 style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 8, backgroundColor: C.redLight, borderRadius: 8, borderWidth: 1, borderColor: C.red }}
