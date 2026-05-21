@@ -45,7 +45,7 @@ const TIPO_TO_SUBTITLE = {
 const ESTADO_TO_STATUS = {
   Pendiente: "Pendiente",
   Entregado: "Pendiente",
-  "En Revisión": "Pendiente",
+  "En Revisión": "En Revisión",  // Corrección: Debería ser "En Revisión", no "Pendiente"
   Aprobado: "Aceptado",
   Rechazado: "Por corregir",
 };
@@ -88,11 +88,18 @@ router.get("/reportes", auth, async (req, res) => {
       const fechaEntrega = row?.fecha_entrega
         ? new Date(row.fecha_entrega).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
         : null;
+      // Corrección: Agregar trim() para eliminar espacios en blanco del estado
+      const estadoNormalizado = row?.estado?.trim() || "";
+      const status = row ? (ESTADO_TO_STATUS[estadoNormalizado] || "Pendiente") : "Pendiente";
+      // Agregado: Log para depurar discrepancia de estado
+      if (tipo === "preliminar") {
+        console.log(`[DEBUG] Reporte preliminar: BD estado="${row?.estado}", Normalizado="${estadoNormalizado}", Frontend status="${status}"`);
+      }
       return {
         id: TIPO_TO_ID[tipo],
         title: TIPO_TO_TITLE[tipo],
         subtitle: TIPO_TO_SUBTITLE[tipo],
-        status: row ? (ESTADO_TO_STATUS[row.estado] || "Pendiente") : "Pendiente",
+        status: status,
         submitted: fechaEntrega,
         reviewer: asesorNombre,
         feedback: row?.feedback || null,
@@ -138,12 +145,23 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
     );
 
     if (existing.length) {
-      // Actualizar reporte existente: guardar archivo, nombre_archivo y cambiar estado a "En Revisión"
-      await db.execute(
-        `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
-         WHERE residente_id = ? AND tipo = ?`,
-        [today, archivo || null, nombre_archivo || null, residenteId, tipo]
-      );
+      // Actualizar reporte existente
+      // Corrección: Si archivo es null (deshacer envío), cambiar estado a "Pendiente" y limpiar fecha_entrega
+      // Por qué: El usuario necesita poder deshacer el envío y volver a subir el archivo
+      // Para qué: Permitir que el reporte vuelva a estado "Pendiente" cuando se deshace el envío
+      if (archivo === null) {
+        await db.execute(
+          `UPDATE reportes SET estado = 'Pendiente', fecha_entrega = NULL, archivo_url = NULL, nombre_archivo = NULL
+           WHERE residente_id = ? AND tipo = ?`,
+          [residenteId, tipo]
+        );
+      } else {
+        await db.execute(
+          `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
+           WHERE residente_id = ? AND tipo = ?`,
+          [today, archivo || null, nombre_archivo || null, residenteId, tipo]
+        );
+      }
     } else {
       // Crear nuevo reporte: guardar archivo, nombre_archivo y estado "En Revisión"
       const newId = `rep_${residenteId}_${tipo}_${Date.now()}`;
@@ -260,6 +278,23 @@ router.get("/proyecto", auth, async (req, res) => {
     });
   } catch (err) {
     console.error("Error en /residente/proyecto:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── GET /api/residente/empresas ───────────────────────────────────────────────
+// Lista de empresas disponibles para el reporte preliminar
+// Agregado: Para que el residente seleccione una empresa de un listado en lugar de escribir el nombre
+// Por qué: Evitar errores de escritura y garantizar que la empresa existe en el sistema
+// Para qué: Mostrar un selector/dropdown con las empresas disponibles en el reporte preliminar
+router.get("/empresas", auth, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      "SELECT id, nombre, estado FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC"
+    );
+    return res.json({ ok: true, empresas: rows });
+  } catch (err) {
+    console.error("Error en /residente/empresas:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
   }
 });

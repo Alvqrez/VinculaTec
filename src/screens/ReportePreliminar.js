@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Alert, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
@@ -15,9 +15,22 @@ export default function ReportePreliminar() {
   const preliminarReport = reports?.find((r) => r.id === "preliminar");
 
   const [empresa, setEmpresa] = useState("");
+  const [empresaId, setEmpresaId] = useState(""); // Agregado: ID de la empresa seleccionada
+  const [empresas, setEmpresas] = useState([]); // Agregado: Lista de empresas disponibles
   const [uploadedFile, setUploadedFile] = useState(null);
   const [savedAt, setSavedAt] = useState(null);
   const [fileData, setFileData] = useState(null); // Para guardar el archivo en base64
+
+  // Agregado: Cargar lista de empresas disponibles
+  // Por qué: El residente debe seleccionar una empresa de un listado en lugar de escribir el nombre
+  // Para qué: Evitar errores de escritura y garantizar que la empresa existe en el sistema
+  useEffect(() => {
+    apiClient.get("/api/residente/empresas").then((res) => {
+      if (res.ok && res.body?.ok && res.body.empresas) {
+        setEmpresas(res.body.empresas);
+      }
+    });
+  }, []);
 
   // Agregado: Función para descargar el archivo guardado
   const downloadFile = () => {
@@ -33,6 +46,11 @@ export default function ReportePreliminar() {
 
   // Agregado: Función para deshacer el envío (solo si no está aceptado)
   const undoUpload = async () => {
+    console.log("undoUpload llamado, status:", preliminarReport?.status);
+    console.log("preliminarReport:", preliminarReport);
+    // Modificado: Permitir deshacer envío si el reporte está en "En Revisión" o "Pendiente"
+    // Por qué: El residente puede cometer errores al subir el archivo y necesita corregirlo rápidamente
+    // Para qué: Evitar que el residente tenga que esperar a que el asesor revise para corregir errores
     if (preliminarReport?.status === "Aceptado") {
       Alert.alert("No permitido", "No puedes deshacer el envío de un reporte ya aceptado.");
       return;
@@ -97,8 +115,8 @@ export default function ReportePreliminar() {
   };
 
   const uploadReport = async () => {
-    if (!empresa.trim()) {
-      Alert.alert("Falta información", "Escribe el nombre de la empresa antes de subir.");
+    if (!empresaId) {
+      Alert.alert("Falta información", "Selecciona la empresa antes de subir.");
       return;
     }
     if (!uploadedFile) {
@@ -118,10 +136,12 @@ export default function ReportePreliminar() {
 
     try {
       // Enviar archivo al backend
+      // Modificado: Enviar empresaId en lugar de nombre de empresa
+      // Por qué: Ahora se selecciona de un listado, se guarda el ID para mantener consistencia
       const res = await apiClient.put("/api/residente/reportes/preliminar", {
         archivo: fileData,
         nombre_archivo: uploadedFile.name,
-        empresa: empresa,
+        empresa_id: empresaId,
       });
 
       if (!res.ok) {
@@ -215,7 +235,55 @@ export default function ReportePreliminar() {
       {/* ── Datos del Proyecto ── */}
       <Card style={{ marginBottom: 16, opacity: isLocked ? 0.7 : 1 }}>
         <Text style={{ fontSize: 14, fontWeight: "800", color: C.text, marginBottom: 14 }}>Datos del Proyecto</Text>
-        <FormField label="Empresa" value={empresa} onChange={setEmpresa} placeholder="Ej: Telmex S.A. de C.V." disabled={isLocked} />
+        {/* Modificado: Selector de empresas en lugar de campo de texto */}
+        {/* Por qué: El residente debe seleccionar una empresa de un listado en lugar de escribir el nombre */}
+        {/* Para qué: Evitar errores de escritura y garantizar que la empresa existe en el sistema */}
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, fontWeight: "700", color: C.textMuted, marginBottom: 6 }}>
+            EMPRESA
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 8 }}
+          >
+            <Row style={{ gap: 8 }}>
+              {empresas.map((e) => (
+                <TouchableOpacity
+                  key={e.id}
+                  onPress={() => {
+                    setEmpresaId(e.id);
+                    setEmpresa(e.nombre);
+                  }}
+                  disabled={isLocked}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    backgroundColor: empresaId === e.id ? C.teal : C.bg,
+                    borderWidth: 1.5,
+                    borderColor: empresaId === e.id ? C.teal : C.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      fontWeight: "600",
+                      color: empresaId === e.id ? "white" : C.text,
+                    }}
+                  >
+                    {e.nombre}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </Row>
+          </ScrollView>
+          {empresaId && (
+            <Text style={{ fontSize: 11, color: C.teal, fontWeight: "600" }}>
+              Empresa seleccionada: {empresa}
+            </Text>
+          )}
+        </View>
       </Card>
 
       {/* ── Subir archivo ── */}
