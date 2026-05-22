@@ -143,6 +143,12 @@ CREATE TABLE IF NOT EXISTS reportes (
 -- Para qué: Evitar errores al ejecutar el schema en bases de datos ya creadas sin perder datos
 ALTER TABLE reportes ADD COLUMN IF NOT EXISTS nombre_archivo VARCHAR(255) AFTER archivo_url;
 
+-- Agregado: ALTER TABLE para agregar el campo periodo si la tabla proyectos ya existe
+-- Por qué: Sincronización con cambios realizados en otras instancias de la BD
+-- Para qué: Permitir filtrar y organizar proyectos por período académico
+ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS periodo VARCHAR(50) AFTER asesor_id;
+ALTER TABLE proyectos ADD INDEX IF NOT EXISTS idx_periodo (periodo);
+
 -- ── Notificaciones ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notificaciones (
   id          VARCHAR(50) PRIMARY KEY,

@@ -1,6 +1,8 @@
 import { getAuthToken } from "../context/AuthContext";
+import { API_BASE } from "../config/api";
 
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || "https://flock-gratuity-dancing.ngrok-free.dev";
+// Usar configuración centralizada
+const BASE_URL = API_BASE.replace('/api', '');
 
 const defaultHeaders = {
   "Content-Type": "application/json",

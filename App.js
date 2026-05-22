@@ -15,6 +15,7 @@ import AsesorApp      from "./src/roles/asesor/AsesorApp";
 import JefeApp        from "./src/roles/jefe/JefeApp";
 
 import { setAuthToken }          from "./src/context/AuthContext";
+import { API_BASE }              from "./src/config/api";
 import { ReportesProvider }      from "./src/context/ReportesContext";
 import { NotificacionesProvider } from "./src/context/NotificacionesContext";
 import { ProyectosProvider }     from "./src/context/ProyectosContext";
@@ -50,7 +51,7 @@ export default function App() {
 
   const handleLogin = async (email, password) => {
     try {
-      const res  = await fetch("https://flock-gratuity-dancing.ngrok-free.dev/api/auth/login", {
+      const res  = await fetch(`${API_BASE}/auth/login`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ correo: email, password }),

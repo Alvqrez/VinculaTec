@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { Platform } from "react-native";
+import { WS_BASE } from "../config/api";
 
 const WebSocketCtx = createContext(null);
 
@@ -18,7 +19,7 @@ export function WebSocketProvider({ children }) {
 
     // Crear socket solo si no existe
     if (!socketRef.current) {
-      socketRef.current = io("https://flock-gratuity-dancing.ngrok-free.dev", {
+      socketRef.current = io(WS_BASE, {
         autoConnect: false,
         withCredentials: true,
       });

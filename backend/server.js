@@ -17,9 +17,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CORS_ORIGINS
-      ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-      : ["http://localhost:8081", "http://localhost:19006", "https://flock-gratuity-dancing.ngrok-free.dev"],
+    origin: (origin, callback) => {
+      // Misma lógica que CORS de Express
+      if (!origin) return callback(null, true);
+      if (origin.includes("localhost")) return callback(null, true);
+      if (origin.includes("127.0.0.1")) return callback(null, true);
+      if (origin.includes("ngrok-free.dev")) return callback(null, true);
+      if (origin.includes("ngrok.io")) return callback(null, true);
+      callback(null, true); // Permisivo para WebSocket en desarrollo
+    },
     credentials: true,
   },
 });
@@ -27,16 +33,34 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Si no está definido en .env, permite los orígenes locales de Expo
+// Permite orígenes locales de Expo, ngrok, y cualquier origen definido en .env
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:8081", "http://localhost:19006", "https://flock-gratuity-dancing.ngrok-free.dev"];
+  : [
+      "http://localhost:8081",      // Expo development
+      "http://localhost:19006",     // Expo web
+      "http://localhost:3000",      // React dev server
+      "https://flock-gratuity-dancing.ngrok-free.dev",  // ngrok actual (legacy)
+    ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin) return callback(null, true);                    // Postman / nativo
+      // Permitir peticiones sin origin (Postman, curl, móvil nativo)
+      if (!origin) return callback(null, true);
+      
+      // Permitir orígenes locales
+      if (origin.includes("localhost")) return callback(null, true);
+      if (origin.includes("127.0.0.1")) return callback(null, true);
+      
+      // Permitir cualquier ngrok (para facilitar desarrollo con ngrok gratuito)
+      if (origin.includes("ngrok-free.dev")) return callback(null, true);
+      if (origin.includes("ngrok.io")) return callback(null, true);
+      
+      // Permitir orígenes explícitamente configurados
       if (allowedOrigins.includes(origin)) return callback(null, true);
+      
+      console.warn(`[CORS] Origen no permitido: ${origin}`);
       callback(new Error(`CORS: origen no permitido → ${origin}`));
     },
     credentials: true,

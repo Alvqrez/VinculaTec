@@ -1,5 +1,6 @@
 import { createContext, useContext, useState } from "react";
 import { getAuthToken } from "./AuthContext";
+import { API_BASE } from "../config/api";
 
 const ReportesCtx = createContext(null);
 
@@ -152,7 +153,7 @@ export function ReportesProvider({ children }) {
       const token = getAuthToken();
       if (!token) return;
 
-      const res = await fetch("https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes", {
+      const res = await fetch(`${API_BASE}/residente/reportes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -221,7 +222,7 @@ export function ReportesProvider({ children }) {
       const tipoEnum = tipoMap[tipoId] || String(tipoId);
 
       const res = await fetch(
-        `https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes/${tipoEnum}`,
+        `${API_BASE}/residente/reportes/${tipoEnum}`,
         {
           method: "PUT",
           headers: {
@@ -257,7 +258,7 @@ export function ReportesProvider({ children }) {
         final: "final",
       };
       const tipoEnum = tipoMap[tipoId] || String(tipoId);
-      await fetch(`https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes/${tipoEnum}`, {
+      await fetch(`${API_BASE}/residente/reportes/${tipoEnum}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
