@@ -5,6 +5,7 @@ import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
+import { WebSocketProvider } from "../../context/WebSocketContext";
 
 import DashJefe from "./DashJefe";
 import GestionEmpresas from "../../screens/GestionEmpresas";
@@ -120,5 +121,9 @@ function JefeAppInner({ usuario, onLogout }) {
 }
 
 export default function JefeApp({ usuario, onLogout }) {
-  return <JefeAppInner usuario={usuario} onLogout={onLogout} />;
+  return (
+    <WebSocketProvider>
+      <JefeAppInner usuario={usuario} onLogout={onLogout} />
+    </WebSocketProvider>
+  );
 }

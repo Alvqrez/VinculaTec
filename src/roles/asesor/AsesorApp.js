@@ -6,6 +6,7 @@ import TopBar from "../../components/TopBar";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 import { useProyectos } from "../../context/ProyectosContext";
+import { WebSocketProvider } from "../../context/WebSocketContext";
 
 import DashAsesor from "./DashAsesor";
 import ProyectosAsesor from "./ProyectosAsesor";
@@ -73,42 +74,44 @@ export default function AsesorApp({ usuario, onLogout }) {
   };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: "row",
-        height: Platform.OS === "web" ? "100vh" : "100%",
-        backgroundColor: C.bg,
-      }}
-    >
-      <Sidebar
-        activeNav={activeNav}
-        setActiveNav={navigateTo}
-        role="Asesor"
-        navItems={NAV}
-        onLogout={onLogout}
-        usuario={usuario}
-        fotoPerfil={fotoPerfil}
-      />
-      <View style={{ flex: 1, flexDirection: "column" }}>
-        <TopBar
+    <WebSocketProvider>
+      <View
+        style={{
+          flex: 1,
+          flexDirection: "row",
+          height: Platform.OS === "web" ? "100vh" : "100%",
+          backgroundColor: C.bg,
+        }}
+      >
+        <Sidebar
           activeNav={activeNav}
           setActiveNav={navigateTo}
-          navItems={NAV}
           role="Asesor"
+          navItems={NAV}
           onLogout={onLogout}
           usuario={usuario}
           fotoPerfil={fotoPerfil}
         />
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 24 }}
-          >
-            {views[activeNav] || views.dashboard}
-          </ScrollView>
-        </Animated.View>
+        <View style={{ flex: 1, flexDirection: "column" }}>
+          <TopBar
+            activeNav={activeNav}
+            setActiveNav={navigateTo}
+            navItems={NAV}
+            role="Asesor"
+            onLogout={onLogout}
+            usuario={usuario}
+            fotoPerfil={fotoPerfil}
+          />
+          <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+            <ScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: 24 }}
+            >
+              {views[activeNav] || views.dashboard}
+            </ScrollView>
+          </Animated.View>
+        </View>
       </View>
-    </View>
+    </WebSocketProvider>
   );
 }

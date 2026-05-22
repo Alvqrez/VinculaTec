@@ -1,5 +1,7 @@
 const express = require("express");
 const cors = require("cors");
+const http = require("http");
+const { Server } = require("socket.io");
 require("dotenv").config();
 
 const authRoutes = require("./routes/auth");
@@ -11,6 +13,16 @@ const notificacionesRoutes = require("./routes/notificaciones");
 const fotosRoutes = require("./routes/fotos");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CORS_ORIGINS
+      ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
+      : ["http://localhost:8081", "http://localhost:19006"],
+    credentials: true,
+  },
+});
+
 const PORT = process.env.PORT || 3001;
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
@@ -42,6 +54,21 @@ app.use(express.json({ limit: "10mb" })); // limit ampliado para fotos base64
 // Para qué: Permitir que el asesor pueda descargar y ver los archivos PDF
 app.use("/uploads", express.static("uploads"));
 
+// ── WebSockets ─────────────────────────────────────────────────────────────────
+// Agregado: Manejar conexiones de WebSockets para actualizaciones en tiempo real
+// Por qué: El profe pidió que la aplicación sea capaz de abrirse en múltiples dispositivos simultáneamente
+// Para qué: Permitir que cuando un usuario actualice datos, los otros dispositivos reciban la actualización automáticamente
+io.on("connection", (socket) => {
+  console.log(`[WebSocket] Cliente conectado: ${socket.id}`);
+
+  socket.on("disconnect", () => {
+    console.log(`[WebSocket] Cliente desconectado: ${socket.id}`);
+  });
+});
+
+// Hacer io disponible para las rutas
+app.set("io", io);
+
 // ── Rutas ────────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/citas", citasRoutes);
@@ -57,7 +84,11 @@ app.get("/api/health", (_, res) =>
 );
 
 // ── Inicio ───────────────────────────────────────────────────────────────────
-app.listen(PORT, "0.0.0.0", () => {
+// Modificado: Usar server.listen en lugar de app.listen para soportar WebSockets
+// Por qué: WebSockets requieren un servidor HTTP, no solo Express
+// Para qué: Permitir conexiones WebSocket para actualizaciones en tiempo real
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅  Servidor corriendo en http://0.0.0.0:${PORT}`);
   console.log(`🌐  Orígenes CORS permitidos: ${allowedOrigins.join(", ")}`);
+  console.log(`🔌 WebSockets habilitados para actualizaciones en tiempo real`);
 });

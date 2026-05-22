@@ -194,11 +194,13 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
           [residenteId, tipo]
         );
       } else {
+        console.log(`[DEBUG] Actualizando reporte existente: residente_id=${residenteId}, tipo=${tipo}, archivoUrl=${archivoUrl}, nombre_archivo=${nombre_archivo}`);
         await db.execute(
           `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
            WHERE residente_id = ? AND tipo = ?`,
           [today, archivoUrl || null, nombre_archivo || null, residenteId, tipo]
         );
+        console.log(`[DEBUG] Reporte actualizado exitosamente`);
       }
     } else {
       // Crear nuevo reporte: guardar archivo, nombre_archivo y estado "En Revisión"
@@ -210,7 +212,22 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
       );
     }
 
-    return res.json({ ok: true, archivo_url: archivo, nombre_archivo });
+    // Agregado: Emitir evento WebSocket para actualizar en tiempo real
+    // Por qué: El profe pidió que la aplicación sea capaz de abrirse en múltiples dispositivos simultáneamente
+    // Para qué: Cuando un residente sube un reporte, los asesores conectados reciben la actualización automáticamente
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("reporte_actualizado", {
+        residente_id: residenteId,
+        tipo,
+        estado: "En Revisión",
+        archivo_url: archivoUrl,
+        nombre_archivo,
+      });
+      console.log(`[WebSocket] Evento emitido: reporte_actualizado para residente ${residenteId}`);
+    }
+
+    return res.json({ ok: true, archivo_url: archivoUrl, nombre_archivo });
   } catch (err) {
     console.error("Error en PUT /residente/reportes/:tipo:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import apiClient from "../utils/apiClient";
+import { useWebSocket } from "./WebSocketContext";
 
 const ProyectosCtx = createContext(null);
 
@@ -105,6 +106,26 @@ export function ProyectosProvider({ children }) {
 
   // reload: llamar desde AsesorApp al montar (después del login)
   const reload = fetchProyectos;
+
+  // Agregado: Escuchar eventos WebSocket para actualizaciones en tiempo real
+  // Por qué: El profe pidió que la aplicación sea capaz de abrirse en múltiples dispositivos simultáneamente
+  // Para qué: Cuando un residente sube un reporte, los asesores conectados reciban la actualización automáticamente
+  const { socket } = useWebSocket();
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReporteActualizado = (data) => {
+      console.log("[ProyectosContext] Reporte actualizado vía WebSocket:", data);
+      // Recargar proyectos para mostrar la actualización
+      reload();
+    };
+
+    socket.on("reporte_actualizado", handleReporteActualizado);
+
+    return () => {
+      socket.off("reporte_actualizado", handleReporteActualizado);
+    };
+  }, [socket, reload]);
 
   const updateProyecto = (id, changes) =>
     setProyectos((prev) =>

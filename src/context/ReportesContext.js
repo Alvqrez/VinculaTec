@@ -48,22 +48,15 @@ export function ReportesProvider({ children }) {
     }
   };
 
-  /** Actualiza campos de un reporte (optimista) y persiste en BD */
+  /** Actualiza campos de un reporte (optimista) */
   const updateReport = async (id, changes) => {
     setReports((prev) =>
       prev.map((r) => (r.id === id ? { ...r, ...changes } : r)),
     );
-    // Si el cambio es una entrega (status Pendiente con submitted), persistir en BD
-    if (changes.status === "Pendiente" && changes.submitted) {
-      const tipo = TIPO_MAP[id];
-      if (tipo) {
-        try {
-          await apiClient.put(`/api/residente/reportes/${tipo}`);
-        } catch (err) {
-          console.error("Error al guardar reporte en BD:", err);
-        }
-      }
-    }
+    // Eliminado: La petición PUT automática causaba que el archivo se borrara
+    // Por qué: Cuando el residente subía un archivo, esta función hacía una petición PUT sin cuerpo,
+    // lo que enviaba archivo=null y nombre_archivo=undefined al backend, borrando el archivo.
+    // Para qué: El archivo ahora se envía correctamente desde ReportePreliminar.js sin duplicar la petición.
   };
 
   /** El Asesor desbloquea un parcial para que el Residente pueda entregarlo */
