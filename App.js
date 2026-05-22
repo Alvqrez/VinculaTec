@@ -20,6 +20,7 @@ import { NotificacionesProvider } from "./src/context/NotificacionesContext";
 import { ProyectosProvider }     from "./src/context/ProyectosContext";
 import { FotosProvider }         from "./src/context/FotosContext";
 import { ThemeProvider }         from "./src/context/ThemeContext";
+import { WebSocketProvider }     from "./src/context/WebSocketContext";
 
 export default function App() {
   // ── 1. Cargar Sora ────────────────────────────────────────────────────────
@@ -87,34 +88,36 @@ export default function App() {
 
   // ── 3. Árbol de providers ─────────────────────────────────────────────────
   return (
-    <ThemeProvider>
-      <FotosProvider>
-        <ProyectosProvider>
-          <ReportesProvider>
-            <NotificacionesProvider initialUnread={4}>
-              {screen === "login" || !usuario ? (
-                <LoginScreen
-                  onLogin={handleLogin}
-                  loginError={loginError}
-                  onClearError={() => setLoginError("")}
-                />
-              ) : rolNormalizado === "residente" ? (
-                <ResidenteApp usuario={usuario} onLogout={handleLogout} />
-              ) : rolNormalizado === "asesor" ? (
-                <AsesorApp usuario={usuario} onLogout={handleLogout} />
-              ) : rolNormalizado === "jefe" ? (
-                <JefeApp usuario={usuario} onLogout={handleLogout} />
-              ) : (
-                <LoginScreen
-                  onLogin={handleLogin}
-                  loginError={loginError}
-                  onClearError={() => setLoginError("")}
-                />
-              )}
-            </NotificacionesProvider>
-          </ReportesProvider>
-        </ProyectosProvider>
-      </FotosProvider>
-    </ThemeProvider>
+    <WebSocketProvider>
+      <ThemeProvider>
+        <FotosProvider>
+          <ProyectosProvider>
+            <ReportesProvider>
+              <NotificacionesProvider initialUnread={4}>
+                {screen === "login" || !usuario ? (
+                  <LoginScreen
+                    onLogin={handleLogin}
+                    loginError={loginError}
+                    onClearError={() => setLoginError("")}
+                  />
+                ) : rolNormalizado === "residente" ? (
+                  <ResidenteApp usuario={usuario} onLogout={handleLogout} />
+                ) : rolNormalizado === "asesor" ? (
+                  <AsesorApp usuario={usuario} onLogout={handleLogout} />
+                ) : rolNormalizado === "jefe" ? (
+                  <JefeApp usuario={usuario} onLogout={handleLogout} />
+                ) : (
+                  <LoginScreen
+                    onLogin={handleLogin}
+                    loginError={loginError}
+                    onClearError={() => setLoginError("")}
+                  />
+                )}
+              </NotificacionesProvider>
+            </ReportesProvider>
+          </ProyectosProvider>
+        </FotosProvider>
+      </ThemeProvider>
+    </WebSocketProvider>
   );
 }

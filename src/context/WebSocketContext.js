@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 const WebSocketCtx = createContext(null);
 
 // Configuración del cliente WebSocket
-const socket = io("http://0.0.0.0:3001", {
+const socket = io("http://localhost:3001", {
   autoConnect: false,
   withCredentials: true,
 });
