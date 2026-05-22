@@ -1,18 +1,31 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { io } from "socket.io-client";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
+import { Platform } from "react-native";
 
 const WebSocketCtx = createContext(null);
 
-// Configuración del cliente WebSocket
-const socket = io("https://flock-gratuity-dancing.ngrok-free.dev", {
-  autoConnect: false,
-  withCredentials: true,
-});
-
 export function WebSocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
+  const socketRef = useRef(null);
 
   useEffect(() => {
+    // No inicializar WebSocket en móvil por ahora
+    if (Platform.OS !== "web") {
+      return;
+    }
+
+    // Solo importar socket.io-client en web
+    const { io } = require("socket.io-client");
+
+    // Crear socket solo si no existe
+    if (!socketRef.current) {
+      socketRef.current = io("https://flock-gratuity-dancing.ngrok-free.dev", {
+        autoConnect: false,
+        withCredentials: true,
+      });
+    }
+
+    const socket = socketRef.current;
+
     // Conectar al servidor WebSocket
     socket.connect();
 
@@ -29,8 +42,6 @@ export function WebSocketProvider({ children }) {
     // Escuchar evento de reporte actualizado
     socket.on("reporte_actualizado", (data) => {
       console.log("[WebSocket] Reporte actualizado:", data);
-      // Aquí se puede disparar una actualización del estado global
-      // Por ejemplo, recargar los reportes o actualizar el contexto correspondiente
     });
 
     return () => {
@@ -39,7 +50,7 @@ export function WebSocketProvider({ children }) {
   }, []);
 
   return (
-    <WebSocketCtx.Provider value={{ socket, connected }}>
+    <WebSocketCtx.Provider value={{ socket: socketRef.current, connected }}>
       {children}
     </WebSocketCtx.Provider>
   );
