@@ -11,6 +11,7 @@ const residenteRoutes = require("./routes/residente");
 const jefeRoutes = require("./routes/jefe");
 const notificacionesRoutes = require("./routes/notificaciones");
 const fotosRoutes = require("./routes/fotos");
+const reportesRoutes = require("./routes/reportes"); // ← NUEVO
 
 const app = express();
 const server = http.createServer(app);
@@ -26,10 +27,7 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
-// Se leen los orígenes permitidos desde .env (CORS_ORIGINS) como lista separada
-// por comas. Si no está definido, se permite localhost:8081 por defecto.
-// Ejemplo en .env:
-//   CORS_ORIGINS=http://localhost:8081,http://192.168.1.50:8081
+// Si no está definido en .env, permite los orígenes locales de Expo
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
   : ["http://localhost:8081", "http://localhost:19006"];
@@ -37,16 +35,15 @@ const allowedOrigins = process.env.CORS_ORIGINS
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir peticiones sin origin (apps móviles nativas, Postman, etc.)
-      if (!origin) return callback(null, true);
+      if (!origin) return callback(null, true);                    // Postman / nativo
       if (allowedOrigins.includes(origin)) return callback(null, true);
       callback(new Error(`CORS: origen no permitido → ${origin}`));
     },
-    credentials: true, // Necesario porque el frontend usa credentials: "include"
+    credentials: true,
   }),
 );
 
-app.use(express.json({ limit: "10mb" })); // limit ampliado para fotos base64
+app.use(express.json({ limit: "10mb" })); // límite ampliado para fotos base64
 
 // ── Archivos estáticos (uploads) ─────────────────────────────────────────────
 // Agregado: Servir archivos estáticos desde la carpeta uploads
@@ -77,6 +74,7 @@ app.use("/api/residente", residenteRoutes);
 app.use("/api/jefe", jefeRoutes);
 app.use("/api/notificaciones", notificacionesRoutes);
 app.use("/api/fotos", fotosRoutes);
+app.use("/api/reportes", reportesRoutes); // ← NUEVO
 
 // Health check
 app.get("/api/health", (_, res) =>

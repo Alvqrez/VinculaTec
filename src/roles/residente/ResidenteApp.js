@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { View, Platform, Animated, ScrollView } from "react-native";
 import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
 import { useFotos } from "../../context/FotosContext";
@@ -42,6 +43,7 @@ export default function ResidenteApp({ usuario, onLogout }) {
   const { reload: reloadNotifs } = useNotificaciones();
   const { reload: reloadReportes } = useReportes();
 
+  const { isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const navigateTo = (id) => {
@@ -94,7 +96,7 @@ export default function ResidenteApp({ usuario, onLogout }) {
           flex: 1,
           flexDirection: "row",
           height: Platform.OS === "web" ? "100vh" : "100%",
-          backgroundColor: C.bg,
+          backgroundColor: isDark ? "#0D1117" : C.bg,
         }}
       >
         <Sidebar
@@ -110,8 +112,8 @@ export default function ResidenteApp({ usuario, onLogout }) {
           <TopBar
             activeNav={activeNav}
             setActiveNav={navigateTo}
-            navItems={NAV}
             role="Residente"
+            navItems={NAV}
             onLogout={onLogout}
             usuario={usuario}
             fotoPerfil={fotoPerfil}

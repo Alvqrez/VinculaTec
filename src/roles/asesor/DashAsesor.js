@@ -313,7 +313,10 @@ export default function DashAsesor({ onNavigate }) {
         results.push({
           tipo: "Reunión",
           nombre: r.titulo,
-          sub: r.fecha || new Date(r.fecha_hora).toLocaleDateString() || "Sin fecha",
+          sub:
+            r.fecha ||
+            new Date(r.fecha_hora).toLocaleDateString() ||
+            "Sin fecha",
           icon: "calendar",
         });
     });
@@ -382,10 +385,25 @@ export default function DashAsesor({ onNavigate }) {
         }}
       >
         <Feather name="alert-circle" size={48} color={C.red} />
-        <Text style={{ marginTop: 16, fontSize: 16, fontWeight: "600", color: C.text, textAlign: "center" }}>
+        <Text
+          style={{
+            marginTop: 16,
+            fontSize: 16,
+            fontWeight: "600",
+            color: C.text,
+            textAlign: "center",
+          }}
+        >
           Error al cargar el dashboard
         </Text>
-        <Text style={{ marginTop: 8, fontSize: 13, color: C.textMuted, textAlign: "center" }}>
+        <Text
+          style={{
+            marginTop: 8,
+            fontSize: 13,
+            color: C.textMuted,
+            textAlign: "center",
+          }}
+        >
           {errorBackend}
         </Text>
       </View>
@@ -859,7 +877,7 @@ export default function DashAsesor({ onNavigate }) {
                   {/* Badge + chevron */}
                   <Row style={{ alignItems: "center", gap: 8 }}>
                     <Badge
-                      text={faseLabel}
+                      text={faseLabel.toUpperCase()}
                       color={faseColor}
                       bg={faseColor + "22"}
                     />
@@ -1070,7 +1088,8 @@ export default function DashAsesor({ onNavigate }) {
                     <Text
                       style={{ fontSize: 13, color: C.text, fontWeight: "500" }}
                     >
-                      {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
+                      {r.residente || r.residenteNombre || "Residente"} —{" "}
+                      {r.titulo || r.nombre || "Reporte"}
                     </Text>
                     <Text
                       style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}
@@ -1221,7 +1240,8 @@ export default function DashAsesor({ onNavigate }) {
                   <Text
                     style={{ fontSize: 13, fontWeight: "600", color: C.text }}
                   >
-                    {r.residente || r.residenteNombre || "Residente"} — {r.titulo || r.nombre || "Reporte"}
+                    {r.residente || r.residenteNombre || "Residente"} —{" "}
+                    {r.titulo || r.nombre || "Reporte"}
                   </Text>
                   <Badge
                     text={r.status}

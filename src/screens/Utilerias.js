@@ -1,589 +1,368 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   View,
   Text,
-  Image,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  Linking,
   Modal,
   Pressable,
+  Alert,
+  Animated,
 } from "react-native";
+import { useRef, useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Card } from "../components";
 import { useFotos } from "../context/FotosContext";
+import { useTheme } from "../context/ThemeContext";
 
-// ── Herramientas con detalle para modal ───────────────────────────────────────
-const INFO_POR_ROL = {
-  "Jefe de Vinculación": {
+// ── Datos por rol ─────────────────────────────────────────────────────────────
+const ROL_INFO = {
+  residente: {
+    label: "Residente",
     color: C.teal,
+    icon: "user",
     herramientas: [
       {
-        icon: "calendar",
-        label: "Calendario académico 2025-B",
-        url: "https://tec.edu.mx/calendario",
-        detalle: {
-          descripcion:
-            "Calendario oficial del período escolar 2025-B con todas las fechas clave: inicio de residencias, entrega de reportes y evaluaciones finales.",
-          tipo: "PDF",
-          paginas: "4 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga el PDF desde el portal institucional.",
-            "Revisa las fechas límite de entrega de reportes.",
-            "Comparte las fechas con tus residentes al inicio del período.",
-            "Programa recordatorios con al menos 5 días hábiles de anticipación.",
-          ],
-        },
-      },
-      {
-        icon: "file-text",
-        label: "Formato ITV-AC-PO-004-A01",
-        url: "https://tec.edu.mx/formatos",
-        detalle: {
-          descripcion:
-            "Formato oficial de asignación de residentes a empresas y asesores. Debe llenarse al inicio de cada período para cada residente.",
-          tipo: "Word / PDF",
-          paginas: "2 págs.",
-          fecha: "Ene 2026",
-          pasos: [
-            "Descarga la plantilla en formato Word.",
-            "Completa los datos del residente, empresa y asesor.",
-            "Obtén las firmas requeridas (residente, asesor, empresa).",
-            "Digitaliza y sube al sistema antes del plazo establecido.",
-          ],
-        },
-      },
-      {
-        icon: "book",
-        label: "Reglamento de residencias",
-        url: "https://tec.edu.mx/reglamento",
-        detalle: {
-          descripcion:
-            "Reglamento institucional que rige los derechos, obligaciones y procedimientos de la residencia profesional en el ITVER.",
-          tipo: "PDF",
-          paginas: "32 págs.",
-          fecha: "2024",
-          pasos: [
-            "Lee el reglamento completo al inicio del período.",
-            "Comunica a los residentes los artículos más relevantes.",
-            "Consulta en caso de incidencias o conflictos.",
-            "Actualización vigente: versión 2024.",
-          ],
-        },
-      },
-      {
-        icon: "link",
-        label: "Portal de empresas vinculadas",
-        url: "https://tec.edu.mx/empresas",
-        detalle: {
-          descripcion:
-            "Portal institucional con el directorio completo de empresas vinculadas, sus convenios vigentes y los proyectos disponibles para residentes.",
-          tipo: "Web",
-          paginas: "—",
-          fecha: "Actualización continua",
-          pasos: [
-            "Accede con tus credenciales institucionales.",
-            "Consulta el estado de convenios por empresa.",
-            "Registra nuevas empresas vinculadas.",
-            "Notifica a Control Escolar cambios de convenio.",
-          ],
-        },
-      },
-    ],
-    notas: [
-      "Las asignaciones deben completarse antes del inicio del período.",
-      "Los proyectos sin residente asignado deben resolverse en 5 días hábiles.",
-      "El cambio de asesor debe justificarse por escrito.",
-    ],
-  },
-
-  Asesor: {
-    color: C.blue,
-    herramientas: [
-      {
-        icon: "file-text",
-        label: "Criterios de evaluación de reportes",
-        url: "https://tec.edu.mx/criterios",
-        detalle: {
-          descripcion:
-            "Documento oficial con los criterios, rúbricas y ponderaciones para la evaluación de cada tipo de reporte (preliminar, parciales y final).",
-          tipo: "PDF",
-          paginas: "8 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga y revisa los criterios antes de evaluar.",
-            "Aplica la rúbrica correspondiente a cada tipo de reporte.",
-            "Registra retroalimentación escrita para reportes 'Por corregir'.",
-            "Sube la calificación al sistema en máximo 5 días hábiles.",
-          ],
-        },
-      },
-      {
-        icon: "book",
-        label: "Guía del asesor",
-        url: "https://tec.edu.mx/guia",
-        detalle: {
-          descripcion:
-            "Manual completo para asesores de residencia profesional: procedimientos, responsabilidades, tiempos de respuesta y protocolos de comunicación.",
-          tipo: "PDF",
-          paginas: "20 págs.",
-          fecha: "Ene 2026",
-          pasos: [
-            "Lee el manual completo al inicio de cada período.",
-            "Verifica tus responsabilidades en el apartado 3.",
-            "Consulta el protocolo de incidencias en la sección 7.",
-            "Ante dudas, contacta al Jefe de Vinculación.",
-          ],
-        },
-      },
-      {
-        icon: "calendar",
-        label: "Fechas límite 2025-B",
-        url: "https://tec.edu.mx/fechas",
-        detalle: {
-          descripcion:
-            "Cronograma detallado con todas las fechas límite del período: entrega de reportes, evaluaciones, visitas a empresas y cierre de período.",
-          tipo: "PDF",
-          paginas: "2 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga el cronograma al inicio del período.",
-            "Programa visitas a empresas con 2 semanas de anticipación.",
-            "Envía recordatorios a tus residentes una semana antes de cada fecha.",
-            "Reporta incumplimientos al Jefe de Vinculación en 24 h.",
-          ],
-        },
-      },
-    ],
-    notas: [
-      "Revisar reportes en un máximo de 5 días hábiles tras su recepción.",
-      "Notificar al Jefe de Vinculación si un residente no entrega en tiempo.",
-      "Los reportes 'Por corregir' deben retroalimentarse de forma detallada.",
-    ],
-  },
-
-  Residente: {
-    color: C.purple,
-    herramientas: [
-      {
-        icon: "edit",
-        label: "Plantilla Reporte Preliminar",
-        url: "https://tec.edu.mx/plantillas",
-        detalle: {
-          descripcion:
-            "Formato oficial para el reporte de inicio de residencia. Incluye objetivos, diagnóstico, cronograma y descripción de la empresa receptora.",
-          tipo: "Word / PDF",
-          paginas: "10–15 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga la plantilla en Word desde el portal.",
-            "Completa todos los campos marcados en amarillo.",
-            "Envía un borrador a tu asesor para revisión previa.",
-            "Entrega la versión final firmada en PDF antes de la fecha límite.",
-          ],
-        },
-      },
-      {
-        icon: "layers",
-        label: "Plantilla Reportes Parciales",
-        url: "https://tec.edu.mx/plantillas",
-        detalle: {
-          descripcion:
-            "Plantilla para los tres reportes de avance. Cada uno debe documentar actividades del período, logros, dificultades y horas trabajadas.",
-          tipo: "Word / PDF",
-          paginas: "15–20 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga la plantilla correspondiente (Parcial 1, 2 o 3).",
-            "Registra tus actividades semana a semana durante el período.",
-            "Incluye evidencias fotográficas o capturas del sistema.",
-            "Sube el PDF firmado al portal antes de la fecha límite.",
-          ],
-        },
-      },
-      {
+        label: "Guía de Residencias Profesionales",
         icon: "book-open",
-        label: "Plantilla Reporte Final",
-        url: "https://tec.edu.mx/plantillas",
         detalle: {
+          tipo: "PDF",
+          paginas: "32 páginas",
           descripcion:
-            "Plantilla del reporte de conclusión de residencia. Debe incluir resultados, conclusiones, recomendaciones y la evaluación de la empresa.",
-          tipo: "Word / PDF",
-          paginas: "30–50 págs.",
-          fecha: "Ago 2025",
-          pasos: [
-            "Descarga la plantilla del reporte final.",
-            "Asegúrate de incluir todos los apartados requeridos (ver índice).",
-            "Obtén la firma y sello de tu empresa receptora.",
-            "Entrega en PDF y en físico encuadernado según instrucciones.",
-          ],
+            "Manual completo del proceso de residencias: requisitos de ingreso, reglamento, formatos oficiales y calendario de entregas.",
+          version: "Actualización enero 2026",
         },
       },
       {
-        icon: "book",
-        label: "Reglamento de residencias",
-        url: "https://tec.edu.mx/reglamento",
+        label: "Formato de Reporte Preliminar",
+        icon: "file-text",
         detalle: {
+          tipo: "DOCX",
+          paginas: "4 páginas",
           descripcion:
-            "Reglamento institucional vigente. Conoce tus derechos, obligaciones y los procedimientos que rigen tu residencia profesional.",
+            "Plantilla oficial del reporte preliminar con las secciones requeridas: datos del proyecto, objetivos, plan de trabajo y cronograma.",
+          version: "v3.1 – ITM",
+        },
+      },
+      {
+        label: "Plantilla de Reportes Parciales",
+        icon: "clipboard",
+        detalle: {
+          tipo: "DOCX",
+          paginas: "6 páginas",
+          descripcion:
+            "Plantilla estándar para reportes bimestrales. Incluye secciones de actividades, avances, problemas y observaciones.",
+          version: "v2.4 – ITM",
+        },
+      },
+      {
+        label: "Carta de Presentación",
+        icon: "mail",
+        detalle: {
           tipo: "PDF",
-          paginas: "32 págs.",
-          fecha: "2024",
-          pasos: [
-            "Lee el reglamento completo antes de comenzar.",
-            "Presta especial atención a los artículos 8, 12 y 15.",
-            "Conserva una copia digital para consulta.",
-            "Ante dudas, consulta a tu asesor o a Control Escolar.",
-          ],
+          paginas: "1 página",
+          descripcion:
+            "Modelo de carta de presentación oficial del Tecnológico para entregar a la empresa receptora al inicio de la residencia.",
+          version: "Formato institucional 2026",
+        },
+      },
+      {
+        label: "Calendario Académico 2026",
+        icon: "calendar",
+        detalle: {
+          tipo: "PDF",
+          paginas: "2 páginas",
+          descripcion:
+            "Fechas clave del ciclo escolar 2026: periodos de entrega, evaluaciones, días festivos y eventos institucionales.",
+          version: "Enero – Diciembre 2026",
         },
       },
     ],
     notas: [
-      "Entrega puntual: los reportes tienen fecha límite inamovible.",
-      "Un reporte 'Por corregir' debe corregirse y resubirse antes de 7 días.",
-      "Para cualquier duda o incidencia contacta primero a tu asesor.",
+      "Entrega tu reporte preliminar antes del 15 de febrero.",
+      "Los reportes parciales deben entregarse al final de cada bimestre.",
+      "Guarda todos tus comprobantes de asistencia en la empresa.",
+    ],
+  },
+  asesor: {
+    label: "Asesor",
+    color: C.blue,
+    icon: "briefcase",
+    herramientas: [
+      {
+        label: "Guía de Evaluación de Residencias",
+        icon: "check-square",
+        detalle: {
+          tipo: "PDF",
+          paginas: "18 páginas",
+          descripcion:
+            "Criterios oficiales de evaluación, rúbricas por reporte y lineamientos para la retroalimentación a los residentes.",
+          version: "v2.2 – Departamento Académico",
+        },
+      },
+      {
+        label: "Formato de Seguimiento de Residente",
+        icon: "bar-chart-2",
+        detalle: {
+          tipo: "XLSX",
+          paginas: "3 hojas",
+          descripcion:
+            "Hoja de cálculo para registrar el avance individual de cada residente: reportes entregados, estados y observaciones.",
+          version: "Actualización feb 2026",
+        },
+      },
+      {
+        label: "Reglamento de Residencias",
+        icon: "shield",
+        detalle: {
+          tipo: "PDF",
+          paginas: "12 páginas",
+          descripcion:
+            "Reglamento vigente del programa de residencias profesionales, obligaciones del asesor y derechos del residente.",
+          version: "Edición 2025-2026",
+        },
+      },
+    ],
+    notas: [
+      "Revisa y retroalimenta los reportes en un plazo máximo de 7 días hábiles.",
+      "Las citas de asesoría deben registrarse en el sistema.",
+    ],
+  },
+  jefe: {
+    label: "Jefe de Vinculación",
+    color: C.amber,
+    icon: "shield",
+    herramientas: [
+      {
+        label: "Directorio de Empresas Vinculadas",
+        icon: "database",
+        detalle: {
+          tipo: "PDF",
+          paginas: "8 páginas",
+          descripcion:
+            "Listado actualizado de todas las empresas con convenio vigente, datos de contacto y cupos disponibles por periodo.",
+          version: "Actualización abril 2026",
+        },
+      },
+      {
+        label: "Reglamento General del Departamento",
+        icon: "shield",
+        detalle: {
+          tipo: "PDF",
+          paginas: "20 páginas",
+          descripcion:
+            "Marco normativo del Departamento de Vinculación: funciones, procedimientos de validación y convenios interinstitucionales.",
+          version: "Versión 2025",
+        },
+      },
+      {
+        label: "Formato de Convenio Empresarial",
+        icon: "file-text",
+        detalle: {
+          tipo: "DOCX",
+          paginas: "5 páginas",
+          descripcion:
+            "Plantilla oficial del convenio de colaboración entre el Tecnológico y la empresa receptora de residentes.",
+          version: "Formato Oficial 2026",
+        },
+      },
+    ],
+    notas: [
+      "Valida los nuevos convenios antes del inicio de cada semestre.",
+      "Asigna asesores a nuevos residentes con base en la carga académica.",
     ],
   },
 };
 
-// ── Contactos base por rol ────────────────────────────────────────────────────
-const CONTACTOS_BASE = {
-  "Jefe de Vinculación": [
-    {
-      nombre: "Coordinación de Residencias",
-      correo: "residencias@itm.edu.mx",
-      ext: "Ext. 1001",
-    },
-    { nombre: "Recursos Humanos", correo: "rh@itm.edu.mx", ext: "Ext. 1020" },
-    { nombre: "Soporte TI", correo: "soporte@itm.edu.mx", ext: "Ext. 1050" },
-  ],
-  Asesor: [
-    {
-      nombre: "Jefe de Vinculación",
-      correo: "director@itm.edu.mx",
-      ext: "Ext. 1010",
-    },
-    {
-      nombre: "Coordinación Académica",
-      correo: "academica@itm.edu.mx",
-      ext: "Ext. 1002",
-    },
-    { nombre: "Soporte TI", correo: "soporte@itm.edu.mx", ext: "Ext. 1050" },
-  ],
-  Residente: [
-    {
-      nombre: "Mi Asesor",
-      correo: "asesor@itm.edu.mx",
-      ext: "Consultar perfil",
-    },
-    { nombre: "Vinculación", correo: "director@itm.edu.mx", ext: "Ext. 1010" },
-    {
-      nombre: "Control Escolar",
-      correo: "escolar@itm.edu.mx",
-      ext: "Ext. 1030",
-    },
-  ],
-};
+// ── Toggle de modo oscuro (reemplaza al Switch nativo que es invisible en dark) ──
+function ToggleCard({ isDark, toggleDark, TXT, TXTM, CARD, BORD }) {
+  const anim = useRef(new Animated.Value(isDark ? 1 : 0)).current;
 
-// ── Componente Modal de recurso ───────────────────────────────────────────────
-function RecursoModal({ visible, item, color, onClose }) {
-  if (!item) return null;
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: isDark ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
+  }, [isDark]);
+
+  // Track: de gris claro a teal
+  const trackBg = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["#CBD5E1", "#0D9488"],
+  });
+  // Thumb: se desliza de izquierda a derecha
+  const thumbX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [2, 22],
+  });
+
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+    <View
+      style={{
+        marginBottom: 20,
+        backgroundColor: CARD,
+        borderColor: BORD,
+        borderWidth: 1,
+        borderRadius: 16,
+        padding: 16,
+      }}
     >
-      <Pressable
+      {/* Header */}
+      <View
         style={{
-          flex: 1,
-          backgroundColor: "rgba(0,0,0,0.45)",
-          justifyContent: "center",
+          flexDirection: "row",
           alignItems: "center",
-          padding: 24,
+          gap: 10,
+          marginBottom: 16,
         }}
-        onPress={onClose}
       >
-        <Pressable
+        <View
           style={{
-            width: "100%",
-            maxWidth: 500,
-            backgroundColor: "#fff",
-            borderRadius: 18,
-            overflow: "hidden",
+            width: 32,
+            height: 32,
+            borderRadius: 8,
+            backgroundColor: isDark ? "#334155" : "#FEF3C7",
+            alignItems: "center",
+            justifyContent: "center",
           }}
-          onPress={(e) => e.stopPropagation()}
         >
-          {/* Header */}
+          <Feather
+            name={isDark ? "moon" : "sun"}
+            size={16}
+            color={isDark ? "#94A3B8" : "#F59E0B"}
+          />
+        </View>
+        <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
+          Apariencia
+        </Text>
+      </View>
+
+      {/* Toggle row */}
+      <TouchableOpacity
+        onPress={toggleDark}
+        activeOpacity={0.85}
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: 14,
+          backgroundColor: isDark ? "#0F172A" : "#F8FAFC",
+          borderRadius: 12,
+          borderWidth: 1,
+          borderColor: BORD,
+        }}
+      >
+        {/* Ícono + texto */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
           <View
             style={{
-              backgroundColor: color,
-              padding: 20,
-              flexDirection: "row",
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              backgroundColor: isDark ? "#1E3A5F" : "#FEF3C7",
               alignItems: "center",
-              gap: 14,
+              justifyContent: "center",
             }}
           >
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
-                backgroundColor: "rgba(255,255,255,0.25)",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Feather name={item.icon} size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "800",
-                  color: "#fff",
-                  lineHeight: 21,
-                }}
-              >
-                {item.label}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-              <Feather name="x" size={20} color="rgba(255,255,255,0.8)" />
-            </TouchableOpacity>
+            <Feather
+              name={isDark ? "moon" : "sun"}
+              size={20}
+              color={isDark ? "#60A5FA" : "#F59E0B"}
+            />
           </View>
+          <View>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: TXT }}>
+              Modo {isDark ? "oscuro" : "claro"}
+            </Text>
+            <Text style={{ fontSize: 11, color: TXTM, marginTop: 2 }}>
+              {isDark ? "Tema oscuro activado" : "Tema claro activado"}
+            </Text>
+          </View>
+        </View>
 
-          <ScrollView
-            style={{ maxHeight: 440 }}
-            contentContainerStyle={{ padding: 20 }}
+        {/* Toggle personalizado — siempre visible */}
+        <TouchableOpacity onPress={toggleDark} activeOpacity={0.9}>
+          <Animated.View
+            style={{
+              width: 48,
+              height: 28,
+              borderRadius: 14,
+              backgroundColor: trackBg,
+              justifyContent: "center",
+              borderWidth: 1,
+              borderColor: isDark ? "#0D9488" : "#CBD5E1",
+            }}
           >
-            {/* Descripción */}
-            <Text
+            <Animated.View
               style={{
-                fontSize: 14,
-                color: C.textMuted,
-                lineHeight: 21,
-                marginBottom: 18,
+                position: "absolute",
+                left: thumbX,
+                width: 22,
+                height: 22,
+                borderRadius: 11,
+                backgroundColor: "white",
+                shadowColor: "#000",
+                shadowOpacity: 0.2,
+                shadowRadius: 3,
+                elevation: 2,
               }}
-            >
-              {item.detalle.descripcion}
-            </Text>
+            />
+          </Animated.View>
+        </TouchableOpacity>
+      </TouchableOpacity>
 
-            {/* Metadata */}
-            <Row style={{ gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-              {[
-                { icon: "file", val: item.detalle.tipo },
-                { icon: "book", val: item.detalle.paginas },
-                { icon: "clock", val: item.detalle.fecha },
-              ].map((m, i) => (
-                <Row
-                  key={i}
-                  style={{
-                    gap: 5,
-                    backgroundColor: color + "18",
-                    borderRadius: 8,
-                    paddingHorizontal: 10,
-                    paddingVertical: 6,
-                    alignItems: "center",
-                  }}
-                >
-                  <Feather name={m.icon} size={12} color={color} />
-                  <Text
-                    style={{ fontSize: 12, color: color, fontWeight: "600" }}
-                  >
-                    {m.val}
-                  </Text>
-                </Row>
-              ))}
-            </Row>
-
-            {/* Pasos */}
-            <Text
-              style={{
-                fontSize: 13,
-                fontWeight: "700",
-                color: C.text,
-                marginBottom: 12,
-              }}
-            >
-              ¿Cómo usarlo?
-            </Text>
-            <View style={{ gap: 10, marginBottom: 20 }}>
-              {item.detalle.pasos.map((paso, i) => (
-                <Row key={i} style={{ gap: 12, alignItems: "flex-start" }}>
-                  <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: color,
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                      marginTop: 1,
-                    }}
-                  >
-                    <Text
-                      style={{ fontSize: 11, fontWeight: "800", color: "#fff" }}
-                    >
-                      {i + 1}
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 13,
-                      color: C.textMuted,
-                      lineHeight: 20,
-                    }}
-                  >
-                    {paso}
-                  </Text>
-                </Row>
-              ))}
-            </View>
-
-            {/* Botón abrir */}
-            <TouchableOpacity
-              onPress={() => {
-                onClose();
-                Linking.openURL(item.url).catch(() =>
-                  Alert.alert("Error", "No se pudo abrir el enlace."),
-                );
-              }}
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                backgroundColor: color,
-                borderRadius: 12,
-                paddingVertical: 14,
-              }}
-            >
-              <Feather name="external-link" size={16} color="#fff" />
-              <Text style={{ fontSize: 15, fontWeight: "700", color: "#fff" }}>
-                Abrir documento
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      <Text
+        style={{
+          fontSize: 11,
+          color: TXTM,
+          marginTop: 10,
+          textAlign: "center",
+        }}
+      >
+        Tu preferencia se guarda automáticamente
+      </Text>
+    </View>
   );
 }
 
-// ── Pantalla principal ────────────────────────────────────────────────────────
-export default function Utilerias({
-  fotoPerfil,
-  setFotoPerfil,
-  usuario,
-  role,
-}) {
-  const info = INFO_POR_ROL[role] || INFO_POR_ROL["Residente"];
-  const { getFoto, setFoto: setFotoBD } = useFotos() || { getFoto: () => null, setFoto: () => {} };
-  const initials = usuario?.nombre
-    ? usuario.nombre
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "??";
+// ── Componente principal ──────────────────────────────────────────────────────
+export default function Utilerias({ usuario }) {
+  const { isDark, toggleDark, colors: T } = useTheme();
+  const { fotoUsuario, actualizarFoto, eliminarFoto } = useFotos?.() || {};
 
-  // Modal de recurso
   const [modalItem, setModalItem] = useState(null);
 
-  // Contactos enriquecidos con foto y detalle
-  const contactos = (() => {
-    if (role === "Residente") {
-      const ai = usuario?.asesorInfo;
-      const ji = usuario?.jefeInfo;
-      return [
-        {
-          nombre: ai ? ai.nombre : "Mi Asesor",
-          correo: ai?.correo || "asesor@itm.edu.mx",
-          ext: ai?.departamento || "Asesor Asignado",
-          usuarioId: ai?.usuarioId || null,
-          detalle: ai
-            ? [
-                {
-                  icon: "briefcase",
-                  label: "Departamento",
-                  val: ai.departamento || "—",
-                },
-                {
-                  icon: "hash",
-                  label: "Núm. empleado",
-                  val: ai.numEmpleado || "—",
-                },
-                { icon: "mail", label: "Correo", val: ai.correo || "—" },
-              ]
-            : null,
-        },
-        {
-          nombre: ji ? ji.nombre : "Jefe de Vinculación",
-          correo: ji?.correo || "director@itm.edu.mx",
-          ext: "Vinculación",
-          usuarioId: ji?.usuarioId || null,
-          detalle: ji
-            ? [{ icon: "mail", label: "Correo", val: ji.correo || "—" }]
-            : null,
-        },
-        {
-          nombre: "Control Escolar",
-          correo: "escolar@itm.edu.mx",
-          ext: "Ext. 1030",
-          usuarioId: null,
-          detalle: null,
-        },
-      ];
-    }
-    return (CONTACTOS_BASE[role] || CONTACTOS_BASE["Residente"]).map((c) => ({
-      ...c,
-      usuarioId: null,
-      detalle: null,
-    }));
-  })();
+  const rolKey =
+    usuario?.rol?.toLowerCase() === "jefe"
+      ? "jefe"
+      : usuario?.rol?.toLowerCase() || "residente";
+  const info = ROL_INFO[rolKey] || ROL_INFO.residente;
+  const iniciales = usuario
+    ? `${(usuario.nombre || "")[0] || ""}${(usuario.apellidos || "")[0] || ""}`.toUpperCase()
+    : "??";
 
-  const seleccionarFoto = () => {
-    if (!globalThis?.document?.createElement) {
-      Alert.alert(
-        "Foto de perfil",
-        "La selección de fotos está disponible en la versión web.",
-      );
-      return;
-    }
+  const fotoPerfil = fotoUsuario?.(usuario?.id);
+
+  const selectPhoto = () => {
+    if (typeof globalThis.document === "undefined") return;
     const input = globalThis.document.createElement("input");
     input.type = "file";
-    input.accept = "image/jpeg,image/png,image/webp";
+    input.accept = "image/*";
     input.onchange = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        Alert.alert("Archivo muy grande", "La imagen debe ser menor a 5 MB.");
-        return;
-      }
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const base64 = ev.target.result;
-        // Actualizar estado local
-        setFotoPerfil(base64);
-        // Guardar en base de datos
-        if (usuario?.id) {
-          setFotoBD(usuario.id, base64);
-        }
+        actualizarFoto?.(usuario?.id, ev.target.result);
       };
       reader.readAsDataURL(file);
     };
     input.click();
   };
 
-  const eliminarFoto = () => {
+  const removePhoto = () => {
     Alert.alert(
       "Eliminar foto",
       "¿Seguro que quieres eliminar tu foto de perfil?",
@@ -592,176 +371,192 @@ export default function Utilerias({
         {
           text: "Eliminar",
           style: "destructive",
-          onPress: () => {
-            // Actualizar estado local
-            setFotoPerfil(null);
-            // Eliminar de base de datos
-            if (usuario?.id) {
-              setFotoBD(usuario.id, null);
-            }
-          },
+          onPress: () => eliminarFoto?.(usuario?.id),
         },
       ],
     );
   };
 
+  // Colores dinámicos: si el modo oscuro está activo, usa la paleta T; si no, usa C
+  const BG = isDark ? T.bg : C.bg;
+  const CARD = isDark ? T.card : C.card;
+  const BORD = isDark ? T.border : C.border;
+  const TXT = isDark ? T.text : C.text;
+  const TXTS = isDark ? T.textSub : C.textSub;
+  const TXTM = isDark ? T.textMuted : C.textMuted;
+
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 24 }}
+      style={{ flex: 1, backgroundColor: BG }}
+      contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+      showsVerticalScrollIndicator={false}
     >
-      <View style={{ marginBottom: 24 }}>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>
-          Utilerías
-        </Text>
-        <Text style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-          Perfil, herramientas e información útil
-        </Text>
-      </View>
-
       {/* ── Foto de perfil ── */}
-      <Card style={{ marginBottom: 20 }}>
-        <Text
-          style={{
-            fontSize: 15,
-            fontWeight: "700",
-            color: C.text,
-            marginBottom: 18,
-          }}
-        >
-          Foto de Perfil
-        </Text>
-        <Row style={{ alignItems: "center", gap: 24 }}>
+      <Card
+        style={{ marginBottom: 20, backgroundColor: CARD, borderColor: BORD }}
+      >
+        <Row style={{ alignItems: "center", gap: 10, marginBottom: 14 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: info.color + "22",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="user" size={16} color={info.color} />
+          </View>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
+            Mi Perfil
+          </Text>
+        </Row>
+
+        <Row style={{ alignItems: "center", gap: 16 }}>
+          {/* Avatar */}
           <View style={{ position: "relative" }}>
             {fotoPerfil ? (
-              <Image
-                source={{ uri: fotoPerfil }}
-                style={{
-                  width: 90,
-                  height: 90,
-                  borderRadius: 45,
-                  borderWidth: 3,
-                  borderColor: info.color,
-                }}
-              />
-            ) : (
               <View
                 style={{
-                  width: 90,
-                  height: 90,
-                  borderRadius: 45,
-                  backgroundColor: C.teal,
-                  alignItems: "center",
-                  justifyContent: "center",
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  overflow: "hidden",
                   borderWidth: 3,
                   borderColor: info.color,
                 }}
               >
+                {/* eslint-disable-next-line react-native/no-inline-styles */}
+                <img
+                  src={fotoPerfil}
+                  style={{ width: 72, height: 72, objectFit: "cover" }}
+                  alt="perfil"
+                />
+              </View>
+            ) : (
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 36,
+                  backgroundColor: info.color + "22",
+                  borderWidth: 3,
+                  borderColor: info.color,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
                 <Text
-                  style={{ fontSize: 28, fontWeight: "800", color: "white" }}
+                  style={{ fontSize: 24, fontWeight: "800", color: info.color }}
                 >
-                  {initials}
+                  {iniciales}
                 </Text>
               </View>
             )}
             <TouchableOpacity
-              onPress={seleccionarFoto}
+              onPress={selectPhoto}
               style={{
                 position: "absolute",
-                bottom: 0,
-                right: 0,
-                width: 28,
-                height: 28,
-                borderRadius: 14,
+                bottom: -2,
+                right: -2,
+                width: 24,
+                height: 24,
+                borderRadius: 12,
                 backgroundColor: info.color,
                 alignItems: "center",
                 justifyContent: "center",
                 borderWidth: 2,
-                borderColor: "white",
+                borderColor: CARD,
               }}
             >
-              <Feather name="camera" size={13} color="white" />
+              <Feather name="camera" size={11} color="white" />
             </TouchableOpacity>
           </View>
 
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 17, fontWeight: "800", color: C.text }}>
-              {usuario?.nombre || "Usuario"}
+            <Text style={{ fontSize: 16, fontWeight: "800", color: TXT }}>
+              {usuario?.nombre} {usuario?.apellidos}
             </Text>
-            <Text style={{ fontSize: 13, color: C.textMuted, marginBottom: 2 }}>
-              {usuario?.correo || ""}
-            </Text>
-            <View
+            <Text
               style={{
-                backgroundColor: info.color + "22",
-                borderRadius: 6,
-                paddingHorizontal: 10,
-                paddingVertical: 4,
-                alignSelf: "flex-start",
-                marginBottom: 14,
+                fontSize: 12,
+                color: info.color,
+                fontWeight: "600",
+                marginTop: 2,
               }}
             >
-              <Text
-                style={{ fontSize: 11, fontWeight: "700", color: info.color }}
-              >
-                {role}
-              </Text>
-            </View>
-            <Row style={{ gap: 10 }}>
-              <TouchableOpacity
-                onPress={seleccionarFoto}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  paddingHorizontal: 14,
-                  paddingVertical: 9,
-                  borderRadius: 9,
-                  backgroundColor: info.color,
-                }}
-              >
-                <Feather name="upload" size={13} color="white" />
-                <Text
-                  style={{ color: "white", fontWeight: "700", fontSize: 13 }}
-                >
-                  {fotoPerfil ? "Cambiar foto" : "Subir foto"}
-                </Text>
-              </TouchableOpacity>
-              {fotoPerfil && (
-                <TouchableOpacity
-                  onPress={eliminarFoto}
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 6,
-                    paddingHorizontal: 14,
-                    paddingVertical: 9,
-                    borderRadius: 9,
-                    borderWidth: 1,
-                    borderColor: C.red,
-                  }}
-                >
-                  <Feather name="trash-2" size={13} color={C.red} />
-                  <Text
-                    style={{ color: C.red, fontWeight: "700", fontSize: 13 }}
-                  >
-                    Eliminar
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </Row>
-            <Text style={{ fontSize: 11, color: C.textLight, marginTop: 8 }}>
-              JPG, PNG o WEBP · máx. 5 MB ·{" "}
-              {fotoPerfil
-                ? "✓ Guardada en este dispositivo"
-                : "Sin foto guardada"}
+              {info.label}
+            </Text>
+            <Text style={{ fontSize: 11, color: TXTM, marginTop: 2 }}>
+              {usuario?.correo}
             </Text>
           </View>
         </Row>
+
+        <Row style={{ gap: 8, marginTop: 14 }}>
+          <TouchableOpacity
+            onPress={selectPhoto}
+            style={{
+              flex: 1,
+              paddingVertical: 9,
+              borderRadius: 8,
+              backgroundColor: info.color + "22",
+              alignItems: "center",
+            }}
+          >
+            <Row style={{ alignItems: "center", gap: 6 }}>
+              <Feather name="upload" size={13} color={info.color} />
+              <Text
+                style={{ fontSize: 12, fontWeight: "700", color: info.color }}
+              >
+                {fotoPerfil ? "Cambiar foto" : "Subir foto"}
+              </Text>
+            </Row>
+          </TouchableOpacity>
+          {fotoPerfil && (
+            <TouchableOpacity
+              onPress={removePhoto}
+              style={{
+                paddingVertical: 9,
+                paddingHorizontal: 14,
+                borderRadius: 8,
+                backgroundColor: C.redLight,
+                alignItems: "center",
+              }}
+            >
+              <Feather name="trash-2" size={13} color={C.red} />
+            </TouchableOpacity>
+          )}
+        </Row>
+
+        <Text
+          style={{
+            fontSize: 10,
+            color: TXTM,
+            marginTop: 8,
+            textAlign: "center",
+          }}
+        >
+          Formatos: JPG, PNG, WEBP · Máx. 5 MB ·{" "}
+          {fotoPerfil ? "✓ Foto guardada" : "Sin foto guardada"}
+        </Text>
       </Card>
 
+      {/* ── Apariencia (Modo oscuro) ── */}
+      <ToggleCard
+        isDark={isDark}
+        toggleDark={toggleDark}
+        TXT={TXT}
+        TXTM={TXTM}
+        CARD={CARD}
+        BORD={BORD}
+      />
+
       {/* ── Recursos y Documentos ── */}
-      <Card style={{ marginBottom: 20 }}>
+      <Card
+        style={{ marginBottom: 20, backgroundColor: CARD, borderColor: BORD }}
+      >
         <Row style={{ alignItems: "center", gap: 10, marginBottom: 16 }}>
           <View
             style={{
@@ -775,7 +570,7 @@ export default function Utilerias({
           >
             <Feather name="tool" size={16} color={info.color} />
           </View>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
             Recursos y Documentos
           </Text>
         </Row>
@@ -789,10 +584,10 @@ export default function Utilerias({
                 alignItems: "center",
                 gap: 12,
                 padding: 14,
-                backgroundColor: C.bg,
+                backgroundColor: isDark ? "#0F172A" : C.bg,
                 borderRadius: 10,
                 borderWidth: 1,
-                borderColor: C.border,
+                borderColor: BORD,
               }}
             >
               <View
@@ -808,26 +603,155 @@ export default function Utilerias({
                 <Feather name={h.icon} size={16} color={info.color} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text
-                  style={{ fontSize: 13, fontWeight: "600", color: C.text }}
-                >
+                <Text style={{ fontSize: 13, fontWeight: "600", color: TXT }}>
                   {h.label}
                 </Text>
-                <Text
-                  style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}
-                >
+                <Text style={{ fontSize: 11, color: TXTM, marginTop: 2 }}>
                   {h.detalle.tipo} · {h.detalle.paginas}
                 </Text>
               </View>
-              <Feather name="chevron-right" size={16} color={C.textLight} />
+              <Feather name="chevron-right" size={16} color={TXTM} />
             </TouchableOpacity>
           ))}
         </View>
       </Card>
 
-      {/* ── Contactos Importantes ── */}
-      <Card style={{ marginBottom: 20 }}>
+      {/* ── Contactos importantes ── */}
+      <Card
+        style={{ marginBottom: 20, backgroundColor: CARD, borderColor: BORD }}
+      >
         <Row style={{ alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              backgroundColor: C.tealLight,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Feather name="phone" size={16} color={C.teal} />
+          </View>
+          <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
+            Contactos Importantes
+          </Text>
+        </Row>
+        <View style={{ gap: 10 }}>
+          {[
+            {
+              nombre: usuario?.asesorInfo?.nombre || "Asesor asignado",
+              correo: usuario?.asesorInfo?.correo || "—",
+              rol: "Asesor Académico",
+              icon: "briefcase",
+              color: C.blue,
+            },
+            {
+              nombre: usuario?.jefeInfo?.nombre || "Jefe de Vinculación",
+              correo: usuario?.jefeInfo?.correo || "—",
+              rol: "Jefe de Vinculación",
+              icon: "shield",
+              color: C.amber,
+            },
+            {
+              nombre: "Control Escolar",
+              correo: "control.escolar@itm.edu.mx",
+              rol: "Servicios Escolares",
+              icon: "home",
+              color: C.teal,
+            },
+          ].map((c, i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: 12,
+                padding: 12,
+                backgroundColor: isDark ? "#0F172A" : C.bg,
+                borderRadius: 10,
+                borderWidth: 1,
+                borderColor: BORD,
+              }}
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  backgroundColor: c.color + "22",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Feather name={c.icon} size={16} color={c.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: "700", color: TXT }}>
+                  {c.nombre}
+                </Text>
+                <Text
+                  style={{ fontSize: 11, color: c.color, fontWeight: "600" }}
+                >
+                  {c.rol}
+                </Text>
+                <Text style={{ fontSize: 11, color: TXTM, marginTop: 2 }}>
+                  {c.correo}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </Card>
+
+      {/* ── Notas del rol ── */}
+      {info.notas?.length > 0 && (
+        <Card
+          style={{ marginBottom: 20, backgroundColor: CARD, borderColor: BORD }}
+        >
+          <Row style={{ alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                backgroundColor: C.amberLight,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Feather name="alert-circle" size={16} color={C.amber} />
+            </View>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
+              Recordatorios
+            </Text>
+          </Row>
+          <View style={{ gap: 8 }}>
+            {info.notas.map((n, i) => (
+              <Row key={i} style={{ alignItems: "flex-start", gap: 10 }}>
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: C.amber,
+                    marginTop: 6,
+                  }}
+                />
+                <Text
+                  style={{ flex: 1, fontSize: 13, color: TXTS, lineHeight: 20 }}
+                >
+                  {n}
+                </Text>
+              </Row>
+            ))}
+          </View>
+        </Card>
+      )}
+
+      {/* ── Información del sistema ── */}
+      <Card style={{ backgroundColor: CARD, borderColor: BORD }}>
+        <Row style={{ alignItems: "center", gap: 10, marginBottom: 14 }}>
           <View
             style={{
               width: 32,
@@ -838,277 +762,167 @@ export default function Utilerias({
               justifyContent: "center",
             }}
           >
-            <Feather name="phone" size={16} color={C.blue} />
+            <Feather name="info" size={16} color={C.blue} />
           </View>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
-            Contactos Importantes
-          </Text>
-        </Row>
-        <View style={{ gap: 10 }}>
-          {contactos.map((c, i) => {
-            const fotoContacto = c.usuarioId ? getFoto(c.usuarioId) : null;
-            const initC = c.nombre
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2);
-            return (
-              <View
-                key={i}
-                style={{
-                  backgroundColor: C.bg,
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  borderWidth: 1,
-                  borderColor: C.border,
-                }}
-              >
-                {/* Fila principal */}
-                <Row
-                  style={{
-                    alignItems: "center",
-                    gap: 12,
-                    paddingVertical: 12,
-                    paddingHorizontal: 14,
-                  }}
-                >
-                  {/* Avatar / foto */}
-                  {fotoContacto ? (
-                    <Image
-                      source={{ uri: fotoContacto }}
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        borderWidth: 2,
-                        borderColor: C.blue + "55",
-                      }}
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: C.blueLight,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderWidth: 2,
-                        borderColor: C.blue + "33",
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: 14,
-                          fontWeight: "800",
-                          color: C.blue,
-                        }}
-                      >
-                        {initC}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ fontSize: 13, fontWeight: "700", color: C.text }}
-                    >
-                      {c.nombre}
-                    </Text>
-                    <Text
-                      style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}
-                    >
-                      {c.ext}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => Linking.openURL(`mailto:${c.correo}`)}
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 9,
-                      backgroundColor: C.blueLight,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Feather name="mail" size={15} color={C.blue} />
-                  </TouchableOpacity>
-                </Row>
-
-                {/* Detalle expandido (solo cuando hay datos) */}
-                {c.detalle && (
-                  <View
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingBottom: 12,
-                      borderTopWidth: 1,
-                      borderTopColor: C.border,
-                      paddingTop: 10,
-                      gap: 7,
-                    }}
-                  >
-                    {c.detalle.map((d, di) => (
-                      <Row key={di} style={{ alignItems: "center", gap: 10 }}>
-                        <View
-                          style={{
-                            width: 26,
-                            height: 26,
-                            borderRadius: 7,
-                            backgroundColor: C.blue + "18",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <Feather name={d.icon} size={12} color={C.blue} />
-                        </View>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            color: C.textMuted,
-                            fontWeight: "600",
-                            width: 90,
-                          }}
-                        >
-                          {d.label}
-                        </Text>
-                        <Text
-                          style={{ fontSize: 12, color: C.text, flex: 1 }}
-                          numberOfLines={1}
-                        >
-                          {d.val}
-                        </Text>
-                      </Row>
-                    ))}
-                  </View>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </Card>
-
-      {/* ── Notas Importantes ── */}
-      <Card style={{ marginBottom: 20 }}>
-        <Row style={{ alignItems: "center", gap: 10, marginBottom: 16 }}>
-          <View
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              backgroundColor: C.amberLight,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Feather name="alert-circle" size={16} color={C.amber} />
-          </View>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
-            Notas Importantes
-          </Text>
-        </Row>
-        <View style={{ gap: 10 }}>
-          {info.notas.map((nota, i) => (
-            <Row
-              key={i}
-              style={{
-                gap: 10,
-                alignItems: "flex-start",
-                backgroundColor: C.amberLight,
-                borderRadius: 8,
-                padding: 12,
-              }}
-            >
-              <View
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: 10,
-                  backgroundColor: C.amber,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginTop: 1,
-                  flexShrink: 0,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 10, fontWeight: "800", color: "white" }}
-                >
-                  {i + 1}
-                </Text>
-              </View>
-              <Text
-                style={{
-                  fontSize: 13,
-                  color: "#92400e",
-                  flex: 1,
-                  lineHeight: 19,
-                }}
-              >
-                {nota}
-              </Text>
-            </Row>
-          ))}
-        </View>
-      </Card>
-
-      {/* ── Info del sistema ── */}
-      <Card>
-        <Row style={{ alignItems: "center", gap: 10, marginBottom: 14 }}>
-          <View
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              backgroundColor: C.bg,
-              alignItems: "center",
-              justifyContent: "center",
-              borderWidth: 1,
-              borderColor: C.border,
-            }}
-          >
-            <Feather name="info" size={16} color={C.textMuted} />
-          </View>
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
-            Información del Sistema
+          <Text style={{ fontSize: 15, fontWeight: "700", color: TXT }}>
+            Sistema
           </Text>
         </Row>
         {[
-          ["Sistema", "VinculaTec"],
-          ["Versión", "v2.5 — 2025-B"],
-          ["Desarrollado", "ITVER — Depto. de Sistemas"],
+          ["Versión", "VinculaTec 2.0"],
+          ["Institución", "Instituto Tecnológico de Minatitlán"],
+          ["Ciclo", "Enero – Junio 2026"],
           ["Soporte", "soporte@itm.edu.mx"],
-        ].map(([k, v], i) => (
+        ].map(([label, value]) => (
           <Row
-            key={i}
+            key={label}
             style={{
+              justifyContent: "space-between",
               paddingVertical: 8,
-              borderBottomWidth: i < 3 ? 1 : 0,
-              borderBottomColor: C.borderLight,
+              borderBottomWidth: 1,
+              borderBottomColor: BORD,
             }}
           >
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 13,
-                color: C.textMuted,
-                fontWeight: "600",
-              }}
-            >
-              {k}
+            <Text style={{ fontSize: 12, color: TXTM }}>{label}</Text>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: TXTS }}>
+              {value}
             </Text>
-            <Text style={{ fontSize: 13, color: C.text }}>{v}</Text>
           </Row>
         ))}
       </Card>
 
-      {/* ── Modal recurso ── */}
-      <RecursoModal
+      {/* ── Modal de recursos ── */}
+      <Modal
         visible={!!modalItem}
-        item={modalItem}
-        color={info.color}
-        onClose={() => setModalItem(null)}
-      />
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalItem(null)}
+      >
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: "#00000088",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 20,
+          }}
+          onPress={() => setModalItem(null)}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 400,
+              backgroundColor: CARD,
+              borderRadius: 18,
+              padding: 24,
+              borderWidth: 1,
+              borderColor: BORD,
+            }}
+          >
+            {/* Ícono + título */}
+            <Row style={{ alignItems: "center", gap: 14, marginBottom: 16 }}>
+              <View
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 13,
+                  backgroundColor: info.color + "22",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Feather
+                  name={modalItem?.icon || "file"}
+                  size={22}
+                  color={info.color}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 15, fontWeight: "800", color: TXT }}>
+                  {modalItem?.label}
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    color: info.color,
+                    fontWeight: "600",
+                    marginTop: 2,
+                  }}
+                >
+                  {modalItem?.detalle?.tipo} · {modalItem?.detalle?.paginas}
+                </Text>
+              </View>
+            </Row>
+
+            {/* Descripción */}
+            <View
+              style={{
+                backgroundColor: isDark ? "#0F172A" : C.bg,
+                borderRadius: 10,
+                padding: 14,
+                marginBottom: 14,
+              }}
+            >
+              <Text style={{ fontSize: 13, color: TXTS, lineHeight: 20 }}>
+                {modalItem?.detalle?.descripcion}
+              </Text>
+            </View>
+
+            {/* Versión */}
+            <Row style={{ alignItems: "center", gap: 8, marginBottom: 20 }}>
+              <Feather name="tag" size={13} color={TXTM} />
+              <Text style={{ fontSize: 11, color: TXTM }}>
+                {modalItem?.detalle?.version}
+              </Text>
+            </Row>
+
+            {/* Botones */}
+            <Row style={{ gap: 10 }}>
+              <TouchableOpacity
+                onPress={() => setModalItem(null)}
+                style={{
+                  flex: 1,
+                  paddingVertical: 11,
+                  borderRadius: 9,
+                  borderWidth: 1,
+                  borderColor: BORD,
+                  alignItems: "center",
+                }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: "600", color: TXTM }}>
+                  Cerrar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setModalItem(null);
+                  Alert.alert(
+                    "Recurso",
+                    "El acceso a documentos se habilitará cuando el sistema esté en producción.",
+                  );
+                }}
+                style={{
+                  flex: 2,
+                  paddingVertical: 11,
+                  borderRadius: 9,
+                  backgroundColor: info.color,
+                  alignItems: "center",
+                }}
+              >
+                <Row style={{ alignItems: "center", gap: 7 }}>
+                  <Feather name="download" size={14} color="white" />
+                  <Text
+                    style={{ fontSize: 14, fontWeight: "700", color: "white" }}
+                  >
+                    Descargar
+                  </Text>
+                </Row>
+              </TouchableOpacity>
+            </Row>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }

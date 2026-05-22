@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import Row from "./Row";
+import { useTheme } from "../context/ThemeContext";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
 // Metadatos de búsqueda: cada sección tiene palabras clave adicionales
@@ -142,6 +143,7 @@ const SECTION_META = {
 };
 
 export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
+  const { isDark } = useTheme();
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
@@ -216,7 +218,7 @@ export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
   return (
     <View
       style={{
-        backgroundColor: C.card,
+        backgroundColor: isDark ? "#161B22" : C.card,
         borderBottomWidth: 1,
         borderBottomColor: C.border,
         paddingHorizontal: 24,
@@ -254,7 +256,7 @@ export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
               flexDirection: "row",
               alignItems: "center",
               gap: 8,
-              backgroundColor: C.bg,
+              backgroundColor: isDark ? "#0D1117" : C.bg,
               borderRadius: 9,
               paddingHorizontal: 12,
               paddingVertical: 7,
@@ -301,7 +303,7 @@ export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
                 top: "100%",
                 right: 0,
                 marginTop: 6,
-                backgroundColor: C.card,
+                backgroundColor: isDark ? "#161B22" : C.card,
                 borderRadius: 12,
                 borderWidth: 1,
                 borderColor: C.border,

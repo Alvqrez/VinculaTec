@@ -29,7 +29,8 @@ export default function DashResidente({ onNavigate }) {
     // Por qué: El residente necesita ver en qué proyecto está asignado
     // Para qué: Mostrar información del proyecto en el dashboard
     apiClient.get("/api/residente/proyecto").then((res) => {
-      if (res.ok && res.body?.ok && res.body.proyecto) setProyecto(res.body.proyecto);
+      if (res.ok && res.body?.ok && res.body.proyecto)
+        setProyecto(res.body.proyecto);
     });
   }, []);
 
@@ -69,11 +70,16 @@ export default function DashResidente({ onNavigate }) {
   ];
 
   // Tabla "Mis Reportes" — sólo parciales
+  const PARCIAL_FOCUS = [
+    "Diagnóstico e inicio",
+    "Desarrollo del proyecto",
+    "Avance final y conclusiones",
+  ];
   const reportesTabla = parciales.map((p, i) => {
     const isAceptado = p.status === "Aceptado";
     const isPendiente = p.status === "Pendiente";
     return {
-      nombre: `Reporte ${i + 1} — ${p.subtitle.split("·")[1]?.trim() ?? p.subtitle}`,
+      nombre: `Reporte ${i + 1} — ${PARCIAL_FOCUS[i] || "Reporte"}`,
       fechaLimite: p.submitted ?? "—",
       fechaEntrega: p.submitted ?? "—",
       estado: p.status,
@@ -96,7 +102,10 @@ export default function DashResidente({ onNavigate }) {
           .filter((c) => new Date(c.fecha_hora) >= hoy)
           .slice(0, 4)
           .map((c) => ({
-            fecha: new Date(c.fecha_hora).toLocaleDateString("es-MX", { day: "2-digit", month: "short" }),
+            fecha: new Date(c.fecha_hora).toLocaleDateString("es-MX", {
+              day: "2-digit",
+              month: "short",
+            }),
             titulo: c.motivo || c.tipo,
             color: C.blue,
           }));
@@ -188,15 +197,15 @@ export default function DashResidente({ onNavigate }) {
                       proyecto.estado === "desarrollo"
                         ? C.blue
                         : proyecto.estado === "revision"
-                        ? C.amber
-                        : C.green
+                          ? C.amber
+                          : C.green
                     }
                     bg={
                       proyecto.estado === "desarrollo"
                         ? C.blueLight
                         : proyecto.estado === "revision"
-                        ? C.amberLight
-                        : C.greenLight
+                          ? C.amberLight
+                          : C.greenLight
                     }
                   />
                 </Row>
@@ -218,7 +227,9 @@ export default function DashResidente({ onNavigate }) {
                     >
                       DESCRIPCIÓN
                     </Text>
-                    <Text style={{ fontSize: 13, color: C.textSub, lineHeight: 19 }}>
+                    <Text
+                      style={{ fontSize: 13, color: C.textSub, lineHeight: 19 }}
+                    >
                       {proyecto.descripcion}
                     </Text>
                   </View>
@@ -247,7 +258,11 @@ export default function DashResidente({ onNavigate }) {
                           }}
                         >
                           <Text
-                            style={{ fontSize: 11, color: C.teal, fontWeight: "600" }}
+                            style={{
+                              fontSize: 11,
+                              color: C.teal,
+                              fontWeight: "600",
+                            }}
                           >
                             {tech.trim()}
                           </Text>
@@ -279,12 +294,17 @@ export default function DashResidente({ onNavigate }) {
               >
                 <Row style={{ gap: 10, alignItems: "center" }}>
                   <Feather name="alert-circle" size={18} color={C.amber} />
-                  <Text style={{ fontSize: 13, color: C.amber, fontWeight: "600" }}>
+                  <Text
+                    style={{ fontSize: 13, color: C.amber, fontWeight: "600" }}
+                  >
                     No tienes un proyecto asignado
                   </Text>
                 </Row>
-                <Text style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                  Contacta al Jefe de Vinculación para que te asigne un proyecto.
+                <Text
+                  style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}
+                >
+                  Contacta al Jefe de Vinculación para que te asigne un
+                  proyecto.
                 </Text>
               </View>
             </Card>
@@ -401,7 +421,13 @@ export default function DashResidente({ onNavigate }) {
 
           {/* Mis Reportes */}
           <Card>
-            <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Row
+              style={{
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
               <Text
                 style={{
                   fontSize: 16,
@@ -416,10 +442,19 @@ export default function DashResidente({ onNavigate }) {
                   // Función para exportar reportes a CSV
                   const csvContent = [
                     ["Reporte", "Límite", "Entrega", "Estado"],
-                    ...reportesTabla.map(r => [r.nombre, r.fechaLimite, r.fechaEntrega, r.estado])
-                  ].map(row => row.join(",")).join("\n");
-                  
-                  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                    ...reportesTabla.map((r) => [
+                      r.nombre,
+                      r.fechaLimite,
+                      r.fechaEntrega,
+                      r.estado,
+                    ]),
+                  ]
+                    .map((row) => row.join(","))
+                    .join("\n");
+
+                  const blob = new Blob([csvContent], {
+                    type: "text/csv;charset=utf-8;",
+                  });
                   const link = document.createElement("a");
                   const url = URL.createObjectURL(blob);
                   link.setAttribute("href", url);
@@ -440,7 +475,9 @@ export default function DashResidente({ onNavigate }) {
                 }}
               >
                 <Feather name="download" size={14} color="white" />
-                <Text style={{ color: "white", fontSize: 13, fontWeight: "600" }}>
+                <Text
+                  style={{ color: "white", fontSize: 13, fontWeight: "600" }}
+                >
                   Exportar
                 </Text>
               </TouchableOpacity>
@@ -584,17 +621,22 @@ export default function DashResidente({ onNavigate }) {
               </Text>
             </View>
             <View style={{ gap: 8, marginBottom: 16 }}>
-              {asesor && [
-                ["mail", asesor.correo],
-                asesor.extension ? ["phone", `Ext. ${asesor.extension}`] : null,
-              ].filter(Boolean).map(([icon, txt], i) => (
-                <Row key={i} style={{ gap: 8, alignItems: "center" }}>
-                  <Feather name={icon} size={14} color={C.textMuted} />
-                  <Text style={{ fontSize: 13, color: C.textMuted }}>
-                    {txt}
-                  </Text>
-                </Row>
-              ))}
+              {asesor &&
+                [
+                  ["mail", asesor.correo],
+                  asesor.extension
+                    ? ["phone", `Ext. ${asesor.extension}`]
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .map(([icon, txt], i) => (
+                    <Row key={i} style={{ gap: 8, alignItems: "center" }}>
+                      <Feather name={icon} size={14} color={C.textMuted} />
+                      <Text style={{ fontSize: 13, color: C.textMuted }}>
+                        {txt}
+                      </Text>
+                    </Row>
+                  ))}
             </View>
             <TouchableOpacity
               onPress={() => onNavigate && onNavigate("calendario")}
