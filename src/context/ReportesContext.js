@@ -152,7 +152,7 @@ export function ReportesProvider({ children }) {
       const token = getAuthToken();
       if (!token) return;
 
-      const res = await fetch("http://localhost:3001/api/residente/reportes", {
+      const res = await fetch("https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes", {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -221,7 +221,7 @@ export function ReportesProvider({ children }) {
       const tipoEnum = tipoMap[tipoId] || String(tipoId);
 
       const res = await fetch(
-        `http://localhost:3001/api/residente/reportes/${tipoEnum}`,
+        `https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes/${tipoEnum}`,
         {
           method: "PUT",
           headers: {
@@ -257,7 +257,7 @@ export function ReportesProvider({ children }) {
         final: "final",
       };
       const tipoEnum = tipoMap[tipoId] || String(tipoId);
-      await fetch(`http://localhost:3001/api/residente/reportes/${tipoEnum}`, {
+      await fetch(`https://flock-gratuity-dancing.ngrok-free.dev/api/residente/reportes/${tipoEnum}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

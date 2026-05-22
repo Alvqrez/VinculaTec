@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 const WebSocketCtx = createContext(null);
 
 // Configuración del cliente WebSocket
-const socket = io("http://localhost:3001", {
+const socket = io("https://flock-gratuity-dancing.ngrok-free.dev", {
   autoConnect: false,
   withCredentials: true,
 });

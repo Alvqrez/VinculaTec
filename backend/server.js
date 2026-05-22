@@ -19,7 +19,7 @@ const io = new Server(server, {
   cors: {
     origin: process.env.CORS_ORIGINS
       ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-      : ["http://localhost:8081", "http://localhost:19006"],
+      : ["http://localhost:8081", "http://localhost:19006", "https://flock-gratuity-dancing.ngrok-free.dev"],
     credentials: true,
   },
 });
@@ -30,7 +30,7 @@ const PORT = process.env.PORT || 3001;
 // Si no está definido en .env, permite los orígenes locales de Expo
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
-  : ["http://localhost:8081", "http://localhost:19006"];
+  : ["http://localhost:8081", "http://localhost:19006", "https://flock-gratuity-dancing.ngrok-free.dev"];
 
 app.use(
   cors({
