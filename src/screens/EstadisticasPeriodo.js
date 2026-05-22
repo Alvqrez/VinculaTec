@@ -1,0 +1,336 @@
+import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { getAuthToken } from "../context/AuthContext";
+
+export default function EstadisticasPeriodo() {
+  const [loading, setLoading] = useState(true);
+  const [periodos, setPeriodos] = useState([]);
+  const [periodoSeleccionado, setPeriodoSeleccionado] = useState(null);
+  const [estadisticas, setEstadisticas] = useState(null);
+  const [empresasPeriodo, setEmpresasPeriodo] = useState([]);
+  const [alumnosPorProyecto, setAlumnosPorProyecto] = useState([]);
+  const [cumplimiento, setCumplimiento] = useState([]);
+  const [mostrarCumplimiento, setMostrarCumplimiento] = useState(false);
+
+  useEffect(() => {
+    cargarEstadisticas();
+  }, []);
+
+  const cargarEstadisticas = async (periodo = null) => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      if (!token) return;
+
+      const url = periodo
+        ? `https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/estadisticas-por-periodo?periodo=${periodo}`
+        : "https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/estadisticas-por-periodo";
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setPeriodos(data.periodos);
+        setPeriodoSeleccionado(data.periodoSeleccionado);
+        setEstadisticas(data.estadisticas);
+        setEmpresasPeriodo(data.empresasPeriodo);
+        setAlumnosPorProyecto(data.alumnosPorProyecto);
+      }
+    } catch (err) {
+      console.error("Error al cargar estadísticas:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cargarCumplimiento = async () => {
+    try {
+      setLoading(true);
+      const token = getAuthToken();
+      if (!token) return;
+
+      const url = periodoSeleccionado
+        ? `https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/porcentaje-cumplimiento?periodo=${periodoSeleccionado}`
+        : "https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/porcentaje-cumplimiento";
+
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        setCumplimiento(data.cumplimiento);
+        setMostrarCumplimiento(true);
+      }
+    } catch (err) {
+      console.error("Error al cargar cumplimiento:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>Estadísticas por Periodo</Text>
+
+      {/* Selector de periodo */}
+      <View style={styles.periodSelector}>
+        <Text style={styles.label}>Periodo:</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {periodos.map((p) => (
+            <TouchableOpacity
+              key={p.periodo}
+              style={[
+                styles.periodButton,
+                periodoSeleccionado === p.periodo && styles.periodButtonActive,
+              ]}
+              onPress={() => cargarEstadisticas(p.periodo)}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  periodoSeleccionado === p.periodo && styles.periodButtonTextActive,
+                ]}
+              >
+                {p.periodo}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
+      {estadisticas && (
+        <>
+          {/* Estadísticas generales */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{estadisticas.totalResidentes}</Text>
+              <Text style={styles.statLabel}>Residentes</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{estadisticas.totalEmpresas}</Text>
+              <Text style={styles.statLabel}>Empresas</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{estadisticas.proyectosActivos}</Text>
+              <Text style={styles.statLabel}>Proyectos Activos</Text>
+            </View>
+          </View>
+
+          {/* Empresas por periodo */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Empresas en este periodo</Text>
+            {empresasPeriodo.map((empresa) => (
+              <View key={empresa.id} style={styles.item}>
+                <Text style={styles.itemName}>{empresa.nombre}</Text>
+                <Text style={styles.itemValue}>{empresa.residentes} residentes</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Alumnos por proyecto */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Alumnos por proyecto</Text>
+            {alumnosPorProyecto.map((proyecto) => (
+              <View key={proyecto.id} style={styles.item}>
+                <Text style={styles.itemName}>{proyecto.titulo}</Text>
+                <Text style={styles.itemValue}>{proyecto.alumnos} alumnos</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Botón para ver cumplimiento */}
+          <TouchableOpacity
+            style={styles.button}
+            onPress={cargarCumplimiento}
+          >
+            <Text style={styles.buttonText}>Ver Porcentaje de Cumplimiento</Text>
+          </TouchableOpacity>
+
+          {/* Gráfico de cumplimiento */}
+          {mostrarCumplimiento && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Porcentaje de Cumplimiento por Empresa</Text>
+              {cumplimiento.map((empresa) => (
+                <View key={empresa.id} style={styles.cumplimientoItem}>
+                  <Text style={styles.cumplimientoName}>{empresa.nombre}</Text>
+                  <View style={styles.progressBarContainer}>
+                    <View
+                      style={[
+                        styles.progressBar,
+                        { width: `${empresa.porcentaje_cumplimiento || 0}%` },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.cumplimientoValue}>
+                    {empresa.porcentaje_cumplimiento || 0}%
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      )}
+
+      {!periodos.length && (
+        <Text style={styles.noData}>
+          No hay periodos registrados. Asigna proyectos con periodos para ver estadísticas.
+        </Text>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  periodSelector: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 10,
+  },
+  periodButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: "#E5E7EB",
+    marginRight: 8,
+  },
+  periodButtonActive: {
+    backgroundColor: "#3B82F6",
+  },
+  periodButtonText: {
+    fontSize: 14,
+    color: "#374151",
+  },
+  periodButtonTextActive: {
+    color: "white",
+  },
+  statsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: "#F3F4F6",
+    padding: 16,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#3B82F6",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 4,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  item: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 12,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  itemName: {
+    fontSize: 14,
+    color: "#374151",
+    flex: 1,
+  },
+  itemValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#3B82F6",
+  },
+  button: {
+    backgroundColor: "#3B82F6",
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "white",
+  },
+  cumplimientoItem: {
+    marginBottom: 16,
+  },
+  cumplimientoName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#3B82F6",
+    borderRadius: 6,
+  },
+  cumplimientoValue: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#3B82F6",
+    textAlign: "right",
+  },
+  noData: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginTop: 40,
+  },
+});

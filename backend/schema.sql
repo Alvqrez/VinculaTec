@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS proyectos (
   empresa_id        VARCHAR(50),
   residente_id      VARCHAR(50),
   asesor_id         VARCHAR(50),             -- asesor principal (referencia rápida)
+  periodo           VARCHAR(50),             -- periodo escolar (ej: "2025-1", "2025-2")
   estado            ENUM('propuesto','desarrollo','revision','concluido') DEFAULT 'propuesto',
   prioridad         ENUM('Alta','Media','Baja') DEFAULT 'Media',
   tecnologias       VARCHAR(255),
@@ -94,7 +95,8 @@ CREATE TABLE IF NOT EXISTS proyectos (
   FOREIGN KEY (empresa_id)   REFERENCES empresas(id)   ON DELETE SET NULL,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE SET NULL,
   FOREIGN KEY (asesor_id)    REFERENCES asesores(id)   ON DELETE SET NULL,
-  INDEX idx_estado_prioridad (estado, prioridad)
+  INDEX idx_estado_prioridad (estado, prioridad),
+  INDEX idx_periodo (periodo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Proyecto-Asesores (múltiples asesores por proyecto) ──────
@@ -108,6 +110,12 @@ CREATE TABLE IF NOT EXISTS proyecto_asesores (
   FOREIGN KEY (asesor_id)   REFERENCES asesores(id)  ON DELETE CASCADE,
   INDEX idx_asesor (asesor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Agregado: ALTER TABLE para agregar el campo periodo si la tabla ya existe
+-- Por qué: Para compatibilidad con bases de datos existentes que no tienen este campo
+-- Para qué: Evitar errores al ejecutar el schema en bases de datos ya creadas sin perder datos
+ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS periodo VARCHAR(50) AFTER asesor_id;
+ALTER TABLE proyectos ADD INDEX IF NOT EXISTS idx_periodo (periodo);
 
 -- ── Reportes ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS reportes (

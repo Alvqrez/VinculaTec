@@ -16,6 +16,7 @@ import RegistrarUsuario from "../../screens/RegistrarUsuario";
 import Utilerias from "../../screens/Utilerias";
 import Notificaciones from "../../screens/Notificaciones";
 import CalendarioCitas from "../../screens/CalendarioCitas";
+import EstadisticasPeriodo from "../../screens/EstadisticasPeriodo";
 
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
@@ -24,6 +25,7 @@ const NAV = [
   { id: "asignacion", label: "Asignación", icon: "user-plus" },
   { id: "registrar", label: "Registrar", icon: "user-plus" },
   { id: "seguimiento", label: "Seguimiento", icon: "file-text" },
+  { id: "estadisticas", label: "Estadísticas", icon: "bar-chart" },
   { id: "notificaciones", label: "Notificaciones", icon: "bell" },
   { id: "calendario", label: "Calendario", icon: "calendar" },
   { id: "utilerias", label: "Utilerías", icon: "tool" },
@@ -68,6 +70,7 @@ function JefeAppInner({ usuario, onLogout }) {
     asignacion: <AsignacionJefe />,
     registrar: <RegistrarUsuario />,
     seguimiento: <SeguimientoJefe />,
+    estadisticas: <EstadisticasPeriodo />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
     calendario: <CalendarioCitas />,
     utilerias: (

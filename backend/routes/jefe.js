@@ -261,6 +261,7 @@ router.post("/asignacion", auth, async (req, res) => {
     asesorId,
     asesorIds,
     residentesIds,
+    periodo,
   } = req.body;
 
   // Normalizar a array
@@ -280,10 +281,10 @@ router.post("/asignacion", auth, async (req, res) => {
   try {
     const proyectoId = `p_${Date.now()}`;
 
-    // Insertar proyecto con el asesor principal como referencia rápida
+    // Insertar proyecto con el asesor principal como referencia rápida y periodo
     await db.execute(
-      `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, estado, prioridad)
-       VALUES (?,?,?,?,?,?,'propuesto','Media')`,
+      `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, periodo, estado, prioridad)
+       VALUES (?,?,?,?,?,?,?,?,'propuesto','Media')`,
       [
         proyectoId,
         proyectoNombre.trim(),
@@ -291,6 +292,7 @@ router.post("/asignacion", auth, async (req, res) => {
         empresaId,
         asesorIdPrimario,
         residentesIds[0],
+        periodo || null,
       ],
     );
 
@@ -592,6 +594,113 @@ router.post("/registrar-usuario", auth, async (req, res) => {
     return res
       .status(500)
       .json({ ok: false, mensaje: "Error interno al registrar usuario." });
+  }
+});
+
+// ── GET /api/jefe/estadisticas-por-periodo ─────────────────────────────────────
+// Obtiene estadísticas de residencias por periodo escolar
+router.get("/estadisticas-por-periodo", auth, async (req, res) => {
+  try {
+    const { periodo } = req.query;
+    
+    // Obtener todos los periodos disponibles
+    const [periodos] = await db.execute(
+      "SELECT DISTINCT periodo FROM proyectos WHERE periodo IS NOT NULL ORDER BY periodo DESC"
+    );
+    
+    if (!periodo && periodos.length > 0) {
+      // Si no se especifica periodo, usar el más reciente
+      req.query.periodo = periodos[0].periodo;
+    }
+    
+    const periodoSeleccionado = req.query.periodo || periodos[0]?.periodo;
+    
+    if (!periodoSeleccionado) {
+      return res.json({ ok: true, periodos: [], estadisticas: null });
+    }
+    
+    // Estadísticas del periodo seleccionado
+    const [[{ totalResidentes }]] = await db.execute(
+      "SELECT COUNT(DISTINCT p.residente_id) AS totalResidentes FROM proyectos p WHERE p.periodo = ?",
+      [periodoSeleccionado]
+    );
+    const [[{ totalEmpresas }]] = await db.execute(
+      "SELECT COUNT(DISTINCT p.empresa_id) AS totalEmpresas FROM proyectos p WHERE p.periodo = ?",
+      [periodoSeleccionado]
+    );
+    const [[{ proyectosActivos }]] = await db.execute(
+      "SELECT COUNT(*) AS proyectosActivos FROM proyectos p WHERE p.periodo = ? AND p.estado IN ('desarrollo','revision')",
+      [periodoSeleccionado]
+    );
+    
+    // Empresas con residentes en este periodo
+    const [empresasPeriodo] = await db.execute(
+      `SELECT e.id, e.nombre, COUNT(DISTINCT p.residente_id) AS residentes
+       FROM empresas e
+       JOIN proyectos p ON p.empresa_id = e.id AND p.periodo = ?
+       GROUP BY e.id
+       ORDER BY residentes DESC`,
+      [periodoSeleccionado]
+    );
+    
+    // Alumnos por proyecto en este periodo
+    const [alumnosPorProyecto] = await db.execute(
+      `SELECT p.id, p.titulo, COUNT(DISTINCT p.residente_id) AS alumnos
+       FROM proyectos p
+       WHERE p.periodo = ?
+       GROUP BY p.id
+       ORDER BY alumnos DESC`,
+      [periodoSeleccionado]
+    );
+    
+    return res.json({
+      ok: true,
+      periodos,
+      periodoSeleccionado,
+      estadisticas: {
+        totalResidentes,
+        totalEmpresas,
+        proyectosActivos,
+      },
+      empresasPeriodo,
+      alumnosPorProyecto,
+    });
+  } catch (err) {
+    console.error("Error en GET /jefe/estadisticas-por-periodo:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ── GET /api/jefe/porcentaje-cumplimiento ───────────────────────────────────────
+// Obtiene el porcentaje de cumplimiento por empresas (para gráfico de pastel)
+router.get("/porcentaje-cumplimiento", auth, async (req, res) => {
+  try {
+    const { periodo } = req.query;
+    
+    // Calcular porcentaje de cumplimiento por empresa basado en reportes entregados
+    const [cumplimiento] = await db.execute(
+      `SELECT e.id, e.nombre,
+              COUNT(DISTINCT r.id) AS total_reportes,
+              SUM(CASE WHEN r.estado IN ('Entregado','En Revisión','Aprobado') THEN 1 ELSE 0 END) AS reportes_entregados,
+              ROUND(
+                SUM(CASE WHEN r.estado IN ('Entregado','En Revisión','Aprobado') THEN 1 ELSE 0 END) * 100.0 / 
+                NULLIF(COUNT(DISTINCT r.id), 0), 
+                2
+              ) AS porcentaje_cumplimiento
+       FROM empresas e
+       LEFT JOIN proyectos p ON p.empresa_id = e.id ${periodo ? 'AND p.periodo = ?' : ''}
+       LEFT JOIN residentes res ON p.residente_id = res.id
+       LEFT JOIN reportes r ON res.id = r.residente_id
+       WHERE e.id IN (SELECT DISTINCT empresa_id FROM proyectos ${periodo ? 'WHERE periodo = ?' : ''})
+       ${periodo ? 'GROUP BY e.id, e.nombre' : 'GROUP BY e.id, e.nombre'}
+       ORDER BY porcentaje_cumplimiento DESC`,
+      periodo ? [periodo, periodo] : []
+    );
+    
+    return res.json({ ok: true, cumplimiento });
+  } catch (err) {
+    console.error("Error en GET /jefe/porcentaje-cumplimiento:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
   }
 });
 

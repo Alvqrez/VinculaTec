@@ -21,6 +21,7 @@ export default function AsignacionJefe() {
     empresaId: "",
     empresaNombre: "",
     descripcion: "",
+    periodo: "",
   });
   // Multi-asesor: array de ids. El primero es el asesor principal (asignado a los residentes).
   const [asesorIds, setAsesorIds] = useState([]);
@@ -80,6 +81,7 @@ export default function AsignacionJefe() {
       proyectoNombre: proyecto.nombre,
       empresaId: proyecto.empresaId,
       descripcion: proyecto.descripcion,
+      periodo: proyecto.periodo,
       asesorIds, // array; el backend usa el primero como principal
       residentesIds,
     });
@@ -106,6 +108,7 @@ export default function AsignacionJefe() {
       empresaId: "",
       empresaNombre: "",
       descripcion: "",
+      periodo: "",
     });
     setAsesorIds([]);
     setResidentesIds([]);
@@ -230,6 +233,13 @@ export default function AsignacionJefe() {
             value={proyecto.nombre}
             onChangeText={(v) => setProyecto({ ...proyecto, nombre: v })}
             placeholder="Ej: Sistema de Gestión de Inventarios"
+          />
+
+          <Field
+            label="Periodo Escolar"
+            value={proyecto.periodo}
+            onChangeText={(v) => setProyecto({ ...proyecto, periodo: v })}
+            placeholder="Ej: 2025-1"
           />
 
           <Text
