@@ -49,8 +49,8 @@ CREATE TABLE IF NOT EXISTS asesores (
 
 -- ── Jefes de Vinculación ────────────────────────────────────
 CREATE TABLE IF NOT EXISTS jefes_vinculacion (
-  id          VARCHAR(50) PRIMARY KEY,
-  usuario_id  VARCHAR(50) NOT NULL UNIQUE,
+  id           VARCHAR(50) PRIMARY KEY,
+  usuario_id   VARCHAR(50) NOT NULL UNIQUE,
   departamento VARCHAR(100),
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -63,45 +63,43 @@ CREATE TABLE IF NOT EXISTS residentes (
   carrera           VARCHAR(100),
   semestre          INT,
   empresa_id        VARCHAR(50),
-  asesor_id         VARCHAR(50),             -- UN SOLO asesor por residente
-  horas_completadas INT          DEFAULT 0,
-  horas_requeridas  INT          DEFAULT 480,
+  asesor_id         VARCHAR(50),
+  horas_completadas INT         DEFAULT 0,
+  horas_requeridas  INT         DEFAULT 480,
   fecha_inicio      DATE,
   fecha_fin         DATE,
   estado            ENUM('activo','completado','baja') DEFAULT 'activo',
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-  FOREIGN KEY (empresa_id) REFERENCES empresas(id) ON DELETE SET NULL,
-  FOREIGN KEY (asesor_id)  REFERENCES asesores(id) ON DELETE SET NULL,
-  INDEX idx_estado (estado),
-  INDEX idx_asesor (asesor_id),
+  FOREIGN KEY (usuario_id)  REFERENCES usuarios(id)  ON DELETE CASCADE,
+  FOREIGN KEY (empresa_id)  REFERENCES empresas(id)  ON DELETE SET NULL,
+  FOREIGN KEY (asesor_id)   REFERENCES asesores(id)  ON DELETE SET NULL,
+  INDEX idx_estado  (estado),
+  INDEX idx_asesor  (asesor_id),
   INDEX idx_empresa (empresa_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Proyectos ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS proyectos (
-  id                VARCHAR(50) PRIMARY KEY,
-  titulo            VARCHAR(200) NOT NULL,
-  descripcion       TEXT,
-  empresa_id        VARCHAR(50),
-  residente_id      VARCHAR(50),
-  asesor_id         VARCHAR(50),             -- asesor principal (referencia rápida)
-  periodo           VARCHAR(50),             -- periodo escolar (ej: "2025-1", "2025-2")
-  estado            ENUM('propuesto','desarrollo','revision','concluido') DEFAULT 'propuesto',
-  prioridad         ENUM('Alta','Media','Baja') DEFAULT 'Media',
-  tecnologias       VARCHAR(255),
-  progreso          DECIMAL(5,2) DEFAULT 0,
-  solicitud_avance  BOOLEAN DEFAULT FALSE,
-  created_at        TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  id               VARCHAR(50) PRIMARY KEY,
+  titulo           VARCHAR(200) NOT NULL,
+  descripcion      TEXT,
+  empresa_id       VARCHAR(50),
+  residente_id     VARCHAR(50),
+  asesor_id        VARCHAR(50),
+  periodo          VARCHAR(50),            -- ej: "2025-1", "2025-2"
+  estado           ENUM('propuesto','desarrollo','revision','concluido') DEFAULT 'propuesto',
+  prioridad        ENUM('Alta','Media','Baja') DEFAULT 'Media',
+  tecnologias      VARCHAR(255),
+  progreso         DECIMAL(5,2) DEFAULT 0,
+  solicitud_avance BOOLEAN      DEFAULT FALSE,
+  created_at       TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (empresa_id)   REFERENCES empresas(id)   ON DELETE SET NULL,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE SET NULL,
   FOREIGN KEY (asesor_id)    REFERENCES asesores(id)   ON DELETE SET NULL,
   INDEX idx_estado_prioridad (estado, prioridad),
-  INDEX idx_periodo (periodo)
+  INDEX idx_periodo           (periodo)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Proyecto-Asesores (múltiples asesores por proyecto) ──────
--- Un proyecto puede tener varios asesores; cada residente sigue
--- teniendo un único asesor (residentes.asesor_id).
 CREATE TABLE IF NOT EXISTS proyecto_asesores (
   proyecto_id  VARCHAR(50) NOT NULL,
   asesor_id    VARCHAR(50) NOT NULL,
@@ -111,98 +109,84 @@ CREATE TABLE IF NOT EXISTS proyecto_asesores (
   INDEX idx_asesor (asesor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Agregado: ALTER TABLE para agregar el campo periodo si la tabla ya existe
--- Por qué: Para compatibilidad con bases de datos existentes que no tienen este campo
--- Para qué: Evitar errores al ejecutar el schema en bases de datos ya creadas sin perder datos
-ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS periodo VARCHAR(50) AFTER asesor_id;
-ALTER TABLE proyectos ADD INDEX IF NOT EXISTS idx_periodo (periodo);
-
 -- ── Reportes ────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS reportes (
-  id            VARCHAR(50) PRIMARY KEY,
-  residente_id  VARCHAR(50) NOT NULL,
-  tipo          ENUM('preliminar','parcial1','parcial2','parcial3','final') NOT NULL,
-  fecha_limite  DATE,
-  fecha_entrega DATE,
-  estado        ENUM('Pendiente','Entregado','En Revisión','Aprobado','Rechazado') DEFAULT 'Pendiente',
-  calificacion  DECIMAL(5,2),
-  feedback      TEXT,
-  archivo_url   VARCHAR(500),
-  nombre_archivo VARCHAR(255),  -- Agregado: nombre del archivo enviado por el residente (ej: "reporte_preliminar.pdf")
-  revisado_por  VARCHAR(50),
-  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  id             VARCHAR(50) PRIMARY KEY,
+  residente_id   VARCHAR(50) NOT NULL,
+  tipo           ENUM('preliminar','parcial1','parcial2','parcial3','final') NOT NULL,
+  fecha_limite   DATE,
+  fecha_entrega  DATE,
+  estado         ENUM('Pendiente','Entregado','En Revisión','Aprobado','Rechazado') DEFAULT 'Pendiente',
+  calificacion   DECIMAL(5,2),
+  feedback       TEXT,
+  archivo_url    VARCHAR(500),
+  nombre_archivo VARCHAR(255),             -- nombre del archivo enviado (ej: "reporte_preliminar.pdf")
+  revisado_por   VARCHAR(50),
+  created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE CASCADE,
-  FOREIGN KEY (revisado_por) REFERENCES usuarios(id) ON DELETE SET NULL,
-  INDEX idx_tipo (tipo),
-  INDEX idx_estado (estado),
-  INDEX idx_residente (residente_id)
+  FOREIGN KEY (revisado_por) REFERENCES usuarios(id)   ON DELETE SET NULL,
+  INDEX idx_tipo       (tipo),
+  INDEX idx_estado     (estado),
+  INDEX idx_residente  (residente_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Agregado: ALTER TABLE para agregar el campo nombre_archivo si la tabla ya existe
--- Por qué: Para compatibilidad con bases de datos existentes que no tienen este campo
--- Para qué: Evitar errores al ejecutar el schema en bases de datos ya creadas sin perder datos
-ALTER TABLE reportes ADD COLUMN IF NOT EXISTS nombre_archivo VARCHAR(255) AFTER archivo_url;
-
--- Agregado: ALTER TABLE para agregar el campo periodo si la tabla proyectos ya existe
--- Por qué: Sincronización con cambios realizados en otras instancias de la BD
--- Para qué: Permitir filtrar y organizar proyectos por período académico
-ALTER TABLE proyectos ADD COLUMN IF NOT EXISTS periodo VARCHAR(50) AFTER asesor_id;
-ALTER TABLE proyectos ADD INDEX IF NOT EXISTS idx_periodo (periodo);
-
 -- ── Notificaciones ──────────────────────────────────────────
+-- FIX: id cambiado a INT AUTO_INCREMENT porque los INSERTs usan result.insertId
+--      (antes era VARCHAR(50) sin DEFAULT, lo que causaba error al insertar sin proveer id)
 CREATE TABLE IF NOT EXISTS notificaciones (
-  id          VARCHAR(50) PRIMARY KEY,
+  id          INT AUTO_INCREMENT PRIMARY KEY,
   usuario_id  VARCHAR(50) NOT NULL,
   tipo        ENUM('Reporte','Aprobación','Cita','Alerta','Mensaje','Logro') NOT NULL,
   titulo      VARCHAR(200) NOT NULL,
   cuerpo      TEXT,
-  leida       BOOLEAN      DEFAULT FALSE,
-  icono       VARCHAR(50)  DEFAULT 'bell',
+  leida       BOOLEAN     DEFAULT FALSE,
+  icono       VARCHAR(50) DEFAULT 'bell',
   url_accion  VARCHAR(300),
-  created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  created_at  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
   INDEX idx_usuario_leida (usuario_id, leida)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Citas / Calendario ──────────────────────────────────────
+-- FIX: id cambiado a INT AUTO_INCREMENT porque los INSERTs usan result.insertId
+--      (antes era VARCHAR(50) sin DEFAULT, lo que causaba error al insertar sin proveer id)
 CREATE TABLE IF NOT EXISTS citas (
-  id              VARCHAR(50) PRIMARY KEY,
+  id              INT AUTO_INCREMENT PRIMARY KEY,
   solicitante_id  VARCHAR(50) NOT NULL,
   participante_id VARCHAR(50) NOT NULL,
   tipo            ENUM('Asesoría','Revisión','Evaluación','Entrega','Otro') DEFAULT 'Asesoría',
   motivo          VARCHAR(200),
   notas           TEXT,
-  fecha_hora      DATETIME     NOT NULL,
+  fecha_hora      DATETIME    NOT NULL,
   lugar           VARCHAR(150),
   estado          ENUM('Pendiente','Confirmada','Cancelada') DEFAULT 'Pendiente',
   external_id     VARCHAR(100),
-  created_at      TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  created_at      TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (solicitante_id)  REFERENCES usuarios(id) ON DELETE CASCADE,
   FOREIGN KEY (participante_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-  INDEX idx_fecha (fecha_hora),
-  INDEX idx_estado (estado),
-  INDEX idx_solicitante (solicitante_id),
+  INDEX idx_fecha        (fecha_hora),
+  INDEX idx_estado       (estado),
+  INDEX idx_solicitante  (solicitante_id),
   INDEX idx_participante (participante_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Fuentes de Información ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS fuentes_informacion (
-  id              VARCHAR(50) PRIMARY KEY,
-  residente_id    VARCHAR(50) NOT NULL,
-  tipo            ENUM('propia','banco','empresa') NOT NULL,
-  descripcion     VARCHAR(300),
-  estado          ENUM('Pendiente','Validada','Rechazada') DEFAULT 'Pendiente',
-  revisado_por    VARCHAR(50),
-  fecha_revision  DATE,
-  observaciones   TEXT,
+  id             VARCHAR(50) PRIMARY KEY,
+  residente_id   VARCHAR(50) NOT NULL,
+  tipo           ENUM('propia','banco','empresa') NOT NULL,
+  descripcion    VARCHAR(300),
+  estado         ENUM('Pendiente','Validada','Rechazada') DEFAULT 'Pendiente',
+  revisado_por   VARCHAR(50),
+  fecha_revision DATE,
+  observaciones  TEXT,
   FOREIGN KEY (residente_id) REFERENCES residentes(id) ON DELETE CASCADE,
-  FOREIGN KEY (revisado_por) REFERENCES usuarios(id) ON DELETE SET NULL,
-  INDEX idx_tipo (tipo),
+  FOREIGN KEY (revisado_por) REFERENCES usuarios(id)   ON DELETE SET NULL,
+  INDEX idx_tipo   (tipo),
   INDEX idx_estado (estado)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Fotos de Perfil ─────────────────────────────────────────
--- Almacenadas en BD (base64) para acceso cross-device.
 CREATE TABLE IF NOT EXISTS fotos_perfil (
   usuario_id  VARCHAR(50) PRIMARY KEY,
   foto_base64 MEDIUMTEXT,

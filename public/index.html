@@ -8,18 +8,40 @@
       content="width=device-width, initial-scale=1, shrink-to-fit=no"
     />
     <title>%WEB_TITLE%</title>
-    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+
+    <!--
+      FIX FUENTE: Carga Sora desde Google Fonts con todos los pesos.
+      Esto permite que fontWeight: "700" en React Native Web muestre
+      correctamente Sora Bold en lugar de caer en la fuente del sistema.
+      @expo-google-fonts/sora registra cada peso como una familia separada
+      (Sora_700Bold, etc.), pero el navegador no puede mapear fontWeight
+      automáticamente entre familias distintas. Con esta declaración CSS,
+      todos los pesos quedan bajo la misma familia "Sora" y fontWeight
+      funciona como se espera.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
     <style id="expo-reset">
-      /* These styles make the body full-height */
+      /* Fuente global Sora para toda la app web */
+      html,
+      body,
+      #root,
+      * {
+        font-family: "Sora", sans-serif;
+      }
+      /* Altura completa requerida por React Native Web */
       html,
       body {
         height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
       body {
         overflow: hidden;
       }
-      /* These styles make the root element full-height */
       #root {
         display: flex;
         height: 100%;
@@ -29,9 +51,7 @@
   </head>
 
   <body>
-    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
     <noscript> You need to enable JavaScript to run this app. </noscript>
-    <!-- The root element for your Expo app. -->
     <div id="root"></div>
   </body>
 </html>
