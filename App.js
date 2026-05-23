@@ -116,7 +116,7 @@ export default function App() {
         <FotosProvider>
           <ProyectosProvider>
             <ReportesProvider>
-              <NotificacionesProvider initialUnread={4}>
+              <NotificacionesProvider initialUnread={0}>
                 {screen === "login" || !usuario ? (
                   <LoginScreen
                     onLogin={handleLogin}

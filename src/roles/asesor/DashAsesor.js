@@ -534,8 +534,6 @@ export default function DashAsesor({ onNavigate }) {
           icon="users"
           iconBg={C.tealLight}
           iconColor={C.teal}
-          trend="+2"
-          trendUp
         />
         <StatCard
           label="Reportes Pendientes"
@@ -552,13 +550,11 @@ export default function DashAsesor({ onNavigate }) {
           icon="trending-up"
           iconBg={C.greenLight}
           iconColor={C.green}
-          trend="+3%"
-          trendUp
         />
         <StatCard
           label="Próx. Reuniones"
           value={String(proximasReuniones.length)}
-          sub="Próximos 5 días"
+          sub={proximasReuniones.length > 0 ? `${proximasReuniones.length} próxima(s)` : "Sin reuniones"}
           icon="calendar"
           iconBg={C.blueLight}
           iconColor={C.blue}

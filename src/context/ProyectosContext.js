@@ -10,27 +10,7 @@ const ProyectosCtx = createContext(null);
 // "Por corregir"— rechazado, requiere reenvío con correcciones
 // ─────────────────────────────────────────────────────────────────────────────
 
-const INITIAL_PROPOSED = [
-  {
-    id: "prop1",
-    title: "Sistema de Control de Inventarios",
-    company: "Distribuidora Nacional",
-    priority: "Alta",
-    residentesRequeridos: 2,
-    residentesAsignados: [
-      { nombre: "María Torres", iniciales: "MT", rol: "Backend Developer" },
-    ],
-    residentesFaltantes: 1,
-    habilidadesRequeridas: ["Java", "Spring Boot", "MySQL"],
-    rolRequerido: "Frontend Developer con experiencia en React",
-    descripcionAvance:
-      "Se tiene el diseño de la base de datos y los wireframes del sistema.",
-    asesor: "Dr. Martínez",
-    asesorId: "asesor1",
-    fechaPropuesta: "2026-05-10",
-    status: "Pendiente",
-  },
-];
+const INITIAL_PROPOSED = []; // Las propuestas se cargan desde la BD
 
 export function ProyectosProvider({ children }) {
   const [proyectos, setProyectos] = useState([]);
@@ -160,8 +140,8 @@ export function ProyectosProvider({ children }) {
    */
   const submitReporteFromResidente = (
     fase,
-    residenteNombre = "Carlos Ramírez",
-    proyectoId = "p1",
+    residenteNombre = "",
+    proyectoId = null,
   ) => {
     const today = new Date().toISOString().split("T")[0];
 

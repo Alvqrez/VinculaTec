@@ -1,32 +1,75 @@
-import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { useEffect, useState, useCallback } from "react";
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../../constants/colors";
 import { Row, Card, StatCard, Badge, SectionTitle } from "../../components";
 import apiClient from "../../utils/apiClient";
 
 const STATUS_STYLE = {
-  Activa:      { color: C.green, bg: C.greenLight },
-  "Por Vencer":{ color: C.amber, bg: C.amberLight },
-  Nueva:       { color: C.blue,  bg: C.blueLight  },
-  Inactiva:    { color: C.red,   bg: C.redLight    },
+  Activa:       { color: C.green, bg: C.greenLight },
+  "Por Vencer": { color: C.amber, bg: C.amberLight },
+  Nueva:        { color: C.blue,  bg: C.blueLight  },
+  Inactiva:     { color: C.red,   bg: C.redLight    },
 };
 
 export default function DashJefe({ onNavigate }) {
-  const [stats, setStats] = useState({ totalResidentes: 0, empresasVinculadas: 0, proyectosActivos: 0, reportesPendientes: 0 });
+  // ── Datos generales (sin filtro de período) ────────────────────────────────
+  const [stats, setStats]           = useState({ totalResidentes: 0, empresasVinculadas: 0, proyectosActivos: 0, reportesPendientes: 0 });
   const [topEmpresas, setTopEmpresas] = useState([]);
-  const [periodoSeleccionado, setPeriodoSeleccionado] = useState("Todos");
-  
-  const PERIODOS = ["Todos", "Ene-Jun 2026", "Ago-Dic 2026", "Ene-Jun 2027", "Ago-Dic 2027"];
 
+  // ── Períodos dinámicos desde la BD ────────────────────────────────────────
+  const [periodos, setPeriodos]               = useState([]);          // ej. ["2025-1","2025-2","2026-1"]
+  const [periodoSeleccionado, setPeriodo]     = useState("Todos");
+  const [statsPeriodo, setStatsPeriodo]       = useState(null);        // stats del período elegido
+  const [loadingPeriodo, setLoadingPeriodo]   = useState(false);
+
+  // ── Carga inicial: stats globales + lista de períodos ─────────────────────
   useEffect(() => {
+    // Stats generales
     apiClient.get("/api/jefe/dashboard").then((res) => {
       if (res.ok && res.body?.ok) {
         setStats(res.body.stats);
         setTopEmpresas(res.body.topEmpresas || []);
       }
     });
+
+    // Períodos disponibles en la BD
+    apiClient.get("/api/jefe/estadisticas-por-periodo").then((res) => {
+      if (res.ok && res.body?.ok) {
+        const lista = (res.body.periodos || []).map((p) => p.periodo).filter(Boolean);
+        setPeriodos(lista);
+      }
+    });
   }, []);
+
+  // ── Cada vez que cambia el período, pedir stats filtradas ─────────────────
+  const cargarStatsPeriodo = useCallback(async (periodo) => {
+    if (periodo === "Todos") {
+      setStatsPeriodo(null);
+      return;
+    }
+    setLoadingPeriodo(true);
+    const res = await apiClient.get(`/api/jefe/estadisticas-por-periodo?periodo=${encodeURIComponent(periodo)}`);
+    if (res.ok && res.body?.ok) {
+      setStatsPeriodo(res.body.estadisticas);
+    }
+    setLoadingPeriodo(false);
+  }, []);
+
+  const handlePeriodo = (p) => {
+    setPeriodo(p);
+    cargarStatsPeriodo(p);
+  };
+
+  // Stats que se muestran: período filtrado si hay selección, globales si "Todos"
+  const statsActuales = periodoSeleccionado !== "Todos" && statsPeriodo
+    ? {
+        totalResidentes:  statsPeriodo.totalResidentes  ?? stats.totalResidentes,
+        empresasVinculadas: statsPeriodo.totalEmpresas  ?? stats.empresasVinculadas,
+        proyectosActivos: statsPeriodo.proyectosActivos ?? stats.proyectosActivos,
+        reportesPendientes: stats.reportesPendientes,   // siempre global (sin filtro por período)
+      }
+    : stats;
 
   const alertas = [
     {
@@ -53,40 +96,59 @@ export default function DashJefe({ onNavigate }) {
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24 }}>
       <SectionTitle title="Dashboard — Departamento de Sistemas" />
 
-      {/* Filtro por periodo */}
+      {/* Filtro por período — botones generados desde la BD */}
       <Row style={{ gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
-        {PERIODOS.map((periodo) => (
+        {/* Botón "Todos" siempre visible */}
+        <TouchableOpacity
+          onPress={() => handlePeriodo("Todos")}
+          style={{
+            paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
+            borderColor: periodoSeleccionado === "Todos" ? C.teal : C.border,
+            backgroundColor: periodoSeleccionado === "Todos" ? C.tealLight : C.card,
+          }}
+        >
+          <Text style={{ fontSize: 12, fontWeight: "600", color: periodoSeleccionado === "Todos" ? C.teal : C.textMuted }}>
+            Todos
+          </Text>
+        </TouchableOpacity>
+
+        {/* Períodos reales de la BD */}
+        {periodos.map((periodo) => (
           <TouchableOpacity
             key={periodo}
-            onPress={() => setPeriodoSeleccionado(periodo)}
+            onPress={() => handlePeriodo(periodo)}
             style={{
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderRadius: 20,
-              borderWidth: 1,
+              paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
               borderColor: periodoSeleccionado === periodo ? C.teal : C.border,
               backgroundColor: periodoSeleccionado === periodo ? C.tealLight : C.card,
             }}
           >
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: "600",
-                color: periodoSeleccionado === periodo ? C.teal : C.textMuted,
-              }}
-            >
+            <Text style={{ fontSize: 12, fontWeight: "600", color: periodoSeleccionado === periodo ? C.teal : C.textMuted }}>
               {periodo}
             </Text>
           </TouchableOpacity>
         ))}
+
+        {/* Si no hay períodos registrados aún */}
+        {periodos.length === 0 && (
+          <Text style={{ fontSize: 12, color: C.textMuted, alignSelf: "center" }}>
+            Sin períodos registrados
+          </Text>
+        )}
       </Row>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
-        <StatCard label="Residentes Totales"  value={String(stats.totalResidentes)}    icon="users"        iconBg={C.tealLight}   iconColor={C.teal}   />
-        <StatCard label="Empresas Vinculadas" value={String(stats.empresasVinculadas)} icon="briefcase"    iconBg={C.blueLight}   iconColor={C.blue}   />
-        <StatCard label="Proyectos Activos"   value={String(stats.proyectosActivos)}   icon="folder"       iconBg={C.purpleLight} iconColor={C.purple} />
-        <StatCard label="Reportes Pendientes" value={String(stats.reportesPendientes)} icon="alert-circle" iconBg={C.redLight}    iconColor={C.red}    />
+        {loadingPeriodo ? (
+          <ActivityIndicator color={C.teal} style={{ marginVertical: 10 }} />
+        ) : (
+          <>
+            <StatCard label="Residentes Totales"  value={String(statsActuales.totalResidentes)}    icon="users"        iconBg={C.tealLight}   iconColor={C.teal}   />
+            <StatCard label="Empresas Vinculadas" value={String(statsActuales.empresasVinculadas)} icon="briefcase"    iconBg={C.blueLight}   iconColor={C.blue}   />
+            <StatCard label="Proyectos Activos"   value={String(statsActuales.proyectosActivos)}   icon="folder"       iconBg={C.purpleLight} iconColor={C.purple} />
+            <StatCard label="Reportes Pendientes" value={String(stats.reportesPendientes)}         icon="alert-circle" iconBg={C.redLight}    iconColor={C.red}    />
+          </>
+        )}
       </Row>
 
       {/* Empresas Más Activas */}

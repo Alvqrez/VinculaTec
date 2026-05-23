@@ -1,48 +1,37 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Alert, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import C from "../constants/colors";
 import { Row, Card, ProgressBar, Badge } from "../components";
 import { useReportes } from "../context/ReportesContext";
+import apiClient from "../utils/apiClient";
 
-const CHECKLIST = [
-  { label: "Portada e identificación", done: true },
-  { label: "Índice de contenidos", done: true },
-  { label: "Resumen ejecutivo", done: true },
-  { label: "Introducción y justificación", done: true },
-  { label: "Marco teórico", done: true },
-  { label: "Descripción del problema", done: false },
-  { label: "Objetivos específicos", done: false },
-  { label: "Metodología aplicada", done: false },
-  { label: "Resultados obtenidos", done: false },
-  { label: "Análisis y discusión", done: false },
-  { label: "Conclusiones", done: false },
-  { label: "Bibliografía y anexos", done: false },
+// Secciones requeridas del reporte final (template fijo — no son datos de BD)
+const CHECKLIST_LABELS = [
+  "Portada e identificación",
+  "Índice de contenidos",
+  "Resumen ejecutivo",
+  "Introducción y justificación",
+  "Marco teórico",
+  "Descripción del problema",
+  "Objetivos específicos",
+  "Metodología aplicada",
+  "Resultados obtenidos",
+  "Análisis y discusión",
+  "Conclusiones",
+  "Bibliografía y anexos",
 ];
 
-const TIMELINE = [
-  { label: "Inicio de residencia", date: "01 Ago 2024", done: true },
-  { label: "Reporte Parcial 1", date: "15 Oct 2024", done: true },
-  { label: "Reporte Parcial 2", date: "12 Nov 2024", done: true },
-  {
-    label: "Reporte Parcial 3",
-    date: "05 Dic 2024",
-    done: false,
-    current: true,
-  },
-  { label: "Reporte Final", date: "20 Ene 2025", done: false },
-  { label: "Presentación oral", date: "31 Ene 2025", done: false },
+// Ponderación de rúbrica (criterios institucionales — no cambian por alumno)
+const RUBRIC_TEMPLATE = [
+  { label: "Contenido técnico",    pct: 0.40 },
+  { label: "Redacción y estilo",   pct: 0.20 },
+  { label: "Evidencias y anexos",  pct: 0.20 },
+  { label: "Formato y presentación", pct: 0.10 },
+  { label: "Originalidad",         pct: 0.10 },
 ];
 
-const RUBRIC = [
-  { label: "Contenido técnico", max: 40, earned: 17 },
-  { label: "Redacción y estilo", max: 20, earned: 8 },
-  { label: "Evidencias y anexos", max: 20, earned: 0 },
-  { label: "Formato y presentación", max: 10, earned: 4 },
-  { label: "Originalidad", max: 10, earned: 0 },
-];
-
-export default function ReporteFinal() {
+export default function ReporteFinal({ usuario }) {
   const {
     finalDesbloqueado,
     todosParcialesAprobados,
@@ -54,11 +43,73 @@ export default function ReporteFinal() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitted, setSubmitted] = useState(false);
 
+  // ── Datos reales del residente / asesor / proyecto ─────────────────────
+  const [asesor,   setAsesor]   = useState(null);
+  const [proyecto, setProyecto] = useState(null);
+
+  useEffect(() => {
+    apiClient.get("/api/residente/asesor").then((res) => {
+      if (res.ok && res.body?.ok) setAsesor(res.body.asesor);
+    });
+    apiClient.get("/api/residente/proyecto").then((res) => {
+      if (res.ok && res.body?.ok) setProyecto(res.body.proyecto);
+    });
+  }, []);
+
+  // ── Datos del reporte final ────────────────────────────────────────────
+  const finalReport = reports?.find((r) => r.id === "final");
+  const fechaLimite = finalReport?.fecha_limite
+    ? new Date(finalReport.fecha_limite).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })
+    : null;
+
+  // ── CHECKLIST: todas las secciones "done" si el reporte fue aceptado ───
+  const finalAceptado = finalReport?.status === "Aceptado";
+  const CHECKLIST = CHECKLIST_LABELS.map((label) => ({ label, done: finalAceptado }));
   const doneCount = CHECKLIST.filter((i) => i.done).length;
   const pct = Math.round((doneCount / CHECKLIST.length) * 100);
 
-  const totalEarned = RUBRIC.reduce((s, r) => s + r.earned, 0);
-  const totalMax = RUBRIC.reduce((s, r) => s + r.max, 0);
+  // ── TIMELINE: derivado de las fechas reales de los reportes ────────────
+  const parciales = reports?.filter((r) => typeof r.id === "number") ?? [];
+  const TIMELINE = [
+    ...(proyecto?.fecha_inicio
+      ? [{ label: "Inicio de residencia", date: new Date(proyecto.fecha_inicio).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" }), done: true }]
+      : []),
+    ...parciales.map((p, i) => ({
+      label: `Reporte Parcial ${i + 1}`,
+      date: p.submitted
+        ? new Date(p.submitted).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })
+        : "Pendiente",
+      done: p.status === "Aceptado",
+      current: p.status === "Pendiente" && p.submitted,
+    })),
+    {
+      label: "Reporte Final",
+      date: fechaLimite || "Por definir",
+      done: finalReport?.status === "Aceptado",
+      current: finalReport?.status === "Pendiente" && finalReport?.submitted,
+    },
+  ];
+
+  // ── RÚBRICA: distribuye la calificación real según los pesos ───────────
+  const calificacion = finalReport?.calificacion ?? null;
+  const RUBRIC = RUBRIC_TEMPLATE.map((r) => ({
+    label: r.label,
+    max: Math.round(r.pct * 100),
+    earned: calificacion !== null ? Math.round(r.pct * calificacion) : 0,
+  }));
+  const totalEarned = calificacion ?? 0;
+  const totalMax    = 100;
+
+  // ── Nombre del residente e iniciales ──────────────────────────────────
+  const nombreResidente = usuario
+    ? `${usuario.nombre} ${usuario.apellidos}`
+    : "—";
+  const inicialesResidente = usuario
+    ? `${(usuario.nombre || "")[0]}${(usuario.apellidos || "")[0]}`.toUpperCase()
+    : "?";
+
+  // ── Nombre del asesor ─────────────────────────────────────────────────
+  const nombreAsesor = asesor?.nombre ?? "—";
 
   // ── Lock screen ──────────────────────────────────────────────────────────
   if (!finalDesbloqueado) {
@@ -274,7 +325,7 @@ export default function ReporteFinal() {
                 marginBottom: 4,
               }}
             >
-              Sistema de Gestión de Inventarios
+              {proyecto?.titulo ?? "Reporte Final de Residencia"}
             </Text>
             <Text
               style={{
@@ -283,7 +334,7 @@ export default function ReporteFinal() {
                 marginBottom: 14,
               }}
             >
-              AutoParts Globales S.A. de C.V.
+              {proyecto?.empresa?.nombre ?? ""}
             </Text>
 
             {/* Student info */}
@@ -302,7 +353,7 @@ export default function ReporteFinal() {
                   <Text
                     style={{ fontSize: 10, color: "white", fontWeight: "800" }}
                   >
-                    C.R
+                    {inicialesResidente}
                   </Text>
                 </View>
                 <Text
@@ -312,13 +363,13 @@ export default function ReporteFinal() {
                     fontWeight: "600",
                   }}
                 >
-                  Carlos Ramírez
+                  {nombreResidente}
                 </Text>
               </Row>
               <Row style={{ alignItems: "center", gap: 5 }}>
                 <Feather name="user" size={11} color="rgba(255,255,255,0.5)" />
                 <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>
-                  Dr. Martínez
+                  {nombreAsesor}
                 </Text>
               </Row>
             </Row>
@@ -333,7 +384,7 @@ export default function ReporteFinal() {
               <Text style={{ fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
                 Fecha límite:{" "}
                 <Text style={{ color: C.amber, fontWeight: "700" }}>
-                  20 Enero 2025
+                  {fechaLimite ?? "Por definir"}
                 </Text>
               </Text>
             </Row>

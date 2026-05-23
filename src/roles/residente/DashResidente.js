@@ -13,8 +13,6 @@ import {
 import { useReportes } from "../../context/ReportesContext";
 import apiClient from "../../utils/apiClient";
 
-// Fecha de fin de residencia (demo — en producción vendría del contexto del usuario)
-const FECHA_FIN_RESIDENCIA = new Date("2026-06-15");
 
 export default function DashResidente({ onNavigate }) {
   const { reports } = useReportes() || {};

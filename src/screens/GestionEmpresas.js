@@ -9,7 +9,6 @@ const STATUS_STYLE  = { Activa:{color:C.green,bg:C.greenLight}, "Por Vencer":{co
 const SECTOR_ICON   = { Tecnología:"cpu", Manufactura:"tool", Software:"code", Construcción:"home", Farmacéutica:"activity", Automotriz:"truck", Educación:"book-open" };
 const SECTORES      = ["Todos","Tecnología","Manufactura","Software","Construcción","Farmacéutica","Automotriz","Educación"];
 const ESTADOS       = ["Todos","Activa","Por Vencer","Nueva","Inactiva"];
-const CIUDADES      = ["Todas","CDMX","Monterrey","Guadalajara","Puebla","Saltillo"];
 
 const EMPTY_FORM = { name:"", sector:"Tecnología", ciudad:"", convenio:"", contactoNombre:"", contactoEmail:"", contactoTel:"", status:"Nueva" };
 
@@ -40,6 +39,9 @@ export default function GestionEmpresas() {
       setLoading(false);
     });
   }, []);
+
+// Ciudades únicas derivadas de las empresas cargadas
+  const CIUDADES = ["Todas", ...Array.from(new Set(companies.map((c) => c.ciudad).filter(Boolean))).sort()];
 
 // Aplicar filtros + búsqueda
   const filtered = companies.filter((c) => {

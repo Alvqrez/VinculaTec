@@ -75,7 +75,7 @@ export default function ResidenteApp({ usuario, onLogout }) {
     seguimiento: <Seguimiento />,
     "reporte-preliminar": <ReportePreliminar />,
     "reportes-parciales": <ReportesParciales />,
-    "reporte-final": <ReporteFinal />,
+    "reporte-final": <ReporteFinal usuario={usuario} />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
     calendario: <CalendarioCitas />,
     utilerias: (
