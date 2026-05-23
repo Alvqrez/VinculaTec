@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { Feather } from "@expo/vector-icons";
+import { PieChart } from "react-native-chart-kit";
 import C from "../../constants/colors";
 import { Row, Card, StatCard, Badge, SectionTitle } from "../../components";
 import apiClient from "../../utils/apiClient";
@@ -15,6 +16,10 @@ const STATUS_STYLE = {
 export default function DashJefe({ onNavigate }) {
   // ── Datos generales (sin filtro de período) ────────────────────────────────
   const [stats, setStats]           = useState({ totalResidentes: 0, empresasVinculadas: 0, proyectosActivos: 0, reportesPendientes: 0 });
+  const [graficaReportes, setGraficaReportes] = useState({
+  entregados: 0,
+  pendientes: 0,
+});
   const [topEmpresas, setTopEmpresas] = useState([]);
 
   // ── Períodos dinámicos desde la BD ────────────────────────────────────────
@@ -33,6 +38,15 @@ export default function DashJefe({ onNavigate }) {
       }
     });
 
+
+        apiClient.get("/api/jefe/grafica-reportes").then((res) => {
+      if (res.ok && res.body?.ok) {
+        setGraficaReportes({
+          entregados: res.body.entregados,
+          pendientes: res.body.pendientes,
+        });
+      }
+    });
     // Períodos disponibles en la BD
     apiClient.get("/api/jefe/estadisticas-por-periodo").then((res) => {
       if (res.ok && res.body?.ok) {

@@ -433,4 +433,43 @@ router.get("/porcentaje-cumplimiento", ...soloJefe, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────
+// GRÁFICA DASHBOARD — REPORTES ENTREGADOS
+// ─────────────────────────────────────────────
+router.get("/grafica-reportes", async (_, res) => {
+  try {
+    // Residentes con al menos un reporte entregado
+    const [entregadosRows] = await db.query(`
+      SELECT COUNT(DISTINCT residente_id) AS total
+      FROM reportes
+      WHERE estado IN ('Entregado', 'En Revisión', 'Aprobado')
+    `);
+
+    // Total de residentes
+    const [residentesRows] = await db.query(`
+      SELECT COUNT(*) AS total
+      FROM residentes
+    `);
+
+    const entregados = entregadosRows[0]?.total || 0;
+    const totalResidentes = residentesRows[0]?.total || 0;
+
+    const pendientes = totalResidentes - entregados;
+
+    res.json({
+      ok: true,
+      entregados,
+      pendientes,
+      totalResidentes,
+    });
+  } catch (error) {
+    console.error("Error obteniendo gráfica:", error);
+
+    res.status(500).json({
+      ok: false,
+      message: "Error obteniendo datos de gráfica",
+    });
+  }
+});
+
 module.exports = router;
