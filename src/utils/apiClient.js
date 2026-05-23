@@ -2,7 +2,7 @@ import { getAuthToken } from "../context/AuthContext";
 import { API_BASE } from "../config/api";
 
 // Usar configuración centralizada
-const BASE_URL = API_BASE.replace('/api', '');
+const BASE_URL = API_BASE ? API_BASE.replace('/api', '') : null;
 
 const defaultHeaders = {
   "Content-Type": "application/json",
@@ -35,6 +35,14 @@ const createErrorPayload = ({ response, body }) => {
 };
 
 const request = async (endpoint, config = {}) => {
+  if (!BASE_URL) {
+    return {
+      ok: false,
+      status: 0,
+      error: new Error("API no configurada. Define REACT_APP_API_URL en .env.local"),
+      body: null,
+    };
+  }
   const url = endpoint.startsWith("http") ? endpoint : `${BASE_URL}${endpoint}`;
   const headers = buildHeaders(config.headers);
   const init = {
