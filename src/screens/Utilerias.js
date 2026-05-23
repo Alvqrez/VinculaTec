@@ -330,7 +330,7 @@ function ToggleCard({ isDark, toggleDark, TXT, TXTM, CARD, BORD }) {
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Utilerias({ usuario }) {
   const { isDark, toggleDark, colors: T } = useTheme();
-  const { fotoUsuario, actualizarFoto, eliminarFoto } = useFotos?.() || {};
+  const { getFoto, setFoto } = useFotos?.() || {};
 
   const [modalItem, setModalItem] = useState(null);
 
@@ -343,19 +343,47 @@ export default function Utilerias({ usuario }) {
     ? `${(usuario.nombre || "")[0] || ""}${(usuario.apellidos || "")[0] || ""}`.toUpperCase()
     : "??";
 
-  const fotoPerfil = fotoUsuario?.(usuario?.id);
+  const fotoPerfil = getFoto?.(usuario?.id);
+
+  // Redimensiona y comprime la imagen antes de guardarla.
+  // Sin esto, fotos de cámara (5-15 MB) superan el límite de 2 MB del backend.
+  const resizeAndCompress = (dataUrl) =>
+    new Promise((resolve) => {
+      const MAX_PX = 400; // máximo 400×400 px para foto de perfil
+      const QUALITY = 0.82; // calidad JPEG
+
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, MAX_PX / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+
+        const canvas = globalThis.document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", QUALITY));
+      };
+      img.src = dataUrl;
+    });
 
   const selectPhoto = () => {
     if (typeof globalThis.document === "undefined") return;
     const input = globalThis.document.createElement("input");
     input.type = "file";
     input.accept = "image/*";
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        actualizarFoto?.(usuario?.id, ev.target.result);
+      reader.onload = async (ev) => {
+        try {
+          const compressed = await resizeAndCompress(ev.target.result);
+          setFoto?.(usuario?.id, compressed);
+        } catch {
+          // Si falla la compresión (ej. entorno sin canvas), intenta con el original
+          setFoto?.(usuario?.id, ev.target.result);
+        }
       };
       reader.readAsDataURL(file);
     };
@@ -371,7 +399,7 @@ export default function Utilerias({ usuario }) {
         {
           text: "Eliminar",
           style: "destructive",
-          onPress: () => eliminarFoto?.(usuario?.id),
+          onPress: () => setFoto?.(usuario?.id, null),
         },
       ],
     );

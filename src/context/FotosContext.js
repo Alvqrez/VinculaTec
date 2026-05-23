@@ -3,19 +3,41 @@
  * Almacén centralizado de fotos de perfil.
  * Las fotos se guardan en la BD (base64) para que sean visibles
  * desde cualquier dispositivo (no solo el que las subió).
- * Usa apiClient para mantener la misma URL base que el resto de la app.
+ *
+ * CAMBIO: la foto del usuario activo se persiste en localStorage
+ * bajo la clave "vt_last_user_foto" para que LoginScreen la pueda
+ * mostrar sin necesidad de una petición autenticada al backend.
  */
 import { createContext, useContext, useState, useCallback } from "react";
 import apiClient from "../utils/apiClient";
 
 const FotosCtx = createContext(null);
 
+// ── helpers localStorage ──────────────────────────────────────────────────────
+const LS_KEY = "vt_last_user_foto";
+
+function lsSaveFoto(foto) {
+  try {
+    globalThis?.localStorage?.setItem(LS_KEY, foto ?? "");
+  } catch {
+    /* noop */
+  }
+}
+function lsClearFoto() {
+  try {
+    globalThis?.localStorage?.removeItem(LS_KEY);
+  } catch {
+    /* noop */
+  }
+}
+
 export function FotosProvider({ children }) {
   const [fotos, setFotos] = useState({});
 
   /**
    * Llamar desde cada *App.js al montar, pasando el id del usuario logueado.
-   * Carga la foto desde la BD y la guarda en el estado local.
+   * Carga la foto desde la BD, la guarda en estado local Y en localStorage
+   * para que LoginScreen la pueda mostrar en la siguiente visita.
    */
   const initUser = useCallback(async (userId) => {
     if (!userId) return;
@@ -23,6 +45,9 @@ export function FotosProvider({ children }) {
       const res = await apiClient.get(`/api/fotos/${userId}`);
       if (res.ok && res.body?.ok && res.body.foto) {
         setFotos((prev) => ({ ...prev, [String(userId)]: res.body.foto }));
+        lsSaveFoto(res.body.foto); // ← persiste para LoginScreen
+      } else {
+        lsClearFoto(); // ← sin foto → borra caché viejo
       }
     } catch (err) {
       console.error("FotosContext initUser error:", err);
@@ -47,6 +72,7 @@ export function FotosProvider({ children }) {
             delete n[key];
             return n;
           });
+          lsClearFoto(); // ← foto eliminada → limpia caché
         } else {
           console.error("setFoto delete error:", res.body?.mensaje);
         }
@@ -56,6 +82,7 @@ export function FotosProvider({ children }) {
         });
         if (res.ok && res.body?.ok) {
           setFotos((prev) => ({ ...prev, [key]: base64OrNull }));
+          lsSaveFoto(base64OrNull); // ← foto nueva → actualiza caché
         } else {
           console.error("setFoto error:", res.body?.mensaje);
         }
