@@ -9,14 +9,26 @@ function auth(req, res, next) {
   const a = req.headers.authorization;
   if (!a) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
-    req.usuario = jwt.verify(
-      a.split(" ")[1],
-      process.env.JWT_SECRET || "secreto",
-    );
+    // SEGURIDAD FIX #1: Eliminado el fallback || "secreto"
+    // Si JWT_SECRET no está definido, retornar error en lugar de usar un secreto predecible
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+    }
+    req.usuario = jwt.verify(a.split(" ")[1], process.env.JWT_SECRET);
     next();
   } catch {
     return res.status(401).json({ ok: false, mensaje: "Token inválido." });
   }
+}
+
+// SEGURIDAD FIX #3 (parcial): Middleware de verificación de rol
+function requireRol(...roles) {
+  return (req, res, next) => {
+    if (!roles.includes(req.usuario?.rol)) {
+      return res.status(403).json({ ok: false, mensaje: "No tienes permisos para realizar esta acción." });
+    }
+    next();
+  };
 }
 
 // Mapa frontend → ENUM de la BD
@@ -34,40 +46,29 @@ const TIPO_ENUM = {
 };
 
 // ── POST /api/reportes/submit ─────────────────────────────────────────────────
-// El residente envía (o reenvía) un reporte
-router.post("/submit", auth, async (req, res) => {
+// Solo residentes pueden enviar reportes
+router.post("/submit", auth, requireRol("residente"), async (req, res) => {
   const { tipo, nombreArchivo } = req.body;
   const userId = req.usuario.id;
 
   if (!tipo)
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "Falta el tipo de reporte." });
+    return res.status(400).json({ ok: false, mensaje: "Falta el tipo de reporte." });
 
   const tipoEnum = TIPO_ENUM[tipo];
   if (!tipoEnum)
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "Tipo de reporte no válido." });
+    return res.status(400).json({ ok: false, mensaje: "Tipo de reporte no válido." });
 
   try {
-    // Obtener el residente vinculado a este usuario
     const [resRows] = await db.execute(
       "SELECT id FROM residentes WHERE usuario_id = ?",
       [userId],
     );
     if (!resRows.length)
-      return res
-        .status(404)
-        .json({
-          ok: false,
-          mensaje: "No se encontró un residente para este usuario.",
-        });
+      return res.status(404).json({ ok: false, mensaje: "No se encontró un residente para este usuario." });
 
     const residenteId = resRows[0].id;
     const today = new Date().toISOString().split("T")[0];
 
-    // Verificar si ya existe un reporte de este tipo
     const [existing] = await db.execute(
       "SELECT id, estado FROM reportes WHERE residente_id = ? AND tipo = ?",
       [residenteId, tipoEnum],
@@ -75,55 +76,40 @@ router.post("/submit", auth, async (req, res) => {
 
     if (existing.length > 0) {
       const rep = existing[0];
-      // Si está "Rechazado" (Por corregir), se permite reenviar
       if (rep.estado === "Rechazado" || rep.estado === "Por corregir") {
         await db.execute(
           "UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo = ? WHERE id = ?",
           [today, nombreArchivo || null, rep.id],
         );
-        return res.json({
-          ok: true,
-          mensaje: "Reporte reenviado para revisión.",
-          reenvio: true,
-        });
+        return res.json({ ok: true, mensaje: "Reporte reenviado para revisión.", reenvio: true });
       }
-      // Si ya está en revisión o aprobado, no se puede duplicar
       return res.status(409).json({
         ok: false,
         mensaje: `Este reporte ya fue enviado (estado: ${rep.estado}).`,
       });
     }
 
-    // Crear nuevo registro de reporte
     await db.execute(
       `INSERT INTO reportes (residente_id, tipo, estado, fecha_entrega, archivo)
        VALUES (?, ?, 'En Revisión', ?, ?)`,
       [residenteId, tipoEnum, today, nombreArchivo || null],
     );
 
-    return res.json({
-      ok: true,
-      mensaje:
-        "Reporte enviado correctamente. El asesor recibirá una notificación.",
-    });
+    return res.json({ ok: true, mensaje: "Reporte enviado correctamente. El asesor recibirá una notificación." });
   } catch (err) {
     console.error("Error al guardar reporte:", err);
-    return res
-      .status(500)
-      .json({ ok: false, mensaje: "Error interno del servidor." });
+    return res.status(500).json({ ok: false, mensaje: "Error interno del servidor." });
   }
 });
 
 // ── DELETE /api/reportes/undo ─────────────────────────────────────────────────
-// Deshace el último envío (solo si el estado es "En Revisión" y fue hoy)
-router.delete("/undo", auth, async (req, res) => {
+// Solo residentes pueden deshacer su propio envío
+router.delete("/undo", auth, requireRol("residente"), async (req, res) => {
   const { tipo } = req.body;
   const userId = req.usuario.id;
 
   if (!tipo)
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "Falta el tipo de reporte." });
+    return res.status(400).json({ ok: false, mensaje: "Falta el tipo de reporte." });
 
   const tipoEnum = TIPO_ENUM[tipo];
   if (!tipoEnum)
@@ -135,14 +121,11 @@ router.delete("/undo", auth, async (req, res) => {
       [userId],
     );
     if (!resRows.length)
-      return res
-        .status(404)
-        .json({ ok: false, mensaje: "Residente no encontrado." });
+      return res.status(404).json({ ok: false, mensaje: "Residente no encontrado." });
 
     const residenteId = resRows[0].id;
     const today = new Date().toISOString().split("T")[0];
 
-    // Solo permite deshacer si fue enviado hoy y está "En Revisión"
     const [rows] = await db.execute(
       `SELECT id FROM reportes
        WHERE residente_id = ? AND tipo = ? AND estado = 'En Revisión'
@@ -151,10 +134,7 @@ router.delete("/undo", auth, async (req, res) => {
     );
 
     if (!rows.length)
-      return res.status(404).json({
-        ok: false,
-        mensaje: "No hay un envío reciente que pueda deshacerse.",
-      });
+      return res.status(404).json({ ok: false, mensaje: "No hay un envío reciente que pueda deshacerse." });
 
     await db.execute("DELETE FROM reportes WHERE id = ?", [rows[0].id]);
 
@@ -166,8 +146,8 @@ router.delete("/undo", auth, async (req, res) => {
 });
 
 // ── GET /api/reportes/residente ───────────────────────────────────────────────
-// El residente obtiene sus propios reportes
-router.get("/residente", auth, async (req, res) => {
+// Solo residentes pueden ver sus propios reportes
+router.get("/residente", auth, requireRol("residente"), async (req, res) => {
   const userId = req.usuario.id;
 
   try {
@@ -176,9 +156,7 @@ router.get("/residente", auth, async (req, res) => {
       [userId],
     );
     if (!resRows.length)
-      return res
-        .status(404)
-        .json({ ok: false, mensaje: "Residente no encontrado." });
+      return res.status(404).json({ ok: false, mensaje: "Residente no encontrado." });
 
     const residenteId = resRows[0].id;
 
@@ -190,7 +168,6 @@ router.get("/residente", auth, async (req, res) => {
       [residenteId],
     );
 
-    // Normalizar al formato que espera el frontend
     const ESTADO_MAP = {
       Aprobado: "Aceptado",
       "En Revisión": "Pendiente",

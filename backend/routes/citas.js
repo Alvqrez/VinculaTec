@@ -1,26 +1,10 @@
 const express = require("express");
-const jwt     = require("jsonwebtoken");
-const db      = require("../db");
+const db = require("../db");
+const { auth } = require("../middleware");
 
 const router = express.Router();
 
-// ── Middleware de autenticación ───────────────────────────────────────────────
-const auth = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
-  try {
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
-    }
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ ok: false, mensaje: "Token inválido." });
-  }
-};
-
 // ── POST /api/citas ───────────────────────────────────────────────────────────
-// Body: { participante_id?, tipo?, motivo?, notas?, fecha_hora, lugar? }
 router.post("/", auth, async (req, res) => {
   const { participante_id, tipo, motivo, notas, fecha_hora, lugar } = req.body;
 
@@ -35,11 +19,11 @@ router.post("/", auth, async (req, res) => {
       [
         req.user.id,
         participante_id || req.user.id,
-        tipo            || "Otro",
-        motivo          || null,
-        notas           || null,
+        tipo || "Otro",
+        motivo || null,
+        notas || null,
         fecha_hora,
-        lugar           || null,
+        lugar || null,
         "Pendiente",
       ],
     );
@@ -72,12 +56,26 @@ router.get("/mis-citas", auth, async (req, res) => {
 });
 
 // ── PATCH /api/citas/:id ──────────────────────────────────────────────────────
-// Body: { estado }  → "Confirmada" | "Cancelada"
 router.patch("/:id", auth, async (req, res) => {
   const { estado } = req.body;
   if (!["Confirmada", "Cancelada", "Pendiente"].includes(estado))
     return res.status(400).json({ ok: false, mensaje: "Estado inválido." });
+
   try {
+    // SEGURIDAD FIX #7: Verificar que el usuario sea participante o solicitante de la cita
+    // Antes: UPDATE sin verificar propiedad → cualquier usuario podía cancelar citas ajenas
+    const [rows] = await db.execute(
+      "SELECT id FROM citas WHERE id = ? AND (solicitante_id = ? OR participante_id = ?)",
+      [req.params.id, req.user.id, req.user.id],
+    );
+
+    if (!rows.length) {
+      return res.status(403).json({
+        ok: false,
+        mensaje: "No tienes permisos para modificar esta cita.",
+      });
+    }
+
     await db.execute("UPDATE citas SET estado=? WHERE id=?", [estado, req.params.id]);
     return res.json({ ok: true });
   } catch (err) {

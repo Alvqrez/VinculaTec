@@ -1,6 +1,6 @@
 const express = require("express");
-const jwt     = require("jsonwebtoken");
-const db      = require("../db");
+const { auth, requireRol } = require("../middleware");
+const db = require("../db");
 
 const router = express.Router();
 
@@ -10,7 +10,12 @@ const auth = (req, res, next) => {
   if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
+      return res
+        .status(500)
+        .json({
+          ok: false,
+          mensaje: "JWT_SECRET no está configurado en el servidor.",
+        });
     }
     req.user = jwt.verify(token, process.env.JWT_SECRET);
     next();
@@ -45,7 +50,9 @@ router.post("/", auth, async (req, res) => {
   const { foto_base64 } = req.body;
 
   if (!foto_base64) {
-    return res.status(400).json({ ok: false, mensaje: "foto_base64 es requerido." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "foto_base64 es requerido." });
   }
 
   // Validar que el string base64 sea válido y no sea demasiado grande
@@ -53,7 +60,9 @@ router.post("/", auth, async (req, res) => {
   // Por qué: MySQL tiene un límite de max_allowed_packet (por defecto 4MB)
   // Para qué: Evitar que el paquete exceda el límite de MySQL y cause errores
   if (typeof foto_base64 !== "string" || foto_base64.length > 2000000) {
-    return res.status(400).json({ ok: false, mensaje: "La foto es demasiado grande. Máximo 2MB." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "La foto es demasiado grande. Máximo 2MB." });
   }
 
   try {
@@ -88,10 +97,9 @@ router.post("/", auth, async (req, res) => {
 // Elimina la foto de perfil del usuario autenticado
 router.delete("/", auth, async (req, res) => {
   try {
-    await db.execute(
-      "DELETE FROM fotos_perfil WHERE usuario_id = ?",
-      [req.user.id],
-    );
+    await db.execute("DELETE FROM fotos_perfil WHERE usuario_id = ?", [
+      req.user.id,
+    ]);
     return res.json({ ok: true, mensaje: "Foto eliminada exitosamente." });
   } catch (err) {
     console.error("Error al eliminar foto:", err);

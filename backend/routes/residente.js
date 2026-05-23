@@ -1,60 +1,51 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
 const db = require("../db");
 const fs = require("fs");
 const path = require("path");
+const { auth } = require("../middleware");
 
 const router = express.Router();
 
-const auth = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
-  try {
-    if (!process.env.JWT_SECRET)
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          mensaje: "JWT_SECRET no está configurado en el servidor.",
-        });
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ ok: false, mensaje: "Token inválido." });
+// ── SEGURIDAD FIX #5: Validación de tipo de archivo ──────────────────────────
+// Extensiones permitidas para reportes
+const EXTENSIONES_PERMITIDAS = [".pdf", ".docx"];
+
+// Magic bytes (firma hexadecimal) de los tipos de archivo permitidos
+// PDF: empieza con %PDF → 25 50 44 46
+// DOCX: es un ZIP → 50 4B 03 04
+function validarTipoArchivo(buffer, extension) {
+  if (extension === ".pdf") {
+    // Los PDF empiezan con %PDF
+    return buffer[0] === 0x25 &&
+           buffer[1] === 0x50 &&
+           buffer[2] === 0x44 &&
+           buffer[3] === 0x46;
   }
-};
+  if (extension === ".docx") {
+    // Los DOCX son ZIP internamente, empiezan con PK
+    return buffer[0] === 0x50 &&
+           buffer[1] === 0x4B &&
+           buffer[2] === 0x03 &&
+           buffer[3] === 0x04;
+  }
+  return false;
+}
 
-// Mapeo tipo BD → id frontend
 const TIPO_TO_ID = {
-  preliminar: "preliminar",
-  parcial1: 1,
-  parcial2: 2,
-  parcial3: 3,
-  final: "final",
+  preliminar: "preliminar", parcial1: 1, parcial2: 2, parcial3: 3, final: "final",
 };
-
 const TIPO_TO_TITLE = {
-  preliminar: "Reporte Preliminar",
-  parcial1: "Reporte Parcial 1",
-  parcial2: "Reporte Parcial 2",
-  parcial3: "Reporte Parcial 3",
-  final: "Reporte Final",
+  preliminar: "Reporte Preliminar", parcial1: "Reporte Parcial 1",
+  parcial2: "Reporte Parcial 2", parcial3: "Reporte Parcial 3", final: "Reporte Final",
 };
-
 const TIPO_TO_SUBTITLE = {
-  preliminar: "Diagnóstico inicial del proyecto",
-  parcial1: "Semana 1–4 · Diagnóstico inicial",
-  parcial2: "Semana 5–8 · Desarrollo",
-  parcial3: "Semana 9–12 · Integración",
+  preliminar: "Diagnóstico inicial del proyecto", parcial1: "Semana 1–4 · Diagnóstico inicial",
+  parcial2: "Semana 5–8 · Desarrollo", parcial3: "Semana 9–12 · Integración",
   final: "Semana 13–16 · Cierre",
 };
-
 const ESTADO_TO_STATUS = {
-  Pendiente: "Pendiente",
-  Entregado: "Pendiente",
-  "En Revisión": "En Revisión", // Corrección: Debería ser "En Revisión", no "Pendiente"
-  Aprobado: "Aceptado",
-  Rechazado: "Por corregir",
+  Pendiente: "Pendiente", Entregado: "Pendiente",
+  "En Revisión": "En Revisión", Aprobado: "Aceptado", Rechazado: "Por corregir",
 };
 
 // ── GET /api/residente/reportes ───────────────────────────────────────────────
@@ -65,14 +56,11 @@ router.get("/reportes", auth, async (req, res) => {
       [req.user.id],
     );
     if (!resRows.length)
-      return res
-        .status(403)
-        .json({ ok: false, mensaje: "El usuario no es residente." });
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
     const asesorId = resRows[0].asesor_id;
 
-    // Obtener nombre del asesor
     let asesorNombre = "Asesor";
     if (asesorId) {
       const [asesorRows] = await db.execute(
@@ -84,44 +72,26 @@ router.get("/reportes", auth, async (req, res) => {
     }
 
     const [rows] = await db.execute(
-      // MODIFICADO: Agregado nombre_archivo para que el frontend pueda mostrar el nombre del archivo
       `SELECT tipo, estado, fecha_entrega, feedback, archivo_url, nombre_archivo
        FROM reportes WHERE residente_id = ? ORDER BY FIELD(tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
       [residenteId],
     );
 
-    // Construir lista completa (si no existe en BD, status Pendiente sin entregar)
     const TIPOS = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
     const reportes = TIPOS.map((tipo) => {
       const row = rows.find((r) => r.tipo === tipo);
       const fechaEntrega = row?.fecha_entrega
         ? new Date(row.fecha_entrega).toLocaleDateString("es-MX", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
+            day: "2-digit", month: "short", year: "numeric",
           })
         : null;
-      // Corrección: Agregar trim() para eliminar espacios en blanco del estado
       const estadoNormalizado = row?.estado?.trim() || "";
-      const status = row
-        ? ESTADO_TO_STATUS[estadoNormalizado] || "Pendiente"
-        : "Pendiente";
-      // Agregado: Log para depurar discrepancia de estado
-      if (tipo === "preliminar") {
-        console.log(
-          `[DEBUG] Reporte preliminar: BD estado="${row?.estado}", Normalizado="${estadoNormalizado}", Frontend status="${status}"`,
-        );
-      }
+      const status = row ? ESTADO_TO_STATUS[estadoNormalizado] || "Pendiente" : "Pendiente";
       return {
-        id: TIPO_TO_ID[tipo],
-        title: TIPO_TO_TITLE[tipo],
-        subtitle: TIPO_TO_SUBTITLE[tipo],
-        status: status,
-        submitted: fechaEntrega,
-        reviewer: asesorNombre,
-        feedback: row?.feedback || null,
-        archivo_url: row?.archivo_url || null, // Agregado: URL del archivo (data URI)
-        nombre_archivo: row?.nombre_archivo || null, // Agregado: nombre del archivo
+        id: TIPO_TO_ID[tipo], title: TIPO_TO_TITLE[tipo],
+        subtitle: TIPO_TO_SUBTITLE[tipo], status, submitted: fechaEntrega,
+        reviewer: asesorNombre, feedback: row?.feedback || null,
+        archivo_url: row?.archivo_url || null, nombre_archivo: row?.nombre_archivo || null,
         items: [],
       };
     });
@@ -134,21 +104,11 @@ router.get("/reportes", auth, async (req, res) => {
 });
 
 // ── PUT /api/residente/reportes/:tipo ─────────────────────────────────────────
-// Residente entrega un reporte (crea o actualiza)
-// MODIFICADO: Ahora acepta y guarda el archivo (base64) y nombre_archivo
 router.put("/reportes/:tipo", auth, async (req, res) => {
-  const tiposValidos = [
-    "preliminar",
-    "parcial1",
-    "parcial2",
-    "parcial3",
-    "final",
-  ];
+  const tiposValidos = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
   const { tipo } = req.params;
   if (!tiposValidos.includes(tipo))
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "Tipo de reporte inválido." });
+    return res.status(400).json({ ok: false, mensaje: "Tipo de reporte inválido." });
 
   try {
     const [resRows] = await db.execute(
@@ -156,53 +116,57 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
       [req.user.id],
     );
     if (!resRows.length)
-      return res
-        .status(403)
-        .json({ ok: false, mensaje: "El usuario no es residente." });
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
     const today = new Date().toISOString().split("T")[0];
-
-    // Obtener archivo y nombre_archivo del cuerpo de la petición (enviados desde el frontend)
     const { archivo, nombre_archivo, empresa } = req.body || {};
 
-    // Agregado: Log para depurar si se recibe el archivo
-    console.log(
-      `[DEBUG] Subiendo reporte: tipo=${tipo}, archivo=${archivo ? "recibido (" + archivo.length + " chars)" : "null"}, nombre_archivo=${nombre_archivo}`,
-    );
-
-    // Agregado: Función para guardar archivo en disco
-    // Por qué: El archivo no debe guardarse en la base de datos como base64, sino en el disco del servidor
-    // Para qué: Ahorrar espacio en la base de datos y permitir descargar el archivo correctamente
     let archivoUrl = null;
+
     if (archivo && nombre_archivo) {
+      // SEGURIDAD FIX #5: Validar extensión del archivo
+      const extension = path.extname(nombre_archivo).toLowerCase();
+      if (!EXTENSIONES_PERMITIDAS.includes(extension)) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: `Tipo de archivo no permitido. Solo se aceptan: ${EXTENSIONES_PERMITIDAS.join(", ")}`,
+        });
+      }
+
       try {
-        // Crear carpeta uploads si no existe
         const uploadsDir = path.join(__dirname, "..", "uploads");
         if (!fs.existsSync(uploadsDir)) {
           fs.mkdirSync(uploadsDir, { recursive: true });
         }
 
-        // Generar nombre único para el archivo
-        const extension = path.extname(nombre_archivo);
-        const nombreUnico = `${residenteId}_${tipo}_${Date.now()}${extension}`;
-        const rutaArchivo = path.join(uploadsDir, nombreUnico);
-
-        // Extraer datos base64 (quitar el prefijo "data:application/pdf;base64,")
-        const base64Data = archivo.includes(",")
-          ? archivo.split(",")[1]
-          : archivo;
+        const base64Data = archivo.includes(",") ? archivo.split(",")[1] : archivo;
         const buffer = Buffer.from(base64Data, "base64");
 
-        // Guardar archivo en disco
-        fs.writeFileSync(rutaArchivo, buffer);
+        // SEGURIDAD FIX #5: Validar magic bytes del archivo
+        // Verifica que el contenido real coincida con la extensión declarada
+        if (!validarTipoArchivo(buffer, extension)) {
+          return res.status(400).json({
+            ok: false,
+            mensaje: "El contenido del archivo no corresponde a su extensión. Archivo rechazado.",
+          });
+        }
 
-        // Guardar la ruta relativa para usar en la URL
+        // Tamaño máximo: 10MB
+        if (buffer.length > 10 * 1024 * 1024) {
+          return res.status(400).json({
+            ok: false,
+            mensaje: "El archivo excede el tamaño máximo permitido (10MB).",
+          });
+        }
+
+        const nombreUnico = `${residenteId}_${tipo}_${Date.now()}${extension}`;
+        const rutaArchivo = path.join(uploadsDir, nombreUnico);
+        fs.writeFileSync(rutaArchivo, buffer);
         archivoUrl = `/uploads/${nombreUnico}`;
-        console.log(`[DEBUG] Archivo guardado en disco: ${rutaArchivo}`);
+        console.log(`[INFO] Archivo guardado: ${rutaArchivo}`);
       } catch (error) {
-        console.error(`[ERROR] Error al guardar archivo en disco:`, error);
-        // Continuar sin archivo si hay error
+        console.error(`[ERROR] Error al guardar archivo:`, error);
       }
     }
 
@@ -212,10 +176,6 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
     );
 
     if (existing.length) {
-      // Actualizar reporte existente
-      // Corrección: Si archivo es null (deshacer envío), cambiar estado a "Pendiente" y limpiar fecha_entrega
-      // Por qué: El usuario necesita poder deshacer el envío y volver a subir el archivo
-      // Para qué: Permitir que el reporte vuelva a estado "Pendiente" cuando se deshace el envío
       if (archivo === null) {
         await db.execute(
           `UPDATE reportes SET estado = 'Pendiente', fecha_entrega = NULL, archivo_url = NULL, nombre_archivo = NULL
@@ -223,43 +183,23 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
           [residenteId, tipo],
         );
       } else {
-        console.log(`[DEBUG] Actualizando reporte existente: residente_id=${residenteId}, tipo=${tipo}, archivoUrl=${archivoUrl}, nombre_archivo=${nombre_archivo}`);
         await db.execute(
           `UPDATE reportes SET estado = 'En Revisión', fecha_entrega = ?, archivo_url = ?, nombre_archivo = ?
            WHERE residente_id = ? AND tipo = ?`,
-          [
-            today,
-            archivoUrl || null,
-            nombre_archivo || null,
-            residenteId,
-            tipo,
-          ],
+          [today, archivoUrl || null, nombre_archivo || null, residenteId, tipo],
         );
-        console.log(`[DEBUG] Reporte actualizado exitosamente`);
       }
     } else {
-      // Crear nuevo reporte: guardar archivo, nombre_archivo y estado "En Revisión"
-      const tsShort = Date.now().toString().slice(-8); // evitar overflow en VARCHAR(50)
+      const tsShort = Date.now().toString().slice(-8);
       const newId = `r_${residenteId}_${tipo}_${tsShort}`;
       try {
         await db.execute(
           `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url, nombre_archivo)
            VALUES (?,?,?,'En Revisión',?,?,?)`,
-          [
-            newId,
-            residenteId,
-            tipo,
-            today,
-            archivoUrl || null,
-            nombre_archivo || null,
-          ],
+          [newId, residenteId, tipo, today, archivoUrl || null, nombre_archivo || null],
         );
       } catch (insertErr) {
-        // Fallback si nombre_archivo no existe en la BD: intentar sin esa columna
-        if (
-          insertErr.code === "ER_BAD_FIELD_ERROR" ||
-          String(insertErr).includes("nombre_archivo")
-        ) {
+        if (insertErr.code === "ER_BAD_FIELD_ERROR" || String(insertErr).includes("nombre_archivo")) {
           await db.execute(
             `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega, archivo_url)
              VALUES (?,?,?,'En Revisión',?,?)`,
@@ -271,35 +211,22 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
       }
     }
 
-    // Agregado: Emitir evento WebSocket para actualizar en tiempo real
-    // Por qué: El profe pidió que la aplicación sea capaz de abrirse en múltiples dispositivos simultáneamente
-    // Para qué: Cuando un residente sube un reporte, los asesores conectados reciben la actualización automáticamente
     const io = req.app.get("io");
     if (io) {
       io.emit("reporte_actualizado", {
-        residente_id: residenteId,
-        tipo,
-        estado: "En Revisión",
-        archivo_url: archivoUrl,
-        nombre_archivo,
+        residente_id: residenteId, tipo, estado: "En Revisión",
+        archivo_url: archivoUrl, nombre_archivo,
       });
-      console.log(`[WebSocket] Evento emitido: reporte_actualizado para residente ${residenteId}`);
     }
 
     return res.json({ ok: true, archivo_url: archivoUrl, nombre_archivo });
   } catch (err) {
     console.error("Error en PUT /residente/reportes/:tipo:", err);
-    return res
-      .status(500)
-      .json({
-        ok: false,
-        mensaje: "Error interno: " + (err?.message || String(err)),
-      });
+    return res.status(500).json({ ok: false, mensaje: "Error interno: " + (err?.message || String(err)) });
   }
 });
 
 // ── GET /api/residente/asesor ─────────────────────────────────────────────────
-// Datos del asesor asignado al residente
 router.get("/asesor", auth, async (req, res) => {
   try {
     const [resRows] = await db.execute(
@@ -307,9 +234,7 @@ router.get("/asesor", auth, async (req, res) => {
       [req.user.id],
     );
     if (!resRows.length)
-      return res
-        .status(403)
-        .json({ ok: false, mensaje: "El usuario no es residente." });
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
 
     const asesorId = resRows[0].asesor_id;
     if (!asesorId) return res.json({ ok: true, asesor: null });
@@ -339,10 +264,6 @@ router.get("/asesor", auth, async (req, res) => {
 });
 
 // ── GET /api/residente/proyecto ───────────────────────────────────────────────
-// Datos del proyecto asignado al residente
-// Agregado: Para que el residente pueda ver en qué proyecto está asignado
-// Por qué: El residente necesita saber su proyecto, empresa y asesor
-// Para qué: Mostrar información del proyecto en el dashboard del residente
 router.get("/proyecto", auth, async (req, res) => {
   try {
     const [resRows] = await db.execute(
@@ -350,12 +271,9 @@ router.get("/proyecto", auth, async (req, res) => {
       [req.user.id],
     );
     if (!resRows.length)
-      return res
-        .status(403)
-        .json({ ok: false, mensaje: "El usuario no es residente." });
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es residente." });
 
     const residenteId = resRows[0].id;
-
     const [rows] = await db.execute(
       `SELECT p.id, p.titulo, p.descripcion, p.estado, p.prioridad, p.tecnologias,
               p.progreso, p.created_at,
@@ -371,29 +289,15 @@ router.get("/proyecto", auth, async (req, res) => {
     );
 
     if (!rows.length) return res.json({ ok: true, proyecto: null });
-
     const p = rows[0];
     return res.json({
       ok: true,
       proyecto: {
-        id: p.id,
-        titulo: p.titulo,
-        descripcion: p.descripcion,
-        estado: p.estado,
-        prioridad: p.prioridad,
-        tecnologias: p.tecnologias,
-        progreso: p.progreso,
-        created_at: p.created_at,
-        empresa: {
-          id: p.empresa_id,
-          nombre: p.empresa_nombre,
-          estado: p.empresa_estado,
-        },
-        asesor: {
-          id: p.asesor_id,
-          nombre: p.asesor_nombre,
-          departamento: p.asesor_departamento,
-        },
+        id: p.id, titulo: p.titulo, descripcion: p.descripcion,
+        estado: p.estado, prioridad: p.prioridad, tecnologias: p.tecnologias,
+        progreso: p.progreso, created_at: p.created_at,
+        empresa: { id: p.empresa_id, nombre: p.empresa_nombre, estado: p.empresa_estado },
+        asesor: { id: p.asesor_id, nombre: p.asesor_nombre, departamento: p.asesor_departamento },
       },
     });
   } catch (err) {
@@ -403,10 +307,6 @@ router.get("/proyecto", auth, async (req, res) => {
 });
 
 // ── GET /api/residente/empresas ───────────────────────────────────────────────
-// Lista de empresas disponibles para el reporte preliminar
-// Agregado: Para que el residente seleccione una empresa de un listado en lugar de escribir el nombre
-// Por qué: Evitar errores de escritura y garantizar que la empresa existe en el sistema
-// Para qué: Mostrar un selector/dropdown con las empresas disponibles en el reporte preliminar
 router.get("/empresas", auth, async (req, res) => {
   try {
     const [rows] = await db.execute(

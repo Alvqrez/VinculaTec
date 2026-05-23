@@ -1,5 +1,5 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
+const { auth, requireRol } = require("../middleware");
 const db = require("../db");
 
 const router = express.Router();
@@ -35,12 +35,10 @@ function authMiddleware(req, res, next) {
   if (!auth) return res.status(401).json({ ok: false, mensaje: "Sin token." });
   try {
     if (!process.env.JWT_SECRET) {
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          mensaje: "JWT_SECRET no está configurado en el servidor.",
-        });
+      return res.status(500).json({
+        ok: false,
+        mensaje: "JWT_SECRET no está configurado en el servidor.",
+      });
     }
     req.user = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
     next();
