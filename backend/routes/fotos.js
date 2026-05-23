@@ -1,31 +1,10 @@
 const express = require("express");
-const { auth, requireRol } = require("../middleware");
 const db = require("../db");
+const { auth, requireRol } = require("../middleware");
 
 const router = express.Router();
 
-// ── Middleware de autenticación ───────────────────────────────────────────────
-const auth = (req, res, next) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ ok: false, mensaje: "Sin token." });
-  try {
-    if (!process.env.JWT_SECRET) {
-      return res
-        .status(500)
-        .json({
-          ok: false,
-          mensaje: "JWT_SECRET no está configurado en el servidor.",
-        });
-    }
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ ok: false, mensaje: "Token inválido." });
-  }
-};
-
 // ── GET /api/fotos/:userId ───────────────────────────────────────────────────
-// Obtiene la foto de perfil de un usuario específico
 router.get("/:userId", auth, async (req, res) => {
   try {
     const [rows] = await db.execute(
@@ -45,41 +24,29 @@ router.get("/:userId", auth, async (req, res) => {
 });
 
 // ── POST /api/fotos ───────────────────────────────────────────────────────────
-// Guarda o actualiza la foto de perfil del usuario autenticado
 router.post("/", auth, async (req, res) => {
   const { foto_base64 } = req.body;
 
   if (!foto_base64) {
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "foto_base64 es requerido." });
+    return res.status(400).json({ ok: false, mensaje: "foto_base64 es requerido." });
   }
 
-  // Validar que el string base64 sea válido y no sea demasiado grande
-  // MODIFICADO: Reducido de 5MB a 2MB para evitar error ER_NET_PACKET_TOO_LARGE de MySQL
-  // Por qué: MySQL tiene un límite de max_allowed_packet (por defecto 4MB)
-  // Para qué: Evitar que el paquete exceda el límite de MySQL y cause errores
   if (typeof foto_base64 !== "string" || foto_base64.length > 2000000) {
-    return res
-      .status(400)
-      .json({ ok: false, mensaje: "La foto es demasiado grande. Máximo 2MB." });
+    return res.status(400).json({ ok: false, mensaje: "La foto es demasiado grande. Máximo 2MB." });
   }
 
   try {
-    // Verificar si ya existe una foto para este usuario
     const [existing] = await db.execute(
       "SELECT usuario_id FROM fotos_perfil WHERE usuario_id = ?",
       [req.user.id],
     );
 
     if (existing.length > 0) {
-      // Actualizar foto existente
       await db.execute(
         "UPDATE fotos_perfil SET foto_base64 = ?, updated_at = CURRENT_TIMESTAMP WHERE usuario_id = ?",
         [foto_base64, req.user.id],
       );
     } else {
-      // Insertar nueva foto
       await db.execute(
         "INSERT INTO fotos_perfil (usuario_id, foto_base64) VALUES (?, ?)",
         [req.user.id, foto_base64],
@@ -94,12 +61,12 @@ router.post("/", auth, async (req, res) => {
 });
 
 // ── DELETE /api/fotos ────────────────────────────────────────────────────────
-// Elimina la foto de perfil del usuario autenticado
 router.delete("/", auth, async (req, res) => {
   try {
-    await db.execute("DELETE FROM fotos_perfil WHERE usuario_id = ?", [
-      req.user.id,
-    ]);
+    await db.execute(
+      "DELETE FROM fotos_perfil WHERE usuario_id = ?",
+      [req.user.id],
+    );
     return res.json({ ok: true, mensaje: "Foto eliminada exitosamente." });
   } catch (err) {
     console.error("Error al eliminar foto:", err);

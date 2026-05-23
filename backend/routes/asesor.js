@@ -1,6 +1,6 @@
 const express = require("express");
-const { auth, requireRol } = require("../middleware");
 const db = require("../db");
+const { auth, requireRol } = require("../middleware");
 
 const router = express.Router();
 
@@ -29,26 +29,11 @@ function normalizarStatus(estado) {
   return ESTADO_TO_STATUS[estado] || estado;
 }
 
-// ── Middleware: verificar JWT ─────────────────────────────────────────────────
-function authMiddleware(req, res, next) {
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ ok: false, mensaje: "Sin token." });
-  try {
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({
-        ok: false,
-        mensaje: "JWT_SECRET no está configurado en el servidor.",
-      });
-    }
-    req.user = jwt.verify(auth.split(" ")[1], process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ ok: false, mensaje: "Token inválido." });
-  }
-}
+// SEGURIDAD FIX #3: Solo asesores pueden acceder a estas rutas
+const soloAsesor = [auth, requireRol("asesor")];
 
 // ── GET /api/asesor/dashboard ─────────────────────────────────────────────────
-router.get("/dashboard", authMiddleware, async (req, res) => {
+router.get("/dashboard", ...soloAsesor, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -63,13 +48,11 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 
     const asesorId = asesorRows[0].id;
 
-    // Residentes activos asignados a este asesor
     const [resRows] = await db.execute(
       "SELECT COUNT(*) AS total FROM residentes WHERE asesor_id = ? AND estado = 'activo'",
       [asesorId],
     );
 
-    // Proyectos activos del asesor
     const [projRows] = await db.execute(
       `SELECT COUNT(*) AS total
        FROM proyectos p
@@ -77,7 +60,6 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       [asesorId],
     );
 
-    // Reportes pendientes de residentes de este asesor
     const [repRows] = await db.execute(
       `SELECT COUNT(*) AS total
        FROM reportes r
@@ -86,7 +68,6 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       [asesorId],
     );
 
-    // Próximas citas del asesor
     const [citaRows] = await db.execute(
       `SELECT c.id, c.tipo, c.motivo, c.fecha_hora, c.lugar, c.estado,
               u.nombre, u.apellidos
@@ -118,8 +99,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 });
 
 // ── GET /api/asesor/proyectos ─────────────────────────────────────────────────
-// Obtiene todos los proyectos donde el asesor está en proyecto_asesores
-router.get("/proyectos", authMiddleware, async (req, res) => {
+router.get("/proyectos", ...soloAsesor, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -134,7 +114,6 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
 
     const asesorId = asesorRows[0].id;
 
-    // Proyectos del asesor
     const [projects] = await db.execute(
       `SELECT p.id, p.titulo AS title, p.descripcion AS description,
               p.estado AS phase, p.prioridad AS priority,
@@ -154,15 +133,10 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
       [asesorId],
     );
 
-    // Para cada proyecto obtener residentes, reportes y reuniones
     const projectsWithDetails = await Promise.all(
       projects.map(async (project) => {
-        // Residentes: todos los residentes cuyo asesor es este asesor y están en este proyecto.
-        // Un proyecto tiene un residente_id principal; adicionalmente todos los residentes
-        // de este asesor que pertenecen a la misma empresa son co-residentes del proyecto.
         let residentes = [];
         if (project.residente_id) {
-          // Residente principal del proyecto
           const [mainRes] = await db.execute(
             `SELECT r.id, u.nombre, u.apellidos,
                     r.carrera, r.num_control,
@@ -174,7 +148,6 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
           );
           residentes = mainRes;
         } else if (project.empresa_id) {
-          // Sin residente asignado explícito: usar los residentes del asesor en esa empresa
           const [empRes] = await db.execute(
             `SELECT r.id, u.nombre, u.apellidos,
                     r.carrera, r.num_control,
@@ -187,7 +160,6 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
           residentes = empRes;
         }
 
-        // Reportes vinculados al residente principal del proyecto
         let reportes = [];
         if (project.residente_id) {
           const [reps] = await db.execute(
@@ -205,7 +177,6 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
           reportes = reps;
         }
 
-        // Citas/reuniones del asesor relacionadas con el proyecto
         const [reuniones] = await db.execute(
           `SELECT c.id, c.motivo AS titulo, c.fecha_hora,
                   c.lugar, c.tipo AS tipo, c.estado
@@ -287,7 +258,7 @@ router.get("/proyectos", authMiddleware, async (req, res) => {
 // ── POST /api/asesor/proyectos/:id/solicitar-avance ───────────────────────────
 router.post(
   "/proyectos/:id/solicitar-avance",
-  authMiddleware,
+  ...soloAsesor,
   async (req, res) => {
     try {
       const userId = req.user.id;
@@ -304,7 +275,6 @@ router.post(
 
       const asesorId = asesorRows[0].id;
 
-      // Verificar que el asesor pertenece al proyecto (vía junction table)
       const [paRows] = await db.execute(
         "SELECT 1 FROM proyecto_asesores WHERE proyecto_id = ? AND asesor_id = ?",
         [proyectoId, asesorId],

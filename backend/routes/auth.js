@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const db = require("../db");
+const { auth } = require("../middleware");
 
 const router = express.Router();
 
@@ -54,7 +55,6 @@ router.post("/login", async (req, res) => {
       rol: user.rol,
     };
 
-    // Para residentes: adjuntar info del asesor y del jefe (incluyendo usuarioId para foto)
     if (user.rol === "residente") {
       try {
         const [asesorRows] = await db.execute(
@@ -99,7 +99,6 @@ router.post("/login", async (req, res) => {
       }
     }
 
-    // Para asesores: adjuntar info básica de sus residentes activos
     if (user.rol === "asesor") {
       try {
         const [resRows] = await db.execute(
@@ -138,20 +137,11 @@ router.post("/login", async (req, res) => {
 });
 
 // ── GET /api/auth/me ─────────────────────────────────────────────────────────
-router.get("/me", async (req, res) => {
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).json({ ok: false, mensaje: "Sin token." });
+router.get("/me", auth, async (req, res) => {
   try {
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no está configurado en el servidor." });
-    }
-    const payload = jwt.verify(
-      auth.split(" ")[1],
-      process.env.JWT_SECRET,
-    );
     const [rows] = await db.execute(
       "SELECT id, nombre, apellidos, correo, rol FROM usuarios WHERE id = ?",
-      [payload.id],
+      [req.user.id],
     );
     if (!rows.length)
       return res
