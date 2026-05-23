@@ -198,161 +198,87 @@ const PROYECTOS = [
     estado: "desarrollo",
     prioridad: "Alta",
     tech: "React, Node.js, MySQL",
-    progreso: 75,
-    resIdx: 0,
   },
   {
     id: "PROY-2",
-    titulo: "App CRM para PYME",
-    desc: "Gestión de clientes para pequeñas empresas.",
+    titulo: "Dashboard Analytics en Tiempo Real",
+    desc: "Visualización de datos con gráficos dinámicos.",
     estado: "revision",
-    prioridad: "Media",
-    tech: "React Native, Firebase",
-    progreso: 90,
-    resIdx: 1,
+    prioridad: "Alta",
+    tech: "React, D3.js, WebSocket",
   },
   {
     id: "PROY-3",
-    titulo: "Portal de Comunicación Interna",
-    desc: "Intranet corporativa con chat y gestión de documentos.",
-    estado: "propuesto",
-    prioridad: "Baja",
-    tech: "Vue.js, Express, PostgreSQL",
-    progreso: 15,
-    resIdx: 2,
+    titulo: "API REST para Gestión de Proyectos",
+    desc: "Backend escalable con autenticación JWT.",
+    estado: "desarrollo",
+    prioridad: "Media",
+    tech: "Node.js, Express, MySQL",
   },
   {
     id: "PROY-4",
-    titulo: "Módulo de Analytics en Tiempo Real",
-    desc: "Dashboard de métricas industriales conectado a IoT.",
-    estado: "desarrollo",
-    prioridad: "Alta",
-    tech: "Python, MQTT, Grafana",
-    progreso: 45,
-    resIdx: 3,
+    titulo: "Mobile App para Logística",
+    desc: "Aplicación móvil de rastreo en tiempo real.",
+    estado: "propuesto",
+    prioridad: "Media",
+    tech: "React Native, Firebase",
   },
   {
     id: "PROY-5",
-    titulo: "Dashboard de Analítica Industrial",
-    desc: "Panel de KPIs para planta manufacturera.",
-    estado: "concluido",
-    prioridad: "Media",
-    tech: "Power BI, Python, SQL",
-    progreso: 100,
-    resIdx: 4,
+    titulo: "Sistema de Recomendaciones con IA",
+    desc: "Motor de recomendaciones basado en ML.",
+    estado: "desarrollo",
+    prioridad: "Alta",
+    tech: "Python, TensorFlow, Node.js",
   },
   {
     id: "PROY-6",
-    titulo: "App de Rastreo Logístico",
-    desc: "Seguimiento de rutas de distribución con geolocalización.",
-    estado: "desarrollo",
-    prioridad: "Alta",
-    tech: "React Native, Google Maps API",
-    progreso: 60,
-    resIdx: 5,
+    titulo: "Portal de Estudiantes",
+    desc: "Plataforma educativa con seguimiento académico.",
+    estado: "revision",
+    prioridad: "Media",
+    tech: "Vue.js, Laravel, PostgreSQL",
   },
   {
     id: "PROY-7",
-    titulo: "Sistema de Gestión Agrícola",
-    desc: "Control de cultivos y maquinaria.",
+    titulo: "Integración SAP",
+    desc: "Conectividad con ERP empresarial.",
     estado: "propuesto",
     prioridad: "Baja",
-    tech: "Laravel, MySQL, Arduino",
-    progreso: 10,
-    resIdx: 6,
+    tech: "Java, SAP SDK",
   },
   {
     id: "PROY-8",
-    titulo: "Automatización de Reportes Energía",
-    desc: "Generación automática de informes de consumo eléctrico.",
-    estado: "revision",
-    prioridad: "Media",
-    tech: "Python, pandas, Excel",
-    progreso: 85,
-    resIdx: 7,
+    titulo: "App de E-Commerce",
+    desc: "Plataforma de compra-venta de productos.",
+    estado: "desarrollo",
+    prioridad: "Alta",
+    tech: "Next.js, Stripe, PostgreSQL",
   },
 ];
 
-const FEEDBACKS = [
-  "Diagnóstico inicial sólido. La fuente del proyecto está bien justificada. Procede con los parciales.",
-  "Excelente diagnóstico inicial. Metas claras y medibles. Buen plan de trabajo definido.",
-  "Buen avance de implementación. Se recomienda profundizar en documentación técnica y pruebas unitarias.",
-  "Integración correcta de módulos. Agregar manual de usuario antes del reporte final.",
-  "Proyecto finalizado satisfactoriamente. Resultados bien documentados. ¡Excelente trabajo!",
-];
-
-// Limites y fechas de entrega de cada tipo de reporte en la residencia
-const LIMITES = [
-  "2026-01-20",
-  "2026-02-28",
-  "2026-03-31",
-  "2026-04-30",
-  "2026-06-10",
-];
-const ENTREGAS = [
-  "2026-01-18",
-  "2026-02-25",
-  "2026-03-28",
-  "2026-04-28",
-  "2026-06-08",
-];
-const TIPOS = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
-
-// Días atrás desde hoy para fijar la fecha_entrega de reportes Pendientes
-// (simulan entrega reciente, para que el asesor los vea como pendientes normales)
-function fechaAtras(dias) {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  return d.toISOString().split("T")[0];
-}
-
-// [aprobados, tienePendiente, diasAtrasEntrega]
-// El pendiente se entregó hace N días (reciente, no miles de días)
-const REPORTES_CONFIG = [
-  [3, true, 7], // Ana       — Parcial 3 Pendiente (hace 7 días)
-  [3, true, 5], // Sofía     — Parcial 3 Pendiente (hace 5 días)
-  [1, true, 3], // Carmen    — Parcial 1 Pendiente (hace 3 días)
-  [0, true, 2], // Diana     — Preliminar Pendiente (hace 2 días)
-  [5, false, 0], // Luis      — Todo concluido
-  [2, true, 6], // Pedro     — Parcial 2 Pendiente (hace 6 días)
-  [2, true, 4], // Miguel    — Parcial 2 Pendiente (hace 4 días)
-  [1, true, 8], // Roberto   — Parcial 1 Pendiente (hace 8 días)
-];
-
 async function seed() {
-  const conn = await getConnection();
-  console.log("✅  Conectado a MySQL.");
-
+  let conn;
   try {
-    await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
-    for (const t of [
-      "fuentes_informacion",
-      "notificaciones",
-      "citas",
-      "reportes",
-      "proyectos",
-      "residentes",
-      "asesores",
-      "jefes_vinculacion",
-      "empresas",
-      "usuarios",
-    ])
-      await conn.execute(`TRUNCATE TABLE ${t}`);
-    await conn.execute("SET FOREIGN_KEY_CHECKS = 1");
-    console.log("🗑️   Tablas limpiadas.");
+    conn = await getConnection();
+    console.log("✅ Conexión a BD establecida\n");
 
-    const hash = await bcrypt.hash(PASSWORD_PLAIN, 10);
-
-    for (const u of USUARIOS)
+    // ─────── USUARIOS ───────────────────────────────────────────────────────
+    console.log("👤 Creando usuarios...");
+    const hashedPassword = await bcrypt.hash(PASSWORD_PLAIN, 10);
+    for (const u of USUARIOS) {
       await conn.execute(
-        "INSERT INTO usuarios (id,nombre,apellidos,correo,password_hash,rol) VALUES (?,?,?,?,?,?)",
-        [u.id, u.nombre, u.apellidos, u.correo, hash, u.rol],
+        "INSERT IGNORE INTO usuarios (id, nombre, apellidos, correo, password_hash, rol, activo) VALUES (?,?,?,?,?,?,?)",
+        [u.id, u.nombre, u.apellidos, u.correo, hashedPassword, u.rol, 1],
       );
-    console.log(`👤  ${USUARIOS.length} usuarios insertados.`);
+    }
+    console.log(`✅ ${USUARIOS.length} usuarios creados.\n`);
 
-    for (const e of EMPRESAS)
+    // ─────── EMPRESAS ───────────────────────────────────────────────────────
+    console.log("🏢 Creando empresas...");
+    for (const e of EMPRESAS) {
       await conn.execute(
-        "INSERT INTO empresas (id,nombre,sector,ciudad,estado,convenio_vencimiento,contacto_nombre,contacto_email,contacto_telefono) VALUES (?,?,?,?,?,?,?,?,?)",
+        "INSERT IGNORE INTO empresas (id, nombre, sector, ciudad, estado, convenio_vencimiento, contacto_nombre, contacto_email, contacto_telefono) VALUES (?,?,?,?,?,?,?,?,?)",
         [
           e.id,
           e.nombre,
@@ -365,148 +291,173 @@ async function seed() {
           e.contacto_telefono,
         ],
       );
-    console.log(`🏢  ${EMPRESAS.length} empresas insertadas.`);
-
-    const asesorUsers = USUARIOS.filter((u) => u.rol === "asesor");
-    const deptos = ["Ing. en Sistemas", "Ing. Industrial"];
-    for (let i = 0; i < asesorUsers.length; i++) {
-      const uid = asesorUsers[i].id;
-      await conn.execute(
-        "INSERT INTO asesores (id,usuario_id,departamento,num_empleado,max_residentes) VALUES (?,?,?,?,?)",
-        [
-          `ASE-${uid}`,
-          uid,
-          deptos[i] || "Ciencias Básicas",
-          `EMP-${String(uid).padStart(4, "0")}`,
-          12,
-        ],
-      );
     }
-    console.log(`👨‍🏫  ${asesorUsers.length} asesores insertados.`);
+    console.log(`✅ ${EMPRESAS.length} empresas creadas.\n`);
 
-    const jefeUser = USUARIOS.find((u) => u.rol === "jefe");
+    // ─────── ASESORES ──────────────────────────────────────────────────────
+    console.log("👨‍🏫 Creando asesores...");
     await conn.execute(
-      "INSERT INTO jefes_vinculacion (id,usuario_id,departamento) VALUES (?,?,?)",
-      ["JEF-1", jefeUser.id, "Vinculación y Residencia Profesional"],
+      "INSERT IGNORE INTO asesores (id, usuario_id, departamento, num_empleado, max_residentes) VALUES (?,?,?,?,?)",
+      ["ASE-5", "5", "Ciencias Básicas", "EMP-0005", 5],
     );
-    console.log("🎓  Jefe de vinculación insertado.");
+    await conn.execute(
+      "INSERT IGNORE INTO asesores (id, usuario_id, departamento, num_empleado, max_residentes) VALUES (?,?,?,?,?)",
+      ["ASE-6", "6", "Ingeniería", "EMP-0006", 4],
+    );
+    console.log("✅ 2 asesores creados.\n");
 
-    const residenteIds = [];
-    for (let i = 0; i < RESIDENTES_CONFIG.length; i++) {
-      const [uid, asesorId, empresaId, carrera, horas] = RESIDENTES_CONFIG[i];
-      const resid = `RES-${uid}`;
+    // ─────── JEFE DE VINCULACIÓN ────────────────────────────────────────────
+    console.log("👑 Creando jefe de vinculación...");
+    await conn.execute(
+      "INSERT IGNORE INTO jefes_vinculacion (id, usuario_id, departamento) VALUES (?,?,?)",
+      ["JEF-1", "7", "Vinculación"],
+    );
+    console.log("✅ 1 jefe creado.\n");
+
+    // ─────── RESIDENTES ────────────────────────────────────────────────────
+    console.log("🎓 Creando residentes...");
+    let totalResidentes = 0;
+    for (const [uid, aid, eid, carrera, horas] of RESIDENTES_CONFIG) {
+      const numControl = `EMP${2026}${String(uid).padStart(3, "0")}`;
       await conn.execute(
-        `INSERT INTO residentes
-           (id,usuario_id,num_control,carrera,semestre,empresa_id,asesor_id,
-            horas_completadas,horas_requeridas,fecha_inicio,fecha_fin,estado)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        "INSERT IGNORE INTO residentes (id, usuario_id, num_control, carrera, semestre, empresa_id, asesor_id, horas_completadas, horas_requeridas, fecha_inicio, fecha_fin, estado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         [
-          resid,
+          `RES-${uid}`,
           uid,
-          `21${String(uid).padStart(6, "0")}`,
+          numControl,
           carrera,
-          9,
-          empresaId,
-          asesorId,
+          8,
+          eid,
+          aid,
           horas,
           480,
-          "2026-01-13",
-          "2026-07-13",
+          "2026-01-20",
+          "2026-08-31",
           "activo",
         ],
       );
-      residenteIds.push(resid);
+      totalResidentes++;
     }
-    console.log(`🎒  ${residenteIds.length} residentes insertados.`);
+    console.log(`✅ ${totalResidentes} residentes creados.\n`);
 
-    const asesorPorProyecto = {
-      "PROY-1": "ASE-5",
-      "PROY-2": "ASE-5",
-      "PROY-3": "ASE-5",
-      "PROY-4": "ASE-5",
-      "PROY-5": "ASE-6",
-      "PROY-6": "ASE-6",
-      "PROY-7": "ASE-6",
-      "PROY-8": "ASE-6",
-    };
-    for (const p of PROYECTOS) {
-      const [, , empresaId] = RESIDENTES_CONFIG[p.resIdx];
+    // ─────── PROYECTOS ────────────────────────────────────────────────────
+    console.log("📋 Creando proyectos...");
+    const proyectosUsados = [
+      "PROY-1",
+      "PROY-2",
+      "PROY-3",
+      "PROY-5",
+      "PROY-6",
+      "PROY-8",
+    ];
+    for (
+      let i = 0;
+      i < proyectosUsados.length && i < RESIDENTES_CONFIG.length;
+      i++
+    ) {
+      const p = PROYECTOS.find((x) => x.id === proyectosUsados[i]);
+      const [uid, aid, eid] = RESIDENTES_CONFIG[i];
       await conn.execute(
-        `INSERT INTO proyectos
-           (id,titulo,descripcion,empresa_id,residente_id,asesor_id,estado,prioridad,tecnologias,progreso)
-         VALUES (?,?,?,?,?,?,?,?,?,?)`,
+        "INSERT IGNORE INTO proyectos (id, titulo, descripcion, empresa_id, residente_id, asesor_id, periodo, estado, prioridad, tecnologias, progreso) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [
           p.id,
           p.titulo,
           p.desc,
-          empresaId,
-          residenteIds[p.resIdx],
-          asesorPorProyecto[p.id],
+          eid,
+          `RES-${uid}`,
+          aid,
+          "2026-1",
           p.estado,
           p.prioridad,
           p.tech,
-          p.progreso,
+          Math.floor(Math.random() * 100),
         ],
       );
     }
-    console.log(`🗂️   ${PROYECTOS.length} proyectos insertados.`);
+    console.log(`✅ ${proyectosUsados.length} proyectos creados.\n`);
 
-    // Poblar proyecto_asesores desde proyectos.asesor_id
-    for (const p of PROYECTOS) {
-      const aid = asesorPorProyecto[p.id];
-      if (aid) {
-        await conn.execute(
-          "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
-          [p.id, aid],
-        );
-      }
+    // ─────── PROYECTO-ASESORES ─────────────────────────────────────────────
+    console.log("🔗 Vinculando asesores a proyectos...");
+    for (
+      let i = 0;
+      i < proyectosUsados.length && i < RESIDENTES_CONFIG.length;
+      i++
+    ) {
+      const [, aid] = RESIDENTES_CONFIG[i];
+      await conn.execute(
+        "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?,?)",
+        [proyectosUsados[i], aid],
+      );
     }
-    console.log(`🔗   proyecto_asesores poblado.`);
+    console.log("✅ Asesores vinculados.\n");
 
+    // ─────── REPORTES ──────────────────────────────────────────────────────
+    console.log("📄 Creando reportes...");
+    const TIPOS = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+    const LIMITES = [
+      "2026-02-15",
+      "2026-03-15",
+      "2026-04-15",
+      "2026-05-15",
+      "2026-06-15",
+    ];
+    const FEEDBACK = [
+      "Excelente análisis del diagnóstico. Amplio alcance del proyecto.",
+      "Falta profundidad en algunos aspectos. Revisar la justificación.",
+      "Buen progreso. Considerar agregar métricas de desempeño.",
+      "Documentación clara y completa. Arreglar pequeños detalles.",
+      "Proyecto concluido exitosamente. Felicidades.",
+    ];
     let totalReportes = 0;
-    for (let ri = 0; ri < REPORTES_CONFIG.length; ri++) {
-      const [aprobados, tienePendiente, diasAtras] = REPORTES_CONFIG[ri];
-      const resid = residenteIds[ri];
+
+    for (const [uid] of RESIDENTES_CONFIG) {
       for (let t = 0; t < TIPOS.length; t++) {
-        let estado, fechaEntrega, calificacion, feedback, archivoUrl, nombreArchivo;
-        if (t < aprobados) {
+        let estado,
+          fechaEntrega,
+          calificacion,
+          feedback,
+          archivoUrl,
+          nombreArchivo;
+
+        if (t < 3) {
+          // Primeros 3 reportes: entregados y revisados
           estado = "Aprobado";
-          fechaEntrega = ENTREGAS[t];
-          calificacion = 75 + Math.floor(Math.random() * 25);
-          feedback = FEEDBACKS[t];
-          // Agregado: Simular archivo para reportes aprobados (data URI de un PDF vacío)
-          // Por qué: Para probar la funcionalidad de descarga de archivos en el frontend
-          // Para qué: El residente pueda descargar el archivo que supuestamente envió
-          archivoUrl = "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICUgcGFnZXMgYXJyYXkKPDwKICAvVHlwZSAvUGFnZXwogIC9NZWRpYUJveCBbIDAgMCA1OTUuMjggODQxLjg5IF0KICAvQ291bnQgMQogIC9LaWRzIFsgMyAwIFIgXQo+PgplbmRvYmoKCjMgMCBvYmogICUgcGFnZSBvYmplY3QKPDwKICAvVHlwZSAvUGFnZQogIC9QYXJlbnQgMiAwIFIKICAvUmVzb3VyY2VzIDw8CiAgICAvRm9udCA8PAogICAgICAvRjEgNCAwIFIKICAgID4+CiAgPj4KICAvQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCgo0IDAgb2JqICAlIGZvbnQKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKNSAwIG9iaiAlIHBhZ2UgY29udGVudAo8PAogIC9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCjcwIDUwIFRECi9GMSAyNCBUZgooUmVwb3J0ZSBkZSBQcnVlYmEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI2MiAwMDAwMCBuIAowMDAwMDAwMzUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ1NgolJUVPRgo=";
-          nombreArchivo = `reporte_${TIPOS[t]}_${resid}.pdf`;
-        } else if (t === aprobados && tienePendiente) {
-          estado = "Pendiente";
-          fechaEntrega = fechaAtras(diasAtras); // ← fecha real reciente
+          fechaEntrega = new Date(LIMITES[t]);
+          fechaEntrega.setDate(
+            fechaEntrega.getDate() - Math.floor(Math.random() * 5),
+          );
+          fechaEntrega = fechaEntrega.toISOString().split("T")[0];
+          calificacion = 85 + Math.floor(Math.random() * 15);
+          feedback = FEEDBACK[t];
+          // FIX: En lugar de data URI con base64, usamos una ruta simple que simula
+          // un archivo subido al servidor. En producción, esto sería una URL real.
+          archivoUrl = `/uploads/reporte_${TIPOS[t]}_${uid}.pdf`;
+          nombreArchivo = `reporte_${TIPOS[t]}_${uid}.pdf`;
+        } else if (t < 4) {
+          // Reporte 4: pendiente de revisión
+          estado = "Entregado";
+          fechaEntrega = LIMITES[t];
           calificacion = null;
           feedback = null;
-          // Agregado: Simular archivo para reporte pendiente de revisión
-          // Por qué: Para probar la funcionalidad de descarga de archivos en el frontend
-          // Para qué: El residente pueda descargar el archivo que supuestamente envió
-          archivoUrl = "data:application/pdf;base64,JVBERi0xLjcKCjEgMCBvYmogICUgZW50cnkgcG9pbnQKPDwKICAvVHlwZSAvQ2F0YWxvZwogIC9QYWdlcyAyIDAgUgo+PgplbmRvYmoKCjIgMCBvYmogICUgcGFnZXMgYXJyYXkKPDwKICAvVHlwZSAvUGFnZXwogIC9NZWRpYUJveCBbIDAgMCA1OTUuMjggODQxLjg5IF0KICAvQ291bnQgMQogIC9LaWRzIFsgMyAwIFIgXQo+PgplbmRvYmoKCjMgMCBvYmogICUgcGFnZSBvYmplY3QKPDwKICAvVHlwZSAvUGFnZQogIC9QYXJlbnQgMiAwIFIKICAvUmVzb3VyY2VzIDw8CiAgICAvRm9udCA8PAogICAgICAvRjEgNCAwIFIKICAgID4+CiAgPj4KICAvQ29udGVudHMgNSAwIFIKPj4KZW5kb2JqCgo0IDAgb2JqICAlIGZvbnQKPDwKICAvVHlwZSAvRm9udAogIC9TdWJ0eXBlIC9UeXBlMQogIC9CYXNlRm9udCAvSGVsdmV0aWNhCj4+CmVuZG9iagoKNSAwIG9iaiAlIHBhZ2UgY29udGVudAo8PAogIC9MZW5ndGggNDQKPj4Kc3RyZWFtCkJUCjcwIDUwIFRECi9GMSAyNCBUZgooUmVwb3J0ZSBkZSBQcnVlYmEpIFRqCkVUCmVuZHN0cmVhbQplbmRvYmoKCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAxMCAwMDAwMCBuIAowMDAwMDAwMDYwIDAwMDAwIG4gCjAwMDAwMDAxNTcgMDAwMDAgbiAKMDAwMDAwMDI2MiAwMDAwMCBuIAowMDAwMDAwMzUzIDAwMDAwIG4gCnRyYWlsZXIKPDwKICAvU2l6ZSA2CiAgL1Jvb3QgMSAwIFIKPj4Kc3RhcnR4cmVmCjQ1NgolJUVPRgo=";
-          nombreArchivo = `reporte_${TIPOS[t]}_${resid}.pdf`;
+          archivoUrl = `/uploads/reporte_${TIPOS[t]}_${uid}.pdf`;
+          nombreArchivo = `reporte_${TIPOS[t]}_${uid}.pdf`;
         } else {
+          // Reporte final: pendiente
           estado = "Pendiente";
-          fechaEntrega = null; // ← null para no entregados aún
+          fechaEntrega = null;
           calificacion = null;
           feedback = null;
-          archivoUrl = null; // ← null para no entregados
+          archivoUrl = null;
           nombreArchivo = null;
         }
+
         await conn.execute(
-          // MODIFICADO: Agregado archivo_url y nombre_archivo para simular archivos enviados
-          // Por qué: El frontend necesita estos datos para mostrar el archivo y permitir descargarlo
-          // Para qué: El residente pueda ver qué archivo envió y descargarlo
           `INSERT INTO reportes
              (id,residente_id,tipo,fecha_limite,fecha_entrega,estado,calificacion,feedback,archivo_url,nombre_archivo)
            VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [
-            `REP-${resid}-${t + 1}`,
-            resid,
+            `REP-${uid}-${t + 1}`,
+            `RES-${uid}`,
             TIPOS[t],
             LIMITES[t],
             fechaEntrega,
@@ -520,302 +471,137 @@ async function seed() {
         totalReportes++;
       }
     }
-    console.log(`📄  ${totalReportes} reportes insertados.`);
+    console.log(`✅ ${totalReportes} reportes creados.\n`);
 
+    // ─────── CITAS ──────────────────────────────────────────────────────────
+    console.log("📅 Creando citas...");
     const citas = [
       {
         sol: "1",
         par: "5",
         tipo: "Asesoría",
         motivo: "Revisión Parcial 3 — Sistema de Inventarios",
-        fecha: "2026-05-22 10:00:00",
-        lugar: "Sala 204",
-        estado: "Confirmada",
       },
       {
         sol: "3",
         par: "5",
         tipo: "Revisión",
-        motivo: "Entrega Parcial 3 — App CRM",
-        fecha: "2026-05-23 09:00:00",
-        lugar: "Oficina A3",
-        estado: "Confirmada",
+        motivo: "Retroalimentación del Dashboard",
       },
       {
-        sol: "8",
-        par: "5",
+        sol: "5",
+        par: "2",
         tipo: "Evaluación",
-        motivo: "Revisión avance — Portal Comunicación Interna",
-        fecha: "2026-05-28 11:00:00",
-        lugar: "Virtual",
-        estado: "Pendiente",
-      },
-      {
-        sol: "10",
-        par: "5",
-        tipo: "Asesoría",
-        motivo: "Kickoff — Módulo Analytics IoT",
-        fecha: "2026-05-20 14:00:00",
-        lugar: "Sala 102",
-        estado: "Pendiente",
-      },
-      {
-        sol: "2",
-        par: "6",
-        tipo: "Asesoría",
-        motivo: "Cierre proyecto — Dashboard Industrial",
-        fecha: "2026-05-21 10:00:00",
-        lugar: "Virtual",
-        estado: "Confirmada",
+        motivo: "Defensa del proyecto API REST",
       },
       {
         sol: "4",
         par: "6",
-        tipo: "Revisión",
-        motivo: "Revisión Parcial 2 — App Rastreo Logístico",
-        fecha: "2026-05-24 15:00:00",
-        lugar: "Oficina B2",
-        estado: "Pendiente",
+        tipo: "Asesoría",
+        motivo: "Consulta sobre logística",
       },
       {
-        sol: "9",
-        par: "6",
-        tipo: "Evaluación",
-        motivo: "Revisión Parcial 2 — Sistema Gestión Agrícola",
-        fecha: "2026-05-26 09:30:00",
-        lugar: "Sala 301",
-        estado: "Confirmada",
+        sol: "6",
+        par: "9",
+        tipo: "Revisión",
+        motivo: "Avance del proyecto de IA",
       },
       {
         sol: "11",
-        par: "6",
-        tipo: "Asesoría",
-        motivo: "Revisión Parcial 1 — Automatización Reportes",
-        fecha: "2026-05-29 11:00:00",
-        lugar: "Virtual",
-        estado: "Pendiente",
-      },
-      {
-        sol: "1",
-        par: "7",
-        tipo: "Asesoría",
-        motivo: "Validación de fuente de información — Ana García",
-        fecha: "2026-05-20 14:00:00",
-        lugar: "Rectoría",
-        estado: "Confirmada",
+        par: "5",
+        tipo: "Otro",
+        motivo: "Cambio de tema de proyecto",
       },
     ];
-    for (let i = 0; i < citas.length; i++) {
-      const c = citas[i];
+
+    let citasInsertadas = 0;
+    for (const c of citas) {
+      const fecha = new Date("2026-06-15");
+      fecha.setDate(fecha.getDate() + Math.floor(Math.random() * 30));
+      fecha.setHours(9 + Math.floor(Math.random() * 8));
+
       await conn.execute(
-        "INSERT INTO citas (id,solicitante_id,participante_id,tipo,motivo,fecha_hora,lugar,estado) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT IGNORE INTO citas (id, solicitante_id, participante_id, tipo, motivo, fecha_hora, lugar, estado) VALUES (?,?,?,?,?,?,?,?)",
         [
-          `CITA-${i + 1}`,
+          `CIT-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
           c.sol,
           c.par,
           c.tipo,
           c.motivo,
-          c.fecha,
-          c.lugar,
-          c.estado,
+          fecha.toISOString().replace("T", " ").substring(0, 19),
+          "Oficina de Vinculación",
+          "Pendiente",
         ],
       );
+      citasInsertadas++;
     }
-    console.log(`📅  ${citas.length} citas insertadas.`);
+    console.log(`✅ ${citasInsertadas} citas creadas.\n`);
 
-    const notifs = [
+    // ─────── NOTIFICACIONES ────────────────────────────────────────────────
+    console.log("🔔 Creando notificaciones...");
+    const notificaciones = [
       {
-        uid: "1",
-        tipo: "Cita",
-        titulo: "Cita confirmada con Asesor Marco",
-        cuerpo: "Tu cita del 22 de mayo fue confirmada. Sala 204, 10:00 hrs.",
-        icono: "calendar",
-        leida: false,
-      },
-      {
-        uid: "3",
-        tipo: "Cita",
-        titulo: "Cita de revisión confirmada",
-        cuerpo: "El 23 de mayo revisarás tu Parcial 3 con el Asesor Marco.",
-        icono: "calendar",
-        leida: false,
-      },
-      {
-        uid: "5",
-        tipo: "Mensaje",
-        titulo: "Reporte Parcial 3 recibido — Ana García",
-        cuerpo: "Ana entregó su Reporte Parcial 3. Pendiente de revisión.",
-        icono: "file-text",
-        leida: false,
-      },
-      {
-        uid: "5",
-        tipo: "Mensaje",
-        titulo: "Reporte Parcial 3 recibido — Sofía Martínez",
-        cuerpo: "Sofía entregó su Parcial 3. Pendiente de revisión.",
-        icono: "file-text",
-        leida: false,
-      },
-      {
-        uid: "7",
-        tipo: "Alerta",
-        titulo: "Convenio próximo a vencer",
-        cuerpo: "InnovaLogística vence el 20 de junio de 2026.",
-        icono: "alert-triangle",
-        leida: false,
-      },
-      {
-        uid: "7",
-        tipo: "Alerta",
-        titulo: "4 reportes pendientes de revisión (Marco)",
-        cuerpo:
-          "Ana, Sofía, Carmen y Diana tienen reportes esperando revisión.",
-        icono: "clock",
-        leida: false,
-      },
-      {
-        uid: "2",
+        userId: "1",
         tipo: "Reporte",
-        titulo: "¡Proyecto concluido exitosamente!",
-        cuerpo:
-          "Tu Reporte Final fue aprobado. Calificación: 95. ¡Felicidades!",
-        icono: "award",
-        leida: true,
+        titulo: "Reporte Parcial 1 entregado",
+        cuerpo: "Tu reporte ha sido revisado.",
       },
       {
-        uid: "8",
-        tipo: "Cita",
-        titulo: "Reunión de kickoff agendada",
-        cuerpo: "El 28 de mayo revisarás el avance de tu portal interno.",
-        icono: "calendar",
-        leida: false,
-      },
-      {
-        uid: "4",
-        tipo: "Reporte",
-        titulo: "Reporte Parcial 2 en revisión",
-        cuerpo:
-          "Tu asesor recibió tu Reporte Parcial 2. Espera retroalimentación.",
-        icono: "file-text",
-        leida: true,
-      },
-      {
-        uid: "7",
+        userId: "3",
         tipo: "Alerta",
-        titulo: "Carmen y Diana sin Parcial 1/Preliminar",
-        cuerpo: "Revisar avance de los residentes de Marco con retraso.",
-        icono: "user-plus",
-        leida: false,
+        titulo: "Próxima cita con asesor",
+        cuerpo: "Tu cita está programada para el 25 de junio.",
+      },
+      {
+        userId: "2",
+        tipo: "Logro",
+        titulo: "¡Felicidades!",
+        cuerpo: "Has completado la Parcial 3 exitosamente.",
+      },
+      {
+        userId: "5",
+        tipo: "Mensaje",
+        titulo: "Nuevo estudiante asignado",
+        cuerpo: "Diana Flores se unió a tu grupo.",
       },
     ];
-    for (let i = 0; i < notifs.length; i++) {
-      const n = notifs[i];
+
+    for (const n of notificaciones) {
       await conn.execute(
-        "INSERT INTO notificaciones (id,usuario_id,tipo,titulo,cuerpo,icono,leida) VALUES (?,?,?,?,?,?,?)",
-        [`NOT-${i + 1}`, n.uid, n.tipo, n.titulo, n.cuerpo, n.icono, n.leida],
+        "INSERT INTO notificaciones (usuario_id, tipo, titulo, cuerpo, leida, icono, created_at) VALUES (?,?,?,?,?,?,NOW())",
+        [n.userId, n.tipo, n.titulo, n.cuerpo, false, "bell"],
       );
     }
-    console.log(`🔔  ${notifs.length} notificaciones insertadas.`);
+    console.log(`✅ ${notificaciones.length} notificaciones creadas.\n`);
 
-    const fuentes = [
-      {
-        res: residenteIds[0],
-        tipo: "propia",
-        desc: "Propuesta propia: sistema de control de inventarios",
-        estado: "Validada",
-        obs: "Bien fundamentada, aprobada sin cambios.",
-      },
-      {
-        res: residenteIds[1],
-        tipo: "banco",
-        desc: "Proyecto del banco institucional: app CRM para PYME",
-        estado: "Validada",
-        obs: "Aprobada sin observaciones.",
-      },
-      {
-        res: residenteIds[2],
-        tipo: "empresa",
-        desc: "Propuesta de la empresa: portal de comunicación interna",
-        estado: "Pendiente",
-        obs: null,
-      },
-      {
-        res: residenteIds[3],
-        tipo: "propia",
-        desc: "Iniciativa propia: módulo de analytics con IoT",
-        estado: "Pendiente",
-        obs: null,
-      },
-      {
-        res: residenteIds[4],
-        tipo: "banco",
-        desc: "Banco: dashboard de analítica industrial",
-        estado: "Validada",
-        obs: "Aprobada. Proyecto concluido satisfactoriamente.",
-      },
-      {
-        res: residenteIds[5],
-        tipo: "empresa",
-        desc: "Empresa propone rastreo logístico en tiempo real",
-        estado: "Validada",
-        obs: "Validada con observaciones menores sobre alcance.",
-      },
-      {
-        res: residenteIds[6],
-        tipo: "propia",
-        desc: "Propuesta de sistema de gestión agrícola con sensores",
-        estado: "Pendiente",
-        obs: null,
-      },
-      {
-        res: residenteIds[7],
-        tipo: "empresa",
-        desc: "Empresa: automatización de reportes de consumo eléctrico",
-        estado: "Pendiente",
-        obs: null,
-      },
-    ];
-    for (let i = 0; i < fuentes.length; i++) {
-      const f = fuentes[i];
+    // ─────── FOTOS DE PERFIL ────────────────────────────────────────────────
+    console.log("🖼️  Reservando tabla de fotos...");
+    for (const u of USUARIOS) {
       await conn.execute(
-        `INSERT INTO fuentes_informacion
-           (id,residente_id,tipo,descripcion,estado,revisado_por,fecha_revision,observaciones)
-         VALUES (?,?,?,?,?,?,?,?)`,
-        [
-          `FUENTE-${i + 1}`,
-          f.res,
-          f.tipo,
-          f.desc,
-          f.estado,
-          f.estado === "Validada" ? jefeUser.id : null,
-          f.estado === "Validada" ? "2026-01-20" : null,
-          f.obs,
-        ],
+        "INSERT IGNORE INTO fotos_perfil (usuario_id, foto_base64) VALUES (?,?)",
+        [u.id, null],
       );
     }
-    console.log(`📚  ${fuentes.length} fuentes insertadas.`);
+    console.log("✅ Tabla de fotos lista.\n");
 
-    console.log("\n🎉  Seed completado exitosamente.");
-    console.log("🔑  Contraseña de todos los usuarios: vinculatec123");
-    console.log(
-      "─────────────────────────────────────────────────────────────",
-    );
-    console.log("  GRUPO MARCO REYES (marco.reyes@itm.edu.mx):");
-    console.log("    ana.garcia     — 3 aceptados, Parcial 3 Pendiente ⏳");
-    console.log("    sofia.martinez — 3 aceptados, Parcial 3 Pendiente ⏳");
-    console.log("    carmen.lopez   — 1 aceptado,  Parcial 1 Pendiente ⏳");
-    console.log("    diana.flores   — 0 aceptados, Preliminar Pendiente ⏳");
-    console.log("  GRUPO LAURA VEGA (laura.vega@itm.edu.mx):");
-    console.log("    luis.hernandez  — 5 aceptados (proyecto concluido) ✅");
-    console.log("    pedro.ramirez   — 2 aceptados, Parcial 2 Pendiente ⏳");
-    console.log("    miguel.torres   — 2 aceptados, Parcial 2 Pendiente ⏳");
-    console.log("    roberto.sanchez — 1 aceptado,  Parcial 1 Pendiente ⏳");
-    console.log("  JEFE: director@itm.edu.mx");
+    console.log("═══════════════════════════════════════════════════");
+    console.log("✨ SEED COMPLETADO EXITOSAMENTE");
+    console.log("═══════════════════════════════════════════════════");
+    console.log(`\n📊 Resumen:`);
+    console.log(`   • ${USUARIOS.length} usuarios`);
+    console.log(`   • ${EMPRESAS.length} empresas`);
+    console.log(`   • 2 asesores + 1 jefe`);
+    console.log(`   • ${totalResidentes} residentes`);
+    console.log(`   • ${proyectosUsados.length} proyectos`);
+    console.log(`   • ${totalReportes} reportes`);
+    console.log(`   • ${citasInsertadas} citas`);
+    console.log(`   • ${notificaciones.length} notificaciones\n`);
+
+    await conn.end();
   } catch (err) {
     console.error("❌  Error en seed:", err.message);
+    if (conn) await conn.end();
     process.exit(1);
-  } finally {
-    await conn.end();
   }
 }
 

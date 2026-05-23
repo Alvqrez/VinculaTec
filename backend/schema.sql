@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS reportes (
   estado         ENUM('Pendiente','Entregado','En Revisión','Aprobado','Rechazado') DEFAULT 'Pendiente',
   calificacion   DECIMAL(5,2),
   feedback       TEXT,
-  archivo_url    VARCHAR(500),
+  archivo_url    LONGTEXT,                 -- puede almacenar URLs, rutas, o data URIs con base64 (hasta 4GB)
   nombre_archivo VARCHAR(255),             -- nombre del archivo enviado (ej: "reporte_preliminar.pdf")
   revisado_por   VARCHAR(50),
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
