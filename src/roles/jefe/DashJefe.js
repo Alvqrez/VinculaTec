@@ -1,5 +1,12 @@
-import { useEffect, useState, useCallback } from "react";
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Dimensions,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { PieChart } from "react-native-chart-kit";
 import C from "../../constants/colors";
@@ -12,6 +19,8 @@ const STATUS_STYLE = {
   Nueva:        { color: C.blue,  bg: C.blueLight  },
   Inactiva:     { color: C.red,   bg: C.redLight    },
 };
+
+const screenWidth = Dimensions.get("window").width;
 
 export default function DashJefe({ onNavigate }) {
   // ── Datos generales (sin filtro de período) ────────────────────────────────
@@ -84,6 +93,25 @@ export default function DashJefe({ onNavigate }) {
         reportesPendientes: stats.reportesPendientes,   // siempre global (sin filtro por período)
       }
     : stats;
+    
+      // ── Datos para gráfica de pastel ─────────────────────────────
+const pieData = [
+  {
+    name: "Entregados",
+    population: graficaReportes.entregados,
+    color: "#14B8A6",
+    legendFontColor: "#374151",
+    legendFontSize: 13,
+  },
+  {
+    name: "Pendientes",
+    population: graficaReportes.pendientes,
+    color: "#EF4444",
+    legendFontColor: "#374151",
+    legendFontSize: 13,
+  },
+];
+
 
   const alertas = [
     {
@@ -150,6 +178,39 @@ export default function DashJefe({ onNavigate }) {
           </Text>
         )}
       </Row>
+
+                    {/* ── Gráfica de reportes ───────────────────────── */}
+      <Card style={{ marginBottom: 20 }}>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: "700",
+            color: C.text,
+            marginBottom: 16,
+          }}
+        >
+          Entrega de Reportes
+        </Text>
+
+            {(graficaReportes.entregados > 0 || graficaReportes.pendientes > 0) && (
+              <PieChart
+        data={pieData}
+        width={screenWidth - 80}
+        height={220}
+        accessor="population"
+        backgroundColor="transparent"
+        paddingLeft="15"
+        absolute
+        hasLegend={true}
+        chartConfig={{
+          backgroundColor: "#fff",
+          backgroundGradientFrom: "#fff",
+          backgroundGradientTo: "#fff",
+          color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+        }}
+      />
+      )}
+      </Card>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>

@@ -436,7 +436,7 @@ router.get("/porcentaje-cumplimiento", ...soloJefe, async (req, res) => {
 // ─────────────────────────────────────────────
 // GRÁFICA DASHBOARD — REPORTES ENTREGADOS
 // ─────────────────────────────────────────────
-router.get("/grafica-reportes", async (_, res) => {
+router.get("/grafica-reportes", ...soloJefe, async (_, res) => {
   try {
     // Residentes con al menos un reporte entregado
     const [entregadosRows] = await db.query(`
