@@ -316,4 +316,74 @@ router.post(
   },
 );
 
+// ── PUT /api/asesor/reportes/:id/revisar ─────────────────────────────────────
+// Guarda la revisión (aprobado/rechazado + feedback) del asesor en la BD
+router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
+  const { estado, feedback, calificacion } = req.body;
+  const userId = req.user.id;
+  const reporteId = req.params.id;
+
+  // Validar estado
+  if (!["Aprobado", "Rechazado"].includes(estado))
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Estado inválido. Usa 'Aprobado' o 'Rechazado'.",
+      });
+
+  try {
+    // Obtener asesorId del JWT
+    const [asesorRows] = await db.execute(
+      "SELECT id FROM asesores WHERE usuario_id = ?",
+      [userId],
+    );
+    if (!asesorRows.length)
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es asesor." });
+
+    const asesorId = asesorRows[0].id;
+
+    // Verificar que el reporte pertenece a un residente de ESTE asesor
+    const [reportRows] = await db.execute(
+      `SELECT r.id FROM reportes r
+       JOIN residentes res ON r.residente_id = res.id
+       WHERE r.id = ? AND res.asesor_id = ?`,
+      [reporteId, asesorId],
+    );
+    if (!reportRows.length)
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Reporte no encontrado o no tienes acceso a este reporte.",
+      });
+
+    // Guardar revisión en la BD
+    await db.execute(
+      "UPDATE reportes SET estado = ?, feedback = ?, calificacion = ? WHERE id = ?",
+      [estado, feedback || null, calificacion || null, reporteId],
+    );
+
+    // Emitir evento WebSocket para que el residente reciba el feedback en tiempo real
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("reporte_revisado", {
+        reporteId,
+        estado,
+        feedback: feedback || null,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      mensaje: `Reporte ${estado === "Aprobado" ? "aprobado" : "rechazado"} correctamente.`,
+    });
+  } catch (err) {
+    console.error("Error en PUT /asesor/reportes/:id/revisar:", err);
+    return res
+      .status(500)
+      .json({ ok: false, mensaje: "Error interno del servidor." });
+  }
+});
+
 module.exports = router;

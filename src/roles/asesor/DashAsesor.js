@@ -1,5 +1,6 @@
 import { getAuthToken } from "../../context/AuthContext";
 import { API_BASE } from "../../config/api";
+import { PieChart } from "react-native-chart-kit";
 import { useState, useEffect, useMemo } from "react";
 import {
   View,
@@ -23,119 +24,11 @@ import {
 import { useProyectos } from "../../context/ProyectosContext";
 import { useFotos } from "../../context/FotosContext";
 
-// Pie chart simple con SVG-like approach usando Views
-/**
- * Componente para mostrar un gráfico de torta simple.
- */
-function PieChart({ data, size = 140}) {
-  const { colors: C } = useTheme();
-  const total = data.reduce((sum, d) => sum + d.value, 0);
-  if (total === 0) return null;
-  let cumulative = 0;
-  //todo esto es la formula para calcular los porcentajes y que se vea bien la grafica de Pie (PieChart)
-
-  //Y esto de acá nadamás regresa elementos fijos sin jalar nada de la base de datos
-  return (
-    <View style={{ alignItems: "center" }}>
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          overflow: "hidden",
-          position: "relative",
-          backgroundColor: C.bg,
-        }}
-      >
-        {data.map((slice, i) => {
-          const pct = (slice.value / total) * 100;
-          const startAngle = (cumulative / total) * 360;
-          cumulative += slice.value;
-          return (
-            <View
-              key={i}
-              style={{
-                position: "absolute",
-                width: size,
-                height: size,
-                borderRadius: size / 2,
-                backgroundColor: "transparent",
-              }}
-            >
-              <View
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  borderRadius: size / 2,
-                  borderWidth: size / 4,
-                  borderColor: "transparent",
-                  borderTopColor: slice.color,
-                  borderRightColor: pct > 25 ? slice.color : "transparent",
-                  borderBottomColor: pct > 50 ? slice.color : "transparent",
-                  borderLeftColor: pct > 75 ? slice.color : "transparent",
-                  transform: [{ rotate: `${startAngle}deg` }],
-                }}
-              />
-            </View>
-          );
-        })}
-        {/* Center hole */}
-        <View
-          style={{
-            position: "absolute",
-            top: size * 0.25,
-            left: size * 0.25,
-            width: size * 0.5,
-            height: size * 0.5,
-            borderRadius: size * 0.25,
-            backgroundColor: C.card,
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>
-            {total}
-          </Text>
-          <Text style={{ fontSize: 9, color: C.textMuted }}>Total</Text>
-        </View>
-      </View>
-      {/* Legend */}
-      <View
-        style={{
-          flexDirection: "row",
-          flexWrap: "wrap",
-          gap: 12,
-          marginTop: 12,
-          justifyContent: "center",
-        }}
-      >
-        {data.map((d, i) => (
-          <Row key={i} style={{ alignItems: "center", gap: 5 }}>
-            <View
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 3,
-                backgroundColor: d.color,
-              }}
-            />
-            <Text
-              style={{ fontSize: 11, color: C.textMuted, fontWeight: "600" }}
-            >
-              {d.label}: {d.value}
-            </Text>
-          </Row>
-        ))}
-      </View>
-    </View>
-  );
-}
+// PieChart usando react-native-chart-kit (librería robusta, misma que usa el Jefe)
+// FIXED: El componente anterior usaba un truco CSS de bordes que no renderizaba
+//        correctamente para ángulos arbitrarios. Este usa la librería adecuada.
 
 export default function DashAsesor({ onNavigate }) {
-  
   const { colors: C } = useTheme();
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
@@ -221,22 +114,54 @@ export default function DashAsesor({ onNavigate }) {
     return reuniones;
   }, [proyectos]);
 
-  // GRÁFICA: Usar datos del API (backendData) en lugar del Context
+  // GRÁFICA: Usar datos reales del Context (que viene de /api/asesor/proyectos)
+  // Formato para react-native-chart-kit PieChart
   const datosGraficaReal = useMemo(() => {
-    // Los datos ahora provienen 100% del backend
-    // proyectosActivos contiene proyectos en desarrollo + revisión
-    // Calcular distribución desde proyectos que cargamos del Context
     const enDesarrollo = proyectos.filter(
       (p) => p.phase === "desarrollo",
     ).length;
     const enRevision = proyectos.filter((p) => p.phase === "revision").length;
     const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
 
-    return [
-      { label: "En Desarrollo", value: enDesarrollo, color: C.amber },
-      { label: "En Revisión", value: enRevision, color: C.purple },
-      { label: "Concluidos", value: concluidos, color: C.green },
-    ];
+    // Filtrar segmentos con valor 0 para evitar errores en la librería
+    const data = [
+      {
+        name: "Desarrollo",
+        population: enDesarrollo,
+        color: "#F59E0B",
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Revisión",
+        population: enRevision,
+        color: "#8B5CF6",
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Concluidos",
+        population: concluidos,
+        color: "#10B981",
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+    ].filter((d) => d.population > 0);
+
+    // Si no hay datos, devolver un placeholder para que la gráfica no crashee
+    if (data.length === 0) {
+      return [
+        {
+          name: "Sin proyectos",
+          population: 1,
+          color: "#E5E7EB",
+          legendFontColor: "#9CA3AF",
+          legendFontSize: 12,
+        },
+      ];
+    }
+
+    return data;
   }, [proyectos]);
 
   // Convertir citas del backend al formato de reuniones
@@ -557,7 +482,11 @@ export default function DashAsesor({ onNavigate }) {
         <StatCard
           label="Próx. Reuniones"
           value={String(proximasReuniones.length)}
-          sub={proximasReuniones.length > 0 ? `${proximasReuniones.length} próxima(s)` : "Sin reuniones"}
+          sub={
+            proximasReuniones.length > 0
+              ? `${proximasReuniones.length} próxima(s)`
+              : "Sin reuniones"
+          }
           icon="calendar"
           iconBg={C.blueLight}
           iconColor={C.blue}
@@ -608,9 +537,20 @@ export default function DashAsesor({ onNavigate }) {
             </Row>
           </Row>
           <PieChart
-            data={
-              datosGraficaReal
-            } /** Lo que pasa acá es que en vez de usar datos estáticos, usamos los datos reales de la base de datos */
+            data={datosGraficaReal}
+            width={screenWidth - 80}
+            height={200}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="10"
+            absolute
+            hasLegend={true}
+            chartConfig={{
+              backgroundColor: "transparent",
+              backgroundGradientFrom: "#fff",
+              backgroundGradientTo: "#fff",
+              color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+            }}
           />
           <View style={{ marginTop: 16, gap: 8 }}>
             <Row style={{ alignItems: "center", gap: 8 }}>

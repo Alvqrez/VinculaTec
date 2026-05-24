@@ -119,13 +119,59 @@ export function ReportesProvider({ children }) {
   // Por qué: Cuando el residente subía un archivo, una petición PUT sin cuerpo enviaba archivo=null
   // lo que borraba el archivo. Ahora el archivo se envía correctamente desde ReportePreliminar.js.
 
-  /** El Asesor marca la revisión de un reporte */
-  const reviewReport = (id, { status, feedback, reviewer = "Asesor" }) => {
+  /**
+   * El Asesor marca la revisión de un reporte.
+   * Persiste en la BD via PUT /api/asesor/reportes/:dbReporteId/revisar
+   * y actualiza estado local para reflejar el cambio inmediatamente.
+   *
+   * IMPORTANTE: pasa dbReporteId (ID real de la BD desde ProyectosContext)
+   * para que la revisión se guarde y el residente la vea tras recargar.
+   */
+  const reviewReport = async (
+    id,
+    { status, feedback, reviewer = "Asesor", dbReporteId = null },
+  ) => {
     const today = new Date().toLocaleDateString("es-MX", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
+
+    // Mapear status frontend → estado de la BD
+    const estadoBD = status === "Aceptado" ? "Aprobado" : "Rechazado";
+
+    // Persistir en la BD si tenemos el ID real
+    if (dbReporteId) {
+      try {
+        const token = getAuthToken();
+        const res = await fetch(
+          `${API_BASE}/asesor/reportes/${dbReporteId}/revisar`,
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              estado: estadoBD,
+              feedback: feedback || null,
+            }),
+          },
+        );
+        const data = await res.json();
+        if (!data.ok) {
+          console.error("[reviewReport] Error al guardar en BD:", data.mensaje);
+        }
+      } catch (err) {
+        console.error("[reviewReport] Error de conexión:", err);
+      }
+    } else {
+      console.warn(
+        "[reviewReport] Sin dbReporteId — revisión solo local (no persiste en BD).",
+      );
+    }
+
+    // Actualizar estado local inmediatamente para UI responsive
     setReports((prev) =>
       prev.map((r) =>
         r.id === id
@@ -133,7 +179,8 @@ export function ReportesProvider({ children }) {
           : r,
       ),
     );
-    // Cuando se acepta un reporte, desbloquear el siguiente parcial
+
+    // Desbloquear siguiente parcial cuando se acepta
     if (status === "Aceptado" && typeof id === "number") {
       setParcialesDesbloqueados((prev) => new Set([...prev, id + 1]));
     }
@@ -221,17 +268,14 @@ export function ReportesProvider({ children }) {
       };
       const tipoEnum = tipoMap[tipoId] || String(tipoId);
 
-      const res = await fetch(
-        `${API_BASE}/residente/reportes/${tipoEnum}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ nombre_archivo: archivo }),
+      const res = await fetch(`${API_BASE}/residente/reportes/${tipoEnum}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ nombre_archivo: archivo }),
+      });
       return await res.json();
     } catch (err) {
       console.warn("Backend no disponible, guardado localmente:", err.message);
