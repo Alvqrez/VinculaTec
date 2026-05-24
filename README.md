@@ -17,7 +17,7 @@ Tecnológico Nacional de México — Departamento de Sistemas
 
 ---
 
-## 📋 Descripción
+## Descripción
 
 VinculaTec es una aplicación full-stack que digitaliza y centraliza el proceso de residencias profesionales del TecNM. Permite que los tres actores del proceso — **Residente**, **Asesor** y **Jefe de Vinculación** — interactúen desde una misma plataforma con roles y permisos diferenciados.
 
@@ -58,7 +58,7 @@ VinculaTec/
 
 ---
 
-## 👥 Roles del sistema
+##  Roles del sistema
 
 | Rol | Acceso | Funciones |
 |-----|--------|-----------|
@@ -68,7 +68,7 @@ VinculaTec/
 
 ---
 
-## 🚀 Instalación y configuración
+##  Instalación y configuración
 
 ### Prerrequisitos
 
@@ -179,7 +179,7 @@ expo start --web    # Solo web (recomendado para demo)
 
 ---
 
-## 🌐 Demo con ngrok (múltiples dispositivos)
+## Demo con ngrok (múltiples dispositivos)
 
 Para demostrar el sistema en tiempo real con los 3 roles desde computadoras distintas:
 
@@ -205,7 +205,7 @@ expo start --web
 
 ---
 
-## 🗄️ Esquema de la base de datos
+## Esquema de la base de datos
 
 ```
 usuarios          — Todos los usuarios del sistema (residente, asesor, jefe)
@@ -223,7 +223,7 @@ fuentes_informacion — Fuentes declaradas por residentes
 
 ---
 
-## 🔌 API Endpoints principales
+## API Endpoints principales
 
 | Método | Endpoint | Rol requerido | Descripción |
 |--------|----------|---------------|-------------|
@@ -241,7 +241,7 @@ fuentes_informacion — Fuentes declaradas por residentes
 
 ---
 
-## 🛡️ Seguridad implementada
+## Seguridad implementada
 
 - **JWT** con expiración de 8 horas y secreto por variable de entorno
 - **Middleware de roles** — cada ruta valida `rol` del token antes de ejecutarse
@@ -254,7 +254,7 @@ fuentes_informacion — Fuentes declaradas por residentes
 
 ---
 
-## ⚡ Tecnologías
+## Tecnologías
 
 **Frontend**
 - React Native 0.81 + Expo 54
