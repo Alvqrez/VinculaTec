@@ -10,7 +10,6 @@ import {
   Animated,
   Image,
 } from "react-native";
-import { useRef, useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { Row, Card } from "../components";
@@ -172,8 +171,9 @@ function ToggleCard({ isDark, toggleDark, TXT, TXTM, CARD, BORD }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Utilerias({ usuario }) {
+  
   const { isDark, toggleDark, colors: C } = useTheme();
-  const T = isDark ? C.T : C; // Colores dinámicos según el modo
+  const T = C; // Colores dinámicos según el modo
   const { getFoto, setFoto } = useFotos?.() || {};
 
   // ── Datos por rol ─────────────────────────────────────────────
