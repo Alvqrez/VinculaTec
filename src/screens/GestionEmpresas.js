@@ -59,17 +59,44 @@ export default function GestionEmpresas() {
   const openNew  = ()        => { setForm(EMPTY_FORM); setEditId(null); setModal(true); };
   const openEdit = (co)      => { setForm({ name:co.name, sector:co.sector, ciudad:co.ciudad, convenio:co.convenio, contactoNombre:co.contactoNombre||"", contactoEmail:co.contactoEmail||"", contactoTel:co.contactoTel||"", status:co.status }); setEditId(co.id); setModal(true); };
   const saveCompany = async () => {
-    if (!form.name.trim()) return;
-    if (editId) {
-      const res = await apiClient.put(`/api/jefe/empresas/${editId}`, form);
-      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa actualizada con éxito"); }
-      else showToast(res.body?.mensaje || "Error al actualizar", "error");
-    } else {
-      const res = await apiClient.post("/api/jefe/empresas", form);
-      if (res.ok) { await reloadEmpresas(); setModal(false); showToast("Empresa guardada con éxito"); }
-      else showToast(res.body?.mensaje || "Error al registrar", "error");
-    }
+  if (!form.name.trim()) return;
+
+  // Convertir fecha ISO a YYYY-MM-DD
+  const payload = {
+    ...form,
+    convenio: form.convenio
+      ? new Date(form.convenio).toISOString().split("T")[0]
+      : null,
   };
+
+  if (editId) {
+    const res = await apiClient.put(
+      `/api/jefe/empresas/${editId}`,
+      payload
+    );
+
+    if (res.ok) {
+      await reloadEmpresas();
+      setModal(false);
+      showToast("Empresa actualizada con éxito");
+    } else {
+      showToast(res.body?.mensaje || "Error al actualizar", "error");
+    }
+  } else {
+    const res = await apiClient.post(
+      "/api/jefe/empresas",
+      payload
+    );
+
+    if (res.ok) {
+      await reloadEmpresas();
+      setModal(false);
+      showToast("Empresa guardada con éxito");
+    } else {
+      showToast(res.body?.mensaje || "Error al registrar", "error");
+    }
+  }
+};
   const deleteCompany = async (id) => {
     const res = await apiClient.delete(`/api/jefe/empresas/${id}`);
     if (res.ok) { await reloadEmpresas(); showToast("Empresa eliminada"); }

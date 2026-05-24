@@ -82,18 +82,64 @@ router.post("/empresas", ...soloJefe, async (req, res) => {
 
 // ── PUT /api/jefe/empresas/:id ────────────────────────────────────────────────
 router.put("/empresas/:id", ...soloJefe, async (req, res) => {
-  const { name, sector, ciudad, convenio, contactoNombre, contactoEmail, contactoTel, status } = req.body;
+
+  console.log("===== BODY =====");
+  console.log(req.body);
+
+  console.log("===== PARAMS =====");
+  console.log(req.params);
+
+  const {
+    name,
+    sector,
+    ciudad,
+    convenio,
+    contactoNombre,
+    contactoEmail,
+    contactoTel,
+    status
+  } = req.body;
+
   try {
-    await db.execute(
+    console.log("Intentando UPDATE...");
+
+const result = await db.execute(
+  
       `UPDATE empresas SET nombre=?, sector=?, ciudad=?, estado=?, convenio_vencimiento=?,
-       contacto_nombre=?, contacto_email=?, contacto_telefono=? WHERE id=?`,
-      [name, sector || null, ciudad || null, status || "Activa", convenio || null, contactoNombre || null, contactoEmail || null, contactoTel || null, req.params.id],
+      contacto_nombre=?, contacto_email=?, contacto_telefono=? WHERE id=?`,
+            [
+        name,
+        sector || null,
+        ciudad || null,
+        status || "Activa",
+        convenio && convenio.trim() !== "" ? convenio : null,
+        contactoNombre || null,
+        contactoEmail || null,
+        contactoTel || null,
+        req.params.id
+      ],
     );
+    console.log("UPDATE OK");
+console.log(result);
     return res.json({ ok: true });
-  } catch (err) {
-    console.error("Error en PUT /jefe/empresas/:id:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno." });
   }
+  
+  catch (err) {
+  console.log("===== ERROR MYSQL =====");
+  console.log(err);
+
+  console.log("MESSAGE:", err.message);
+  console.log("CODE:", err.code);
+
+  console.log("SQL MESSAGE:", err.sqlMessage);
+  console.log("SQL:", err.sql);
+
+  return res.status(500).json({
+    ok: false,
+    mensaje: err.message,
+    code: err.code,
+  });
+}
 });
 
 // ── DELETE /api/jefe/empresas/:id ─────────────────────────────────────────────
