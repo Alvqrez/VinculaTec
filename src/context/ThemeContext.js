@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect } from "react";
+/*import { createContext, useContext, useState, useEffect } from "react";
+
 
 const ThemeCtx = createContext(null);
 
@@ -112,6 +113,178 @@ export function ThemeProvider({ children }) {
 export function useTheme() {
   const ctx = useContext(ThemeCtx);
   if (!ctx) throw new Error("useTheme debe usarse dentro de ThemeProvider");
+  return ctx;
+}
+
+export { DARK as darkColors, LIGHT as lightColors };
+*/
+
+import { createContext, useContext, useState, useEffect } from "react";
+
+const ThemeCtx = createContext(null);
+
+// ── PALETA DARK ───────────────────────────────────────────────────────────────
+const DARK = {
+  bg: "#0F172A",
+  card: "#111827",
+  sidebar: "#020617",
+
+  border: "#1E293B",
+  borderLight: "#334155",
+
+  text: "#F8FAFC",
+  textSub: "#E2E8F0",
+  textMuted: "#94A3B8",
+  textLight: "#64748B",
+
+  teal: "#14B8A6",
+  tealLight: "#134E4A",
+  tealLighter: "#042F2E",
+
+  navy: "#1E293B",
+  navyLight: "#0F172A",
+
+  green: "#4ADE80",
+  greenLight: "#14532D",
+
+  amber: "#FBBF24",
+  amberLight: "#78350F",
+
+  red: "#F87171",
+  redLight: "#7F1D1D",
+
+  blue: "#60A5FA",
+  blueLight: "#1E3A8A",
+
+  purple: "#A78BFA",
+  purpleLight: "#4C1D95",
+
+  white: "#F8FAFC",
+};
+
+// ── PALETA LIGHT ──────────────────────────────────────────────────────────────
+const LIGHT = {
+  bg: "#F8FAFC",
+  card: "#FFFFFF",
+  sidebar: "#0F172A",
+
+  border: "#E2E8F0",
+  borderLight: "#F1F5F9",
+
+  text: "#0F172A",
+  textSub: "#334155",
+  textMuted: "#64748B",
+  textLight: "#94A3B8",
+
+  teal: "#0D9488",
+  tealLight: "#CCFBF1",
+  tealLighter: "#F0FDFA",
+
+  navy: "#1E3A5F",
+  navyLight: "#DBEAFE",
+
+  green: "#16A34A",
+  greenLight: "#DCFCE7",
+
+  amber: "#F59E0B",
+  amberLight: "#FEF3C7",
+
+  red: "#DC2626",
+  redLight: "#FEE2E2",
+
+  blue: "#2563EB",
+  blueLight: "#DBEAFE",
+
+  purple: "#7C3AED",
+  purpleLight: "#EDE9FE",
+
+  white: "#FFFFFF",
+};
+
+// ── CSS GLOBAL WEB ────────────────────────────────────────────────────────────
+const DARK_CSS = `
+  body {
+    background-color: #0F172A !important;
+  }
+
+  [data-theme="dark"] input,
+  [data-theme="dark"] textarea,
+  [data-theme="dark"] select {
+    background-color: #111827 !important;
+    color: #F8FAFC !important;
+    border-color: #1E293B !important;
+  }
+
+  [data-theme="dark"] input::placeholder,
+  [data-theme="dark"] textarea::placeholder {
+    color: #64748B !important;
+  }
+`;
+
+const LIGHT_CSS = `
+  body {
+    background-color: #F8FAFC !important;
+  }
+`;
+
+export function ThemeProvider({ children }) {
+  const [isDark, setIsDark] = useState(() => {
+    try {
+      return localStorage.getItem("vt_dark_mode") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("vt_dark_mode", String(isDark));
+    } catch {}
+
+    if (typeof document === "undefined") return;
+
+    document.documentElement.setAttribute(
+      "data-theme",
+      isDark ? "dark" : "light",
+    );
+
+    let styleEl = document.getElementById("vt-theme");
+
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = "vt-theme";
+      document.head.appendChild(styleEl);
+    }
+
+    styleEl.textContent = isDark ? DARK_CSS : LIGHT_CSS;
+  }, [isDark]);
+
+  const toggleDark = () => setIsDark((p) => !p);
+
+  const colors = isDark ? DARK : LIGHT;
+
+  return (
+    <ThemeCtx.Provider
+      value={{
+        isDark,
+        toggleDark,
+        colors,
+        DARK,
+        LIGHT,
+      }}
+    >
+      {children}
+    </ThemeCtx.Provider>
+  );
+}
+
+export function useTheme() {
+  const ctx = useContext(ThemeCtx);
+
+  if (!ctx) {
+    throw new Error("useTheme debe usarse dentro de ThemeProvider");
+  }
+
   return ctx;
 }
 

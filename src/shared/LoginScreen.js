@@ -11,23 +11,21 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import Row from "../components/Row";
 
 const titleCase = (str) =>
   str ? str.replace(/\b\w/g, (l) => l.toUpperCase()) : "";
 
-export default function LoginScreen({
-  onLogin,
-  loginError = "",
-  onClearError,
-}) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [focusField, setFocus] = useState(null);
-  const [hoverBtn, setHoverBtn] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+
+export default function LoginScreen({ onLogin, loginError = "", onClearError }) {
+  const { colors: C } = useTheme();
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [focusField, setFocus]    = useState(null);
+  const [hoverBtn, setHoverBtn]   = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState("");
   const [showSupport, setSupport] = useState(false);
   const [showPass, setShowPass] = useState(false);
 

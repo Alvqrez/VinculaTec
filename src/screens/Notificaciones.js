@@ -8,7 +8,7 @@ import {
   Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, StatCard, Badge } from "../components";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
@@ -42,6 +42,7 @@ function groupByDate(notifications) {
 
 // Tarjeta de notificación individual con animación de fade-out al descartar
 function NotifCard({ notif, onMarkRead, onDismiss, onNavigate }) {
+  const { colors: C } = useTheme();
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const handleDismiss = () => {
@@ -92,17 +93,7 @@ function NotifCard({ notif, onMarkRead, onDismiss, onNavigate }) {
                 }}
               >
                 <Row style={{ alignItems: "center", gap: 8, flex: 1 }}>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontWeight: notif.unread ? "800" : "600",
-                      color: notif.unread ? C.text : C.textSub,
-                      flex: 1,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {notif.title}
-                  </Text>
+                  
                   {notif.unread && (
                     <View
                       style={{
@@ -223,6 +214,7 @@ function NotifCard({ notif, onMarkRead, onDismiss, onNavigate }) {
 }
 
 export default function Notificaciones({ onNavigate }) {
+  const { colors: C } = useTheme();
   const [activeTab, setActiveTab] = useState("Todas");
   const {
     notifications,

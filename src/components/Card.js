@@ -1,7 +1,7 @@
 import { View } from "react-native";
-import C from "../constants/colors";
-
+import { useTheme } from "../context/ThemeContext";
 export default function Card({ children, style }) {
+  const { colors: C } = useTheme();
   return (
     <View
       style={[

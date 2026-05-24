@@ -11,7 +11,7 @@ import {
   Image,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import {
   Row,
   Card,
@@ -27,7 +27,8 @@ import { useFotos } from "../../context/FotosContext";
 /**
  * Componente para mostrar un gráfico de torta simple.
  */
-function PieChart({ data, size = 140 }) {
+function PieChart({ data, size = 140}) {
+  const { colors: C } = useTheme();
   const total = data.reduce((sum, d) => sum + d.value, 0);
   if (total === 0) return null;
   let cumulative = 0;
@@ -134,6 +135,8 @@ function PieChart({ data, size = 140 }) {
 }
 
 export default function DashAsesor({ onNavigate }) {
+  
+  const { colors: C } = useTheme();
   const { getFoto } = useFotos() || { getFoto: () => null };
   const [expandedResidente, setExpandedResidente] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");

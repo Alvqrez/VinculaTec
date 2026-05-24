@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { View, Text, TouchableOpacity, ScrollView, Modal, TextInput, Pressable, Alert } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import { Row, Card, Badge, StatCard } from "../../components";
 import { useProyectos } from "../../context/ProyectosContext";
 
 export default function PropuestasAsesores({ onNavigate }) {
+  const { colors: C } = useTheme();
   const { propuestas, proyectos, aprobarPropuesta, rechazarPropuesta, aprobarAvanceFase } = useProyectos() || { propuestas: [], proyectos: [] };
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectMotivo, setRejectMotivo] = useState("");

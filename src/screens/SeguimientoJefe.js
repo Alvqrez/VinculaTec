@@ -1,17 +1,17 @@
 import { useState, useMemo } from "react";
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge, StatCard } from "../components";
 import { useProyectos } from "../context/ProyectosContext";
 
-const STATUS_STYLE = {
+export default function SeguimientoJefe() {
+  const { colors: C } = useTheme();
+  const STATUS_STYLE = {
   "Aceptado":     { color: C.green, bg: C.greenLight,  icon: "check-circle"  },
   "Pendiente":    { color: C.amber, bg: C.amberLight,  icon: "clock"         },
   "Por corregir": { color: C.red,   bg: C.redLight,    icon: "alert-circle"  },
 };
-
-export default function SeguimientoJefe() {
   const { proyectos } = useProyectos() || { proyectos: [] };
 
   const [busqueda,   setBusqueda]   = useState("");

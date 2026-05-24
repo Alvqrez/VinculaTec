@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import {
   Row,
   Card,
@@ -15,6 +15,7 @@ import apiClient from "../../utils/apiClient";
 
 
 export default function DashResidente({ onNavigate }) {
+  const { colors: C } = useTheme();
   const { reports } = useReportes() || {};
   const [asesor, setAsesor] = useState(null);
   const [proyecto, setProyecto] = useState(null);

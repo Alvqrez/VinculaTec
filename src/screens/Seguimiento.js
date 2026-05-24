@@ -1,26 +1,28 @@
 import { useState } from "react";
 import { Alert, Modal, Pressable, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, StatCard, Badge, ProgressBar } from "../components";
 import { useReportes } from "../context/ReportesContext";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const statusStyle = (status) =>
-  ({
+const statusStyle = (status) =>{
+  const { colors: C } = useTheme();
+  return({
     Aceptado:       { color: C.green,    bg: C.greenLight  },
     "Por corregir": { color: C.red,      bg: C.redLight    },
     Pendiente:      { color: C.amber,    bg: C.amberLight  },
     Entregado:      { color: C.blue,     bg: C.blueLight   },
   }[status] || { color: C.textMuted, bg: C.bg });
-
+};
 const todayStr = () => {
   const d = new Date();
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 };
 
 export default function Seguimiento() {
+  const { colors: C } = useTheme();
   const { reports, updateReport, preliminarAprobado, finalDesbloqueado } = useReportes() || {};
   const { setNotifications } = useNotificaciones() || {};
   const [selected, setSelected]       = useState(null);
@@ -111,7 +113,7 @@ export default function Seguimiento() {
         </TouchableOpacity>
 
         {isOpen && (
-          <View style={{ borderTopWidth: 1, borderTopColor: C.borderLight, padding: 18, backgroundColor: "#F8FAFC" }}>
+          <View style={{ borderTopWidth: 1, borderTopColor: C.borderLight, padding: 18, backgroundColor: C.bgDark }}>
             {/* Checklist */}
             <Text style={{ fontSize: 12, fontWeight: "700", color: C.textSub, marginBottom: 10 }}>Secciones</Text>
             <View style={{ gap: 7, marginBottom: 14 }}>
@@ -225,7 +227,7 @@ export default function Seguimiento() {
       {/* ── Final status ── */}
       <Text style={{ fontSize: 13, fontWeight: "800", color: C.textMuted, marginBottom: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>Reporte Final</Text>
       {!finalDesbloqueado ? (
-        <Card style={{ backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: C.border, borderStyle: "dashed" }}>
+        <Card style={{ backgroundColor: C.bgDark, borderWidth: 1, borderColor: C.border, borderStyle: "dashed" }}>
           <Row style={{ alignItems: "center", gap: 12 }}>
             <View style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: C.bg, borderWidth: 1, borderColor: C.border, alignItems: "center", justifyContent: "center" }}>
               <Feather name="lock" size={18} color={C.textMuted} />

@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Pressable } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, StatCard, Badge } from "../components";
 import apiClient from "../utils/apiClient";
 
-const STATUS_STYLE  = { Activa:{color:C.green,bg:C.greenLight}, "Por Vencer":{color:C.amber,bg:C.amberLight}, Nueva:{color:C.blue,bg:C.blueLight}, Inactiva:{color:C.red,bg:C.redLight} };
 const SECTOR_ICON   = { Tecnología:"cpu", Manufactura:"tool", Software:"code", Construcción:"home", Farmacéutica:"activity", Automotriz:"truck", Educación:"book-open" };
 const SECTORES      = ["Todos","Tecnología","Manufactura","Software","Construcción","Farmacéutica","Automotriz","Educación"];
 const ESTADOS       = ["Todos","Activa","Por Vencer","Nueva","Inactiva"];
@@ -13,6 +12,8 @@ const ESTADOS       = ["Todos","Activa","Por Vencer","Nueva","Inactiva"];
 const EMPTY_FORM = { name:"", sector:"Tecnología", ciudad:"", convenio:"", contactoNombre:"", contactoEmail:"", contactoTel:"", status:"Nueva" };
 
 export default function GestionEmpresas() {
+  const { colors: C } = useTheme();
+  const STATUS_STYLE  = { Activa:{color:C.green,bg:C.greenLight}, "Por Vencer":{color:C.amber,bg:C.amberLight}, Nueva:{color:C.blue,bg:C.blueLight}, Inactiva:{color:C.red,bg:C.redLight} };
   const [companies,    setCompanies]  = useState([]);
   const [loading,      setLoading]    = useState(true);
   const [search,       setSearch]     = useState("");
@@ -113,7 +114,7 @@ export default function GestionEmpresas() {
               <View style={{ position:"relative", zIndex:1000 }}>
                 <TouchableOpacity onPress={()=>setFilter(!showFilter)}
                   style={{ flexDirection:"row", alignItems:"center", gap:5, borderWidth:1, borderColor: activeFilterCount>0?C.teal:C.border,
-                    paddingHorizontal:12, paddingVertical:7, borderRadius:8, backgroundColor: activeFilterCount>0?C.tealLighter:"white" }}>
+                    paddingHorizontal:12, paddingVertical:7, borderRadius:8, backgroundColor: C.bg}}>
                   <Feather name="filter" size={13} color={activeFilterCount>0?C.teal:C.textMuted} />
                   <Text style={{ fontSize:12, color:activeFilterCount>0?C.teal:C.textMuted, fontWeight:"600" }}>
                     Filtrar{activeFilterCount>0?` (${activeFilterCount})`:""}
@@ -191,7 +192,7 @@ export default function GestionEmpresas() {
             const st  = STATUS_STYLE[co.status] || STATUS_STYLE.Activa;
             const ico = SECTOR_ICON[co.sector]  || "briefcase";
             return (
-              <View key={co.id} style={{ paddingHorizontal:18, paddingVertical:13, borderTopWidth:1, borderTopColor:C.borderLight, backgroundColor: i%2===0?C.card:"#F8FAFC" }}>
+              <View key={co.id} style={{ paddingHorizontal:18, paddingVertical:13, borderTopWidth:1, borderTopColor:C.borderLight, backgroundColor:C.bg }}>
                 <Row style={{ alignItems:"center" }}>
                   <Row style={{ flex:2.5, alignItems:"center", gap:10 }}>
                     <View style={{ width:34, height:34, borderRadius:9, backgroundColor:C.tealLight, alignItems:"center", justifyContent:"center" }}>
@@ -272,14 +273,14 @@ export default function GestionEmpresas() {
               {/* Nombre */}
               <Text style={{ fontSize:11, fontWeight:"700", color:C.textMuted, textTransform:"uppercase", letterSpacing:0.5, marginBottom:6 }}>Nombre de la empresa *</Text>
               <TextInput value={form.name} onChangeText={(v)=>setForm({...form,name:v})} placeholder="Ej: Telmex S.A. de C.V." placeholderTextColor={C.textLight}
-                style={{ padding:10, borderRadius:8, borderWidth:1, borderColor:C.border, fontSize:13, color:C.text, backgroundColor:"#FAFAFA", marginBottom:14 }} />
+                style={{ padding:10, borderRadius:8, borderWidth:1, borderColor:C.border, fontSize:13, color:C.text, backgroundColor:C.bg, marginBottom:14 }} />
 
               {/* Sector */}
               <Text style={{ fontSize:11, fontWeight:"700", color:C.textMuted, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8 }}>Sector</Text>
               <Row style={{ flexWrap:"wrap", gap:8, marginBottom:14 }}>
                 {SECTORES.filter(s=>s!=="Todos").map((s)=>(
                   <TouchableOpacity key={s} onPress={()=>setForm({...form,sector:s})}
-                    style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:1, borderColor:form.sector===s?C.teal:C.border, backgroundColor:form.sector===s?C.tealLight:"white" }}>
+                    style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:1, borderColor:form.sector===s?C.teal:C.border, backgroundColor:C.bg }}>
                     <Text style={{ fontSize:12, fontWeight:"600", color:form.sector===s?C.teal:C.textMuted }}>{s}</Text>
                   </TouchableOpacity>
                 ))}
@@ -292,7 +293,7 @@ export default function GestionEmpresas() {
                   const st=STATUS_STYLE[s]||STATUS_STYLE.Activa;
                   return (
                     <TouchableOpacity key={s} onPress={()=>setForm({...form,status:s})}
-                      style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:1, borderColor:form.status===s?st.color:C.border, backgroundColor:form.status===s?st.bg:"white" }}>
+                      style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:20, borderWidth:1, borderColor:form.status===s?st.color:C.border, backgroundColor:C.bg }}>
                       <Text style={{ fontSize:12, fontWeight:"600", color:form.status===s?st.color:C.textMuted }}>{s}</Text>
                     </TouchableOpacity>
                   );

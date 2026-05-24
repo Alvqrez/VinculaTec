@@ -1,10 +1,11 @@
 import { createContext, useContext, useState } from "react";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import apiClient from "../utils/apiClient";
 
 const Ctx = createContext(null);
 
 export function NotificacionesProvider({ children }) {
+  const { colors: C } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

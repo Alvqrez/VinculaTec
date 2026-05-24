@@ -1,9 +1,10 @@
 import { Text, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import Row from "./Row";
 
 export default function SectionTitle({ title, action, actionLabel }) {
+  const { colors: C } = useTheme();
   return (
     <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
       <Text style={{ fontSize: 14, fontWeight: "800", color: C.text }}>{title}</Text>

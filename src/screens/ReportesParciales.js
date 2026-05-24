@@ -4,11 +4,14 @@ import {
   TextInput, Alert, Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card } from "../components";
 import { useReportes } from "../context/ReportesContext";
 
-// ── Metadatos de cada parcial ─────────────────────────────────────────────────
+// ── Componente principal ──────────────────────────────────────────────────────
+export default function ReportesParciales() {
+  const { colors: C } = useTheme();
+  // ── Metadatos de cada parcial ─────────────────────────────────────────────────
 const PARCIALES = [
   { num: 1, focus: "Diagnóstico e inicio",       color: C.teal  },
   { num: 2, focus: "Desarrollo del proyecto",    color: C.blue  },
@@ -21,8 +24,6 @@ const ESTADO_STYLE = {
   "Por corregir":{ color: C.red,   bg: C.redLight,    label: "Por corregir" },
 };
 
-// ── Componente principal ──────────────────────────────────────────────────────
-export default function ReportesParciales() {
   const {
     reports,
     submitReporte,
@@ -412,6 +413,7 @@ export default function ReportesParciales() {
 
 // ── Campo de formulario ───────────────────────────────────────────────────────
 function Field({ label, value, onChangeText, placeholder, multiline, editable = true, last }) {
+  const { colors: C } = useTheme();
   return (
     <View style={{ marginBottom: last ? 0 : 14 }}>
       <Text style={{ fontSize: 12, fontWeight: "700", color: C.textSub, marginBottom: 6 }}>{label}</Text>

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { Alert, View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, ProgressBar, Badge } from "../components";
 import { useReportes } from "../context/ReportesContext";
 import apiClient from "../utils/apiClient";
 
 // Secciones requeridas del reporte final (template fijo — no son datos de BD)
-const CHECKLIST_LABELS = [
+  const CHECKLIST_LABELS = [
   "Portada e identificación",
   "Índice de contenidos",
   "Resumen ejecutivo",
@@ -20,18 +20,19 @@ const CHECKLIST_LABELS = [
   "Análisis y discusión",
   "Conclusiones",
   "Bibliografía y anexos",
-];
+  ];
 
 // Ponderación de rúbrica (criterios institucionales — no cambian por alumno)
-const RUBRIC_TEMPLATE = [
-  { label: "Contenido técnico",    pct: 0.40 },
-  { label: "Redacción y estilo",   pct: 0.20 },
-  { label: "Evidencias y anexos",  pct: 0.20 },
+  const RUBRIC_TEMPLATE = [
+  { label: "Contenido técnico", pct: 0.40 },
+  { label: "Redacción y estilo", pct: 0.20 },
+  { label: "Evidencias y anexos", pct: 0.20 },
   { label: "Formato y presentación", pct: 0.10 },
-  { label: "Originalidad",         pct: 0.10 },
-];
+  { label: "Originalidad", pct: 0.10 },
+  ];
 
 export default function ReporteFinal({ usuario }) {
+  const { colors: C } = useTheme();
   const {
     finalDesbloqueado,
     todosParcialesAprobados,

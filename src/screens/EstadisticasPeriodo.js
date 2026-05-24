@@ -8,8 +8,11 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { getAuthToken } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 
 export default function EstadisticasPeriodo() {
+  const { colors: C } = useTheme();
+  const styles = getStyles(C);
   const [loading, setLoading] = useState(true);
   const [periodos, setPeriodos] = useState([]);
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState(null);
@@ -197,140 +200,177 @@ export default function EstadisticasPeriodo() {
     </ScrollView>
   );
 }
+const getStyles = (C) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      padding: 20,
+      backgroundColor: C.bg,
+    },
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-  periodSelector: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 10,
-  },
-  periodButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#E5E7EB",
-    marginRight: 8,
-  },
-  periodButtonActive: {
-    backgroundColor: "#3B82F6",
-  },
-  periodButtonText: {
-    fontSize: 14,
-    color: "#374151",
-  },
-  periodButtonTextActive: {
-    color: "white",
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-    padding: 16,
-    borderRadius: 8,
-    marginHorizontal: 4,
-    alignItems: "center",
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#3B82F6",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#6B7280",
-    marginTop: 4,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  item: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 12,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 8,
-    marginBottom: 8,
-  },
-  itemName: {
-    fontSize: 14,
-    color: "#374151",
-    flex: 1,
-  },
-  itemValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#3B82F6",
-  },
-  button: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "white",
-  },
-  cumplimientoItem: {
-    marginBottom: 16,
-  },
-  cumplimientoName: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 8,
-  },
-  progressBarContainer: {
-    height: 12,
-    backgroundColor: "#E5E7EB",
-    borderRadius: 6,
-    overflow: "hidden",
-    marginBottom: 6,
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#3B82F6",
-    borderRadius: 6,
-  },
-  cumplimientoValue: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#3B82F6",
-    textAlign: "right",
-  },
-  noData: {
-    fontSize: 16,
-    color: "#6B7280",
-    textAlign: "center",
-    marginTop: 40,
-  },
-});
+    center: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: C.bg,
+    },
+
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 20,
+      color: C.text,
+    },
+
+    periodSelector: {
+      marginBottom: 20,
+    },
+
+    label: {
+      fontSize: 16,
+      fontWeight: "600",
+      marginBottom: 10,
+      color: C.text,
+    },
+
+    periodButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      backgroundColor: C.card,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+
+    periodButtonActive: {
+      backgroundColor: C.blue,
+      borderColor: C.blue,
+    },
+
+    periodButtonText: {
+      fontSize: 14,
+      color: C.textMuted,
+    },
+
+    periodButtonTextActive: {
+      color: "white",
+    },
+
+    statsContainer: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: 20,
+    },
+
+    statCard: {
+      flex: 1,
+      backgroundColor: C.card,
+      padding: 16,
+      borderRadius: 8,
+      marginHorizontal: 4,
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+
+    statValue: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: C.blue,
+    },
+
+    statLabel: {
+      fontSize: 12,
+      color: C.textMuted,
+      marginTop: 4,
+    },
+
+    section: {
+      marginBottom: 20,
+    },
+
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 12,
+      color: C.text,
+    },
+
+    item: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      padding: 12,
+      backgroundColor: C.card,
+      borderRadius: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: C.border,
+    },
+
+    itemName: {
+      fontSize: 14,
+      color: C.text,
+      flex: 1,
+    },
+
+    itemValue: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: C.blue,
+    },
+
+    button: {
+      backgroundColor: C.blue,
+      paddingVertical: 14,
+      paddingHorizontal: 24,
+      borderRadius: 10,
+      alignItems: "center",
+      marginBottom: 20,
+    },
+
+    buttonText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: "white",
+    },
+
+    cumplimientoItem: {
+      marginBottom: 16,
+    },
+
+    cumplimientoName: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: C.text,
+      marginBottom: 8,
+    },
+
+    progressBarContainer: {
+      height: 12,
+      backgroundColor: C.border,
+      borderRadius: 6,
+      overflow: "hidden",
+      marginBottom: 6,
+    },
+
+    progressBar: {
+      height: "100%",
+      backgroundColor: C.blue,
+      borderRadius: 6,
+    },
+
+    cumplimientoValue: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: C.blue,
+      textAlign: "right",
+    },
+
+    noData: {
+      fontSize: 16,
+      color: C.textMuted,
+      textAlign: "center",
+      marginTop: 40,
+    },
+  });

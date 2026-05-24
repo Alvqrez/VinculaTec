@@ -8,7 +8,7 @@ import {
   Animated,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import Row from "./Row";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
@@ -41,6 +41,7 @@ function NavItem({
   setActiveNav,
   unreadCount,
 }) {
+  const { colors: C } = useTheme();
   const active = activeNav === id;
   const count = id === "notificaciones" ? unreadCount : 0;
 
@@ -135,6 +136,7 @@ function GroupItem({
   openGroups,
   toggleGroup,
 }) {
+  const { colors: C } = useTheme();
   const isOpen = openGroups[item.id] ?? false;
   const childActive = groupHasActive(item, activeNav);
 
@@ -219,6 +221,7 @@ export default function Sidebar({
   usuario,
   fotoPerfil,
 }) {
+  const { colors: C } = useTheme();
   const { unreadCount } = useNotificaciones() || { unreadCount: 0 };
 
   const [openGroups, setOpenGroups] = useState(() => {

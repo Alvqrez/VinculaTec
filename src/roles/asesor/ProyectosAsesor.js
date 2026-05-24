@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import { Row, Card, Badge, ProgressBar } from "../../components";
 import { useProyectos } from "../../context/ProyectosContext";
 
@@ -18,7 +18,11 @@ const PHASE_LABELS = {
   revision: "En Revisión",
   concluido: "Concluido",
 };
-const PHASE_COLORS = {
+
+
+export default function ProyectosAsesor() {
+  const { colors: C } = useTheme();
+  const PHASE_COLORS = {
   propuesto: C.blue,
   desarrollo: C.amber,
   revision: C.purple,
@@ -29,8 +33,6 @@ const PRIORITY_OPTS = [
   { label: "Media", color: C.amber, bg: C.amberLight },
   { label: "Baja", color: C.green, bg: C.greenLight },
 ];
-
-export default function ProyectosAsesor() {
   const { proyectos, solicitarAvanceFase, loading, error, reload } =
     useProyectos() || {
       proyectos: [],

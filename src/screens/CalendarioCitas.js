@@ -4,7 +4,7 @@ import {
   TextInput, Modal, KeyboardAvoidingView, Platform,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge } from "../components";
 import { useProyectos } from "../context/ProyectosContext";
 import { getAuthToken } from "../context/AuthContext";
@@ -15,13 +15,7 @@ const MONTHS     = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Ag
 const FORM_TYPES = ["Asesoría","Revisión de avances","Reunión con residente","Reunión con empresa","Reunión con vinculación","Evaluación","Otro"];
 const MODALIDADES = ["Presencial", "Virtual"];
 
-const CATEGORIES = [
-  { id: "todas", label: "Todas", color: C.text },
-  { id: "reunion", label: "Reunión", color: C.blue },
-  { id: "revision", label: "Revisión", color: C.amber },
-  { id: "residente", label: "Residentes", color: C.teal },
-  { id: "empresa", label: "Empresa", color: C.purple },
-];
+
 
 const monthKey = (date) => `${date.getFullYear()}-${date.getMonth()}`;
 
@@ -76,6 +70,18 @@ const saveCitaAPI = async (payload) => {
 };
 
 export default function CalendarioCitas() {
+  const { colors: C } = useTheme();
+  const CATEGORIES = [
+  { id: "todas", label: "Todas", color: C.textMuted },
+  { id: "reunion", label: "Reunión", color: C.blue },
+  { id: "revision", label: "Revisión", color: C.amber },
+  { id: "residente", label: "Residentes", color: C.teal },
+  { id: "empresa", label: "Empresa", color: C.purple },
+];
+  const labelStyle = {
+  fontSize: 11, fontWeight: "700", color: C.textSub,
+  marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4,
+};
   const [selected, setSelected] = useState(null);
   const [monthDate, setMonthDate] = useState(() => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), 1); });
   const [events, setEvents] = useState({});
@@ -504,8 +510,3 @@ export default function CalendarioCitas() {
     </ScrollView>
   );
 }
-
-const labelStyle = {
-  fontSize: 11, fontWeight: "700", color: C.textSub,
-  marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4,
-};

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { View, Platform, Animated, ScrollView } from "react-native";
-import C from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
@@ -36,7 +35,7 @@ function JefeAppInner({ usuario, onLogout }) {
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
 
-  const { isDark } = useTheme();
+  const { colors: C, isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const navigateTo = (id) => {
@@ -125,5 +124,6 @@ function JefeAppInner({ usuario, onLogout }) {
 }
 
 export default function JefeApp({ usuario, onLogout }) {
+  const { colors: C } = useTheme();
   return <JefeAppInner usuario={usuario} onLogout={onLogout} />;
 }

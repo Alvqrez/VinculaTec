@@ -8,14 +8,67 @@ import {
   Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge } from "../components";
 import apiClient from "../utils/apiClient";
 
 const PASO_LABELS = ["Proyecto", "Asesor", "Residente", "Confirmar"];
 
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  multiline,
+  C,
+}) {
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text
+        style={{
+          fontSize: 11,
+          fontWeight: "700",
+          color: C.textMuted,
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+          marginBottom: 6,
+        }}
+      >
+        {label}
+      </Text>
+
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={C.textLight}
+        multiline={multiline}
+        style={{
+          padding: 11,
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: C.border,
+          fontSize: 13,
+          color: C.text,
+          backgroundColor: C.card,
+
+          ...(multiline
+            ? {
+                minHeight: 80,
+                textAlignVertical: "top",
+              }
+            : {}),
+        }}
+      />
+    </View>
+  );
+}
+
 export default function AsignacionJefe() {
+  const { colors: C } = useTheme();
+
   const [paso, setPaso] = useState(0);
+
   const [proyecto, setProyecto] = useState({
     nombre: "",
     empresaId: "",
@@ -23,14 +76,20 @@ export default function AsignacionJefe() {
     descripcion: "",
     periodo: "",
   });
-  // Multi-asesor: array de ids. El primero es el asesor principal (asignado a los residentes).
+
+  // Multi-asesor: array de ids. El primero es el asesor principal.
   const [asesorIds, setAsesorIds] = useState([]);
+
   const [residentesIds, setResidentesIds] = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
 
   const [asesores, setAsesores] = useState([]);
   const [empresas, setEmpresas] = useState([]);
   const [residentes, setResidentes] = useState([]);
+
+  // COMPONENTE FIELD DENTRO DEL COMPONENTE
+  // porque usa C (theme colors)
+  
 
   useEffect(() => {
     apiClient.get("/api/jefe/asignacion/datos").then((res) => {
@@ -44,65 +103,109 @@ export default function AsignacionJefe() {
 
   const toggleAsesor = (id) => {
     setAsesorIds((prev) =>
-      prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id],
+      prev.includes(id)
+        ? prev.filter((a) => a !== id)
+        : [...prev, id]
     );
   };
 
   const toggleResidente = (id) => {
     setResidentesIds((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
+      prev.includes(id)
+        ? prev.filter((r) => r !== id)
+        : [...prev, id]
     );
   };
 
   const validarPaso = () => {
     if (paso === 0) {
       if (!proyecto.nombre.trim()) {
-        Alert.alert("Falta información", "Ingresa el nombre del proyecto.");
+        Alert.alert(
+          "Falta información",
+          "Ingresa el nombre del proyecto."
+        );
         return;
       }
+
       if (!proyecto.empresaId) {
-        Alert.alert("Falta información", "Selecciona la empresa.");
+        Alert.alert(
+          "Falta información",
+          "Selecciona la empresa."
+        );
         return;
       }
     }
+
     if (paso === 1 && asesorIds.length === 0) {
-      Alert.alert("Falta información", "Selecciona al menos un asesor.");
+      Alert.alert(
+        "Falta información",
+        "Selecciona al menos un asesor."
+      );
       return;
     }
+
     if (paso === 2 && residentesIds.length === 0) {
-      Alert.alert("Falta información", "Selecciona al menos un residente.");
+      Alert.alert(
+        "Falta información",
+        "Selecciona al menos un residente."
+      );
       return;
     }
+
     setPaso((p) => p + 1);
   };
 
   const guardarAsignacion = async () => {
-    const res = await apiClient.post("/api/jefe/asignacion", {
-      proyectoNombre: proyecto.nombre,
-      empresaId: proyecto.empresaId,
-      descripcion: proyecto.descripcion,
-      periodo: proyecto.periodo,
-      asesorIds, // array; el backend usa el primero como principal
-      residentesIds,
-    });
+    const res = await apiClient.post(
+      "/api/jefe/asignacion",
+      {
+        proyectoNombre: proyecto.nombre,
+        empresaId: proyecto.empresaId,
+        descripcion: proyecto.descripcion,
+        periodo: proyecto.periodo,
+
+        // array; el backend usa el primero como principal
+        asesorIds,
+
+        residentesIds,
+      }
+    );
+
     if (!res.ok) {
-      Alert.alert("Error", res.body?.mensaje || "No se pudo guardar.");
+      Alert.alert(
+        "Error",
+        res.body?.mensaje || "No se pudo guardar."
+      );
+
       return;
     }
+
     const asesoresNombres = asesorIds
       .map((id) => asesores.find((a) => a.id === id)?.nombre)
       .filter(Boolean);
+
     const nuevaAsignacion = {
       id: res.body.id,
+
       proyecto: proyecto.nombre,
+
       empresa: proyecto.empresaNombre,
+
       asesores: asesoresNombres,
+
       residentes: residentesIds.map(
-        (id) => residentes.find((r) => r.id === id)?.nombre,
+        (id) =>
+          residentes.find((r) => r.id === id)?.nombre
       ),
+
       fecha: new Date().toLocaleDateString("es-MX"),
     };
-    setAsignaciones((prev) => [nuevaAsignacion, ...prev]);
+
+    setAsignaciones((prev) => [
+      nuevaAsignacion,
+      ...prev,
+    ]);
+
     setProyecto({
       nombre: "",
       empresaId: "",
@@ -110,75 +213,139 @@ export default function AsignacionJefe() {
       descripcion: "",
       periodo: "",
     });
+
     setAsesorIds([]);
     setResidentesIds([]);
     setPaso(0);
+
     Alert.alert(
       "Asignación guardada",
-      `El proyecto "${nuevaAsignacion.proyecto}" ha sido asignado correctamente.`,
+      `El proyecto "${nuevaAsignacion.proyecto}" ha sido asignado correctamente.`
     );
   };
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 24 }}
+      style={{
+        flex: 1,
+        backgroundColor: C.bg,
+      }}
+      contentContainerStyle={{
+        padding: 24,
+      }}
     >
       {/* Header */}
       <View style={{ marginBottom: 24 }}>
-        <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>
+        <Text
+          style={{
+            fontSize: 22,
+            fontWeight: "800",
+            color: C.text,
+          }}
+        >
           Asignación de Proyectos
         </Text>
-        <Text style={{ fontSize: 13, color: C.textMuted, marginTop: 2 }}>
-          Registra un nuevo proyecto y asigna asesor y residente(s)
+
+        <Text
+          style={{
+            fontSize: 13,
+            color: C.textMuted,
+            marginTop: 2,
+          }}
+        >
+          Registra un nuevo proyecto y asigna asesor y
+          residente(s)
         </Text>
       </View>
 
       {/* Stepper */}
-      <Card style={{ marginBottom: 24, padding: 20 }}>
-        <Row style={{ justifyContent: "center", alignItems: "center", gap: 0 }}>
+      <Card
+        style={{
+          marginBottom: 24,
+          padding: 20,
+        }}
+      >
+        <Row
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 0,
+          }}
+        >
           {PASO_LABELS.map((label, i) => (
             <Row
               key={i}
               style={{
                 alignItems: "center",
-                flex: i < PASO_LABELS.length - 1 ? 1 : undefined,
+                flex:
+                  i < PASO_LABELS.length - 1
+                    ? 1
+                    : undefined,
               }}
             >
-              <View style={{ alignItems: "center" }}>
+              <View
+                style={{
+                  alignItems: "center",
+                }}
+              >
                 <View
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: 18,
+
                     backgroundColor:
-                      i < paso ? C.teal : i === paso ? C.navy : C.bg,
+                      i < paso
+                        ? C.teal
+                        : i === paso
+                        ? C.navy
+                        : C.bg,
+
                     borderWidth: i === paso ? 3 : 0,
+
                     borderColor: C.teal,
+
                     alignItems: "center",
                     justifyContent: "center",
                   }}
                 >
                   {i < paso ? (
-                    <Feather name="check" size={16} color="white" />
+                    <Feather
+                      name="check"
+                      size={16}
+                      color="white"
+                    />
                   ) : (
                     <Text
                       style={{
                         fontSize: 13,
                         fontWeight: "800",
-                        color: i === paso ? C.teal : C.textMuted,
+
+                        color:
+                          i === paso
+                            ? C.teal
+                            : C.textMuted,
                       }}
                     >
                       {i + 1}
                     </Text>
                   )}
                 </View>
+
                 <Text
                   style={{
                     fontSize: 10,
-                    fontWeight: i === paso ? "700" : "500",
+
+                    fontWeight:
+                      i === paso ? "700" : "500",
+
                     color:
-                      i === paso ? C.teal : i < paso ? C.green : C.textMuted,
+                      i === paso
+                        ? C.teal
+                        : i < paso
+                        ? C.green
+                        : C.textMuted,
+
                     marginTop: 6,
                     textAlign: "center",
                   }}
@@ -186,12 +353,18 @@ export default function AsignacionJefe() {
                   {label}
                 </Text>
               </View>
+
               {i < PASO_LABELS.length - 1 && (
                 <View
                   style={{
                     flex: 1,
                     height: 2,
-                    backgroundColor: i < paso ? C.teal : C.border,
+
+                    backgroundColor:
+                      i < paso
+                        ? C.teal
+                        : C.border,
+
                     marginHorizontal: 8,
                     marginBottom: 20,
                   }}
@@ -205,7 +378,13 @@ export default function AsignacionJefe() {
       {/* ── Paso 0: Proyecto ── */}
       {paso === 0 && (
         <Card style={{ marginBottom: 20 }}>
-          <Row style={{ alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <Row
+            style={{
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 20,
+            }}
+          >
             <View
               style={{
                 width: 36,
@@ -216,29 +395,59 @@ export default function AsignacionJefe() {
                 justifyContent: "center",
               }}
             >
-              <Feather name="folder-plus" size={18} color={C.blue} />
+              <Feather
+                name="folder-plus"
+                size={18}
+                color={C.blue}
+              />
             </View>
+
             <View>
-              <Text style={{ fontSize: 16, fontWeight: "800", color: C.text }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "800",
+                  color: C.text,
+                }}
+              >
                 Datos del Proyecto
               </Text>
-              <Text style={{ fontSize: 12, color: C.textMuted }}>
-                Proyecto aprobado para residencia profesional
+
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: C.textMuted,
+                }}
+              >
+                Proyecto aprobado para residencia
+                profesional
               </Text>
             </View>
           </Row>
 
           <Field
+            C={C}
             label="Nombre del Proyecto *"
             value={proyecto.nombre}
-            onChangeText={(v) => setProyecto({ ...proyecto, nombre: v })}
+            onChangeText={(v) =>
+              setProyecto({
+                ...proyecto,
+                nombre: v,
+              })
+            }
             placeholder="Ej: Sistema de Gestión de Inventarios"
           />
 
           <Field
+            C={C}
             label="Periodo Escolar"
             value={proyecto.periodo}
-            onChangeText={(v) => setProyecto({ ...proyecto, periodo: v })}
+            onChangeText={(v) =>
+              setProyecto({
+                ...proyecto,
+                periodo: v,
+              })
+            }
             placeholder="Ej: 2025-1"
           />
 
@@ -297,6 +506,7 @@ export default function AsignacionJefe() {
           </ScrollView>
 
           <Field
+            C={C}
             label="Descripción del Proyecto"
             value={proyecto.descripcion}
             onChangeText={(v) => setProyecto({ ...proyecto, descripcion: v })}
@@ -829,41 +1039,5 @@ export default function AsignacionJefe() {
         </>
       )}
     </ScrollView>
-  );
-}
-
-function Field({ label, value, onChangeText, placeholder, multiline }) {
-  return (
-    <View style={{ marginBottom: 16 }}>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "700",
-          color: C.textMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 6,
-        }}
-      >
-        {label}
-      </Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={C.textLight}
-        multiline={multiline}
-        style={{
-          padding: 11,
-          borderRadius: 8,
-          borderWidth: 1,
-          borderColor: C.border,
-          fontSize: 13,
-          color: C.text,
-          backgroundColor: "#FAFAFA",
-          ...(multiline ? { minHeight: 80, textAlignVertical: "top" } : {}),
-        }}
-      />
-    </View>
   );
 }

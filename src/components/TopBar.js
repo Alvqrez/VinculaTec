@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
-import Row from "./Row";
 import { useTheme } from "../context/ThemeContext";
+import Row from "./Row";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
 // Metadatos de búsqueda: cada sección tiene palabras clave adicionales
@@ -143,7 +142,8 @@ const SECTION_META = {
 };
 
 export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
-  const { isDark } = useTheme();
+  
+  const { isDark, colors: C} = useTheme();
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);

@@ -9,26 +9,9 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge } from "../components";
 import apiClient from "../utils/apiClient";
-
-const ROL_OPTS = [
-  {
-    id: "residente",
-    label: "Residente",
-    icon: "user",
-    color: C.blue,
-    bg: C.blueLight,
-  },
-  {
-    id: "asesor",
-    label: "Asesor",
-    icon: "user-check",
-    color: C.teal,
-    bg: C.tealLight,
-  },
-];
 
 const CARRERAS = [
   "Ingeniería en Sistemas Computacionales",
@@ -66,6 +49,23 @@ const EMPTY_FORM = {
 };
 
 export default function RegistrarUsuario() {
+  const { colors: C } = useTheme();
+  const ROL_OPTS = [
+  {
+    id: "residente",
+    label: "Residente",
+    icon: "user",
+    color: C.blue,
+    bg: C.blueLight,
+  },
+  {
+    id: "asesor",
+    label: "Asesor",
+    icon: "user-check",
+    color: C.teal,
+    bg: C.tealLight,
+  },
+];
   const [rol, setRol] = useState("residente");
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -293,6 +293,7 @@ export default function RegistrarUsuario() {
         </Row>
         <Row style={{ gap: 12, marginBottom: 0 }}>
           <Field
+            C={C}
             label="Nombre(s)"
             value={form.nombre}
             onChangeText={(v) => set("nombre", v)}
@@ -300,6 +301,7 @@ export default function RegistrarUsuario() {
             style={{ flex: 1 }}
           />
           <Field
+            C={C}
             label="Apellidos"
             value={form.apellidos}
             onChangeText={(v) => set("apellidos", v)}
@@ -308,6 +310,7 @@ export default function RegistrarUsuario() {
           />
         </Row>
         <Field
+          C={C}
           label="Correo electrónico"
           value={form.correo}
           onChangeText={(v) => set("correo", v)}
@@ -316,6 +319,7 @@ export default function RegistrarUsuario() {
         />
         <Row style={{ gap: 12 }}>
           <Field
+            C={C}
             label="Contraseña"
             value={form.password}
             onChangeText={(v) => set("password", v)}
@@ -324,6 +328,7 @@ export default function RegistrarUsuario() {
             style={{ flex: 1 }}
           />
           <Field
+            C={C}
             label="Confirmar contraseña"
             value={form.confirmPassword}
             onChangeText={(v) => set("confirmPassword", v)}
@@ -356,6 +361,7 @@ export default function RegistrarUsuario() {
           </Row>
           <Row style={{ gap: 12 }}>
             <Field
+              C={C}
               label="Número de control"
               value={form.numControl}
               onChangeText={(v) => set("numControl", v)}
@@ -363,6 +369,7 @@ export default function RegistrarUsuario() {
               style={{ flex: 1 }}
             />
             <Field
+              C={C}
               label="Semestre"
               value={form.semestre}
               onChangeText={(v) => set("semestre", v)}
@@ -434,6 +441,7 @@ export default function RegistrarUsuario() {
             </Text>
           </Row>
           <Field
+            C={C}
             label="Número de empleado"
             value={form.numEmpleado}
             onChangeText={(v) => set("numEmpleado", v)}
@@ -590,6 +598,7 @@ export default function RegistrarUsuario() {
 }
 
 function Field({
+  C,
   label,
   value,
   onChangeText,

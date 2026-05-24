@@ -9,7 +9,7 @@ import {
   Pressable,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, StatCard, Badge, ProgressBar } from "../components";
 import { useProyectos } from "../context/ProyectosContext";
 import { useReportes } from "../context/ReportesContext";
@@ -34,6 +34,7 @@ const FASE_SEQUENCE = [
 ];
 
 export default function SeguimientoAsesor() {
+  const { colors: C } = useTheme();
   const {
     proyectos,
     updateReporte,
@@ -1467,7 +1468,7 @@ export default function SeguimientoAsesor() {
                         : C.border,
                     fontSize: 13,
                     color: C.text,
-                    backgroundColor: "#FAFAFA",
+                    backgroundColor: C.card,
                     minHeight: 100,
                     textAlignVertical: "top",
                     marginBottom: 18,

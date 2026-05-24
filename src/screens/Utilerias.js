@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,172 +8,15 @@ import {
   Pressable,
   Alert,
   Animated,
+  Image,
 } from "react-native";
 import { useRef, useEffect } from "react";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card } from "../components";
 import { useFotos } from "../context/FotosContext";
-import { useTheme } from "../context/ThemeContext";
 
-// ── Datos por rol ─────────────────────────────────────────────────────────────
-const ROL_INFO = {
-  residente: {
-    label: "Residente",
-    color: C.teal,
-    icon: "user",
-    herramientas: [
-      {
-        label: "Guía de Residencias Profesionales",
-        icon: "book-open",
-        detalle: {
-          tipo: "PDF",
-          paginas: "32 páginas",
-          descripcion:
-            "Manual completo del proceso de residencias: requisitos de ingreso, reglamento, formatos oficiales y calendario de entregas.",
-          version: "Actualización enero 2026",
-        },
-      },
-      {
-        label: "Formato de Reporte Preliminar",
-        icon: "file-text",
-        detalle: {
-          tipo: "DOCX",
-          paginas: "4 páginas",
-          descripcion:
-            "Plantilla oficial del reporte preliminar con las secciones requeridas: datos del proyecto, objetivos, plan de trabajo y cronograma.",
-          version: "v3.1 – ITM",
-        },
-      },
-      {
-        label: "Plantilla de Reportes Parciales",
-        icon: "clipboard",
-        detalle: {
-          tipo: "DOCX",
-          paginas: "6 páginas",
-          descripcion:
-            "Plantilla estándar para reportes bimestrales. Incluye secciones de actividades, avances, problemas y observaciones.",
-          version: "v2.4 – ITM",
-        },
-      },
-      {
-        label: "Carta de Presentación",
-        icon: "mail",
-        detalle: {
-          tipo: "PDF",
-          paginas: "1 página",
-          descripcion:
-            "Modelo de carta de presentación oficial del Tecnológico para entregar a la empresa receptora al inicio de la residencia.",
-          version: "Formato institucional 2026",
-        },
-      },
-      {
-        label: "Calendario Académico 2026",
-        icon: "calendar",
-        detalle: {
-          tipo: "PDF",
-          paginas: "2 páginas",
-          descripcion:
-            "Fechas clave del ciclo escolar 2026: periodos de entrega, evaluaciones, días festivos y eventos institucionales.",
-          version: "Enero – Diciembre 2026",
-        },
-      },
-    ],
-    notas: [
-      "Entrega tu reporte preliminar antes del 15 de febrero.",
-      "Los reportes parciales deben entregarse al final de cada bimestre.",
-      "Guarda todos tus comprobantes de asistencia en la empresa.",
-    ],
-  },
-  asesor: {
-    label: "Asesor",
-    color: C.blue,
-    icon: "briefcase",
-    herramientas: [
-      {
-        label: "Guía de Evaluación de Residencias",
-        icon: "check-square",
-        detalle: {
-          tipo: "PDF",
-          paginas: "18 páginas",
-          descripcion:
-            "Criterios oficiales de evaluación, rúbricas por reporte y lineamientos para la retroalimentación a los residentes.",
-          version: "v2.2 – Departamento Académico",
-        },
-      },
-      {
-        label: "Formato de Seguimiento de Residente",
-        icon: "bar-chart-2",
-        detalle: {
-          tipo: "XLSX",
-          paginas: "3 hojas",
-          descripcion:
-            "Hoja de cálculo para registrar el avance individual de cada residente: reportes entregados, estados y observaciones.",
-          version: "Actualización feb 2026",
-        },
-      },
-      {
-        label: "Reglamento de Residencias",
-        icon: "shield",
-        detalle: {
-          tipo: "PDF",
-          paginas: "12 páginas",
-          descripcion:
-            "Reglamento vigente del programa de residencias profesionales, obligaciones del asesor y derechos del residente.",
-          version: "Edición 2025-2026",
-        },
-      },
-    ],
-    notas: [
-      "Revisa y retroalimenta los reportes en un plazo máximo de 7 días hábiles.",
-      "Las citas de asesoría deben registrarse en el sistema.",
-    ],
-  },
-  jefe: {
-    label: "Jefe de Vinculación",
-    color: C.amber,
-    icon: "shield",
-    herramientas: [
-      {
-        label: "Directorio de Empresas Vinculadas",
-        icon: "database",
-        detalle: {
-          tipo: "PDF",
-          paginas: "8 páginas",
-          descripcion:
-            "Listado actualizado de todas las empresas con convenio vigente, datos de contacto y cupos disponibles por periodo.",
-          version: "Actualización abril 2026",
-        },
-      },
-      {
-        label: "Reglamento General del Departamento",
-        icon: "shield",
-        detalle: {
-          tipo: "PDF",
-          paginas: "20 páginas",
-          descripcion:
-            "Marco normativo del Departamento de Vinculación: funciones, procedimientos de validación y convenios interinstitucionales.",
-          version: "Versión 2025",
-        },
-      },
-      {
-        label: "Formato de Convenio Empresarial",
-        icon: "file-text",
-        detalle: {
-          tipo: "DOCX",
-          paginas: "5 páginas",
-          descripcion:
-            "Plantilla oficial del convenio de colaboración entre el Tecnológico y la empresa receptora de residentes.",
-          version: "Formato Oficial 2026",
-        },
-      },
-    ],
-    notas: [
-      "Valida los nuevos convenios antes del inicio de cada semestre.",
-      "Asigna asesores a nuevos residentes con base en la carga académica.",
-    ],
-  },
-};
+
 
 // ── Toggle de modo oscuro (reemplaza al Switch nativo que es invisible en dark) ──
 function ToggleCard({ isDark, toggleDark, TXT, TXTM, CARD, BORD }) {
@@ -329,8 +172,90 @@ function ToggleCard({ isDark, toggleDark, TXT, TXTM, CARD, BORD }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export default function Utilerias({ usuario }) {
-  const { isDark, toggleDark, colors: T } = useTheme();
+  const { isDark, toggleDark, colors: C } = useTheme();
+  const T = isDark ? C.T : C; // Colores dinámicos según el modo
   const { getFoto, setFoto } = useFotos?.() || {};
+
+  // ── Datos por rol ─────────────────────────────────────────────
+  const ROL_INFO = {
+    residente: {
+      label: "Residente",
+      color: C.teal,
+      icon: "user",
+      herramientas: [
+        {
+          label: "Guía de Residencias Profesionales",
+          icon: "book-open",
+          detalle: {
+            tipo: "PDF",
+            paginas: "32 páginas",
+            descripcion:
+              "Manual completo del proceso de residencias: requisitos de ingreso, reglamento, formatos oficiales y calendario.",
+            version: "Actualización enero 2026",
+          },
+        },
+        {
+          label: "Formato de Reporte Preliminar",
+          icon: "file-text",
+          detalle: {
+            tipo: "DOCX",
+            paginas: "4 páginas",
+            descripcion:
+              "Plantilla oficial del reporte preliminar.",
+            version: "v3.1 – ITM",
+          },
+        },
+      ],
+      notas: [
+        "Entrega tu reporte preliminar antes del 15 de febrero.",
+        "Los reportes parciales deben entregarse al final de cada bimestre.",
+      ],
+    },
+
+    asesor: {
+      label: "Asesor",
+      color: C.blue,
+      icon: "briefcase",
+      herramientas: [
+        {
+          label: "Guía de Evaluación",
+          icon: "check-square",
+          detalle: {
+            tipo: "PDF",
+            paginas: "18 páginas",
+            descripcion:
+              "Criterios oficiales de evaluación.",
+            version: "v2.2",
+          },
+        },
+      ],
+      notas: [
+        "Retroalimenta reportes en máximo 7 días.",
+      ],
+    },
+
+    jefe: {
+      label: "Jefe de Vinculación",
+      color: C.amber,
+      icon: "shield",
+      herramientas: [
+        {
+          label: "Directorio de Empresas",
+          icon: "database",
+          detalle: {
+            tipo: "PDF",
+            paginas: "8 páginas",
+            descripcion:
+              "Listado actualizado de empresas vinculadas.",
+            version: "Abril 2026",
+          },
+        },
+      ],
+      notas: [
+        "Valida convenios antes del inicio del semestre.",
+      ],
+    },
+  };
 
   const [modalItem, setModalItem] = useState(null);
 
@@ -338,7 +263,9 @@ export default function Utilerias({ usuario }) {
     usuario?.rol?.toLowerCase() === "jefe"
       ? "jefe"
       : usuario?.rol?.toLowerCase() || "residente";
+
   const info = ROL_INFO[rolKey] || ROL_INFO.residente;
+
   const iniciales = usuario
     ? `${(usuario.nombre || "")[0] || ""}${(usuario.apellidos || "")[0] || ""}`.toUpperCase()
     : "??";
@@ -406,12 +333,12 @@ export default function Utilerias({ usuario }) {
   };
 
   // Colores dinámicos: si el modo oscuro está activo, usa la paleta T; si no, usa C
-  const BG = isDark ? T.bg : C.bg;
-  const CARD = isDark ? T.card : C.card;
-  const BORD = isDark ? T.border : C.border;
-  const TXT = isDark ? T.text : C.text;
-  const TXTS = isDark ? T.textSub : C.textSub;
-  const TXTM = isDark ? T.textMuted : C.textMuted;
+  const BG = T.bg;
+  const CARD = T.card;
+  const BORD = T.border;
+  const TXT = T.text;
+  const TXTS = T.textSub;
+  const TXTM = T.textMuted;
 
   return (
     <ScrollView
@@ -456,11 +383,10 @@ export default function Utilerias({ usuario }) {
                 }}
               >
                 {/* eslint-disable-next-line react-native/no-inline-styles */}
-                <img
-                  src={fotoPerfil}
-                  style={{ width: 72, height: 72, objectFit: "cover" }}
-                  alt="perfil"
-                />
+                <Image
+                 source={{ uri: fotoPerfil }}
+                 style={{ width: 72, height: 72 }}
+                 />
               </View>
             ) : (
               <View

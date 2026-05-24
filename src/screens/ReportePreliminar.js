@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { Alert, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge } from "../components";
 import { useReportes } from "../context/ReportesContext";
 import { useProyectos } from "../context/ProyectosContext";
 import apiClient from "../utils/apiClient";
 
 export default function ReportePreliminar() {
+  const { colors: C } = useTheme();
   // ── Contextos — conexión al flujo de revisión ─────────────────────────────
   const { updateReport, reports }         = useReportes()  || {};
   const { submitReporteFromResidente }    = useProyectos() || {};

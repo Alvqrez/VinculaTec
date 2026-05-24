@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { View, Platform, Animated, ScrollView } from "react-native";
-import C from "../../constants/colors";
 import { useTheme } from "../../context/ThemeContext";
 import Sidebar from "../../components/Sidebar";
 import TopBar from "../../components/TopBar";
@@ -25,6 +24,7 @@ const NAV = [
 ];
 
 export default function AsesorApp({ usuario, onLogout }) {
+  const { colors: C } = useTheme();
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();

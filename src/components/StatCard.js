@@ -1,9 +1,10 @@
 import { View, Text } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../constants/colors";
+import { useTheme } from "../context/ThemeContext";
 import Row from "./Row";
 
 export default function StatCard({ label, value, sub, icon, iconBg, iconColor, trend, trendUp }) {
+  const { colors: C } = useTheme();
   return (
     <View
       style={{

@@ -9,33 +9,42 @@ import {
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { PieChart } from "react-native-chart-kit";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import { Row, Card, StatCard, Badge, SectionTitle } from "../../components";
 import apiClient from "../../utils/apiClient";
-
-const STATUS_STYLE = {
-  Activa:       { color: C.green, bg: C.greenLight },
-  "Por Vencer": { color: C.amber, bg: C.amberLight },
-  Nueva:        { color: C.blue,  bg: C.blueLight  },
-  Inactiva:     { color: C.red,   bg: C.redLight    },
-};
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function DashJefe({ onNavigate }) {
+  const { colors: C } = useTheme();
+
+  const STATUS_STYLE = {
+    Activa: { color: C.green, bg: C.greenLight },
+    "Por Vencer": { color: C.amber, bg: C.amberLight },
+    Nueva: { color: C.blue, bg: C.blueLight },
+    Inactiva: { color: C.red, bg: C.redLight },
+  };
+
   // ── Datos generales (sin filtro de período) ────────────────────────────────
-  const [stats, setStats]           = useState({ totalResidentes: 0, empresasVinculadas: 0, proyectosActivos: 0, reportesPendientes: 0 });
+  const [stats, setStats] = useState({
+    totalResidentes: 0,
+    empresasVinculadas: 0,
+    proyectosActivos: 0,
+    reportesPendientes: 0,
+  });
+
   const [graficaReportes, setGraficaReportes] = useState({
-  entregados: 0,
-  pendientes: 0,
-});
+    entregados: 0,
+    pendientes: 0,
+  });
+
   const [topEmpresas, setTopEmpresas] = useState([]);
 
   // ── Períodos dinámicos desde la BD ────────────────────────────────────────
-  const [periodos, setPeriodos]               = useState([]);          // ej. ["2025-1","2025-2","2026-1"]
-  const [periodoSeleccionado, setPeriodo]     = useState("Todos");
-  const [statsPeriodo, setStatsPeriodo]       = useState(null);        // stats del período elegido
-  const [loadingPeriodo, setLoadingPeriodo]   = useState(false);
+  const [periodos, setPeriodos] = useState([]);
+  const [periodoSeleccionado, setPeriodo] = useState("Todos");
+  const [statsPeriodo, setStatsPeriodo] = useState(null);
+  const [loadingPeriodo, setLoadingPeriodo] = useState(false);
 
   // ── Carga inicial: stats globales + lista de períodos ─────────────────────
   useEffect(() => {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, Modal, TextInput } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import C from "../../constants/colors";
+import { useTheme } from "../../context/ThemeContext";
 import { Row, Card, Badge } from "../../components";
 import apiClient from "../../utils/apiClient";
 
@@ -12,6 +12,7 @@ const FUENTE_STYLES = {
 };
 
 export default function ValidacionFuentes({ onNavigate }) {
+  const { colors: C } = useTheme();
   const [fuentes, setFuentes] = useState([]);
   const [showRechazoModal, setShowRechazoModal] = useState(false);
   const [rechazoId, setRechazoId] = useState(null);
