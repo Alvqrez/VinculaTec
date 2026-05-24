@@ -109,14 +109,14 @@ const pieData = [
     name: "Entregados",
     population: graficaReportes.entregados,
     color: "#14B8A6",
-    legendFontColor: "#374151",
+    legendFontColor: C.text,
     legendFontSize: 13,
   },
   {
     name: "Pendientes",
     population: graficaReportes.pendientes,
     color: "#EF4444",
-    legendFontColor: "#374151",
+    legendFontColor: C.text,
     legendFontSize: 13,
   },
 ];
@@ -264,13 +264,22 @@ const pieData = [
     paddingLeft="15"
     absolute
     hasLegend={true}
-    chartConfig={{
-      backgroundColor: "#fff",
-      backgroundGradientFrom: "#fff",
-      backgroundGradientTo: "#fff",
-      decimalPlaces: 0,
-      color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
-    }}
+      chartConfig={{
+    backgroundColor: C.card,
+    backgroundGradientFrom: C.card,
+    backgroundGradientTo: C.card,
+    decimalPlaces: 0,
+
+    color: (opacity = 1) =>
+      C.text === "#fff"
+        ? `rgba(255,255,255,${opacity})`
+        : `rgba(0,0,0,${opacity})`,
+
+    labelColor: (opacity = 1) =>
+      C.text === "#fff"
+        ? `rgba(255,255,255,${opacity})`
+        : `rgba(0,0,0,${opacity})`,
+  }}
   />
 
   {/* Resumen inferior */}
