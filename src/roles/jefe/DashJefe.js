@@ -190,36 +190,157 @@ const pieData = [
 
                     {/* ── Gráfica de reportes ───────────────────────── */}
       <Card style={{ marginBottom: 20 }}>
-        <Text
-          style={{
-            fontSize: 16,
-            fontWeight: "700",
-            color: C.text,
-            marginBottom: 16,
-          }}
-        >
-          Entrega de Reportes
-        </Text>
 
-            {(graficaReportes.entregados > 0 || graficaReportes.pendientes > 0) && (
-              <PieChart
-        data={pieData}
-        width={screenWidth - 80}
-        height={220}
-        accessor="population"
-        backgroundColor="transparent"
-        paddingLeft="15"
-        absolute
-        hasLegend={true}
-        chartConfig={{
-          backgroundColor: "#fff",
-          backgroundGradientFrom: "#fff",
-          backgroundGradientTo: "#fff",
-          color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+  <Row
+    style={{
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    }}
+  >
+    <View>
+      <Text
+        style={{
+          fontSize: 18,
+          fontWeight: "700",
+          color: C.text,
         }}
-      />
-      )}
-      </Card>
+      >
+        Entrega de Reportes
+      </Text>
+
+      <Text
+        style={{
+          fontSize: 13,
+          color: C.textMuted,
+          marginTop: 4,
+        }}
+      >
+        Estado general de entrega de residentes
+      </Text>
+    </View>
+
+    <View
+      style={{
+        backgroundColor: C.tealLight,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+      }}
+    >
+      <Text
+        style={{
+          color: C.teal,
+          fontWeight: "700",
+          fontSize: 12,
+        }}
+      >
+        {graficaReportes.entregados + graficaReportes.pendientes} residentes
+      </Text>
+    </View>
+  </Row>
+
+  <PieChart
+    data={[
+      {
+        name: "Entregados",
+        population: graficaReportes.entregados,
+        color: "#10B981",
+        legendFontColor: "#374151",
+        legendFontSize: 13,
+      },
+      {
+        name: "Pendientes",
+        population: graficaReportes.pendientes,
+        color: "#EF4444",
+        legendFontColor: "#374151",
+        legendFontSize: 13,
+      },
+    ]}
+    width={screenWidth - 90}
+    height={220}
+    accessor="population"
+    backgroundColor="transparent"
+    paddingLeft="15"
+    absolute
+    hasLegend={true}
+    chartConfig={{
+      backgroundColor: "#fff",
+      backgroundGradientFrom: "#fff",
+      backgroundGradientTo: "#fff",
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+    }}
+  />
+
+  {/* Resumen inferior */}
+  <Row
+    style={{
+      justifyContent: "space-around",
+      marginTop: 10,
+      flexWrap: "wrap",
+      gap: 12,
+    }}
+  >
+    <View
+      style={{
+        backgroundColor: "#ECFDF5",
+        padding: 12,
+        borderRadius: 12,
+        minWidth: 140,
+      }}
+    >
+      <Text
+        style={{
+          color: "#10B981",
+          fontWeight: "700",
+          fontSize: 20,
+        }}
+      >
+        {graficaReportes.entregados}
+      </Text>
+
+      <Text
+        style={{
+          color: "#065F46",
+          fontSize: 12,
+          marginTop: 2,
+        }}
+      >
+        Residentes entregados
+      </Text>
+    </View>
+
+    <View
+      style={{
+        backgroundColor: "#FEF2F2",
+        padding: 12,
+        borderRadius: 12,
+        minWidth: 140,
+      }}
+    >
+      <Text
+        style={{
+          color: "#EF4444",
+          fontWeight: "700",
+          fontSize: 20,
+        }}
+      >
+        {graficaReportes.pendientes}
+      </Text>
+
+      <Text
+        style={{
+          color: "#991B1B",
+          fontSize: 12,
+          marginTop: 2,
+        }}
+      >
+        Residentes pendientes
+      </Text>
+    </View>
+  </Row>
+</Card>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
