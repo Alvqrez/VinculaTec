@@ -121,8 +121,8 @@ export function ReportesProvider({ children }) {
 
   /**
    * El Asesor marca la revisión de un reporte.
-   * Persiste en la BD via PUT /api/asesor/reportes/:dbReporteId/revisar
-   * y actualiza estado local para reflejar el cambio inmediatamente.
+   * ESTADO PESSIMIST: Primero persiste en BD, solo después actualiza estado local.
+   * Devuelve true si tuvo éxito, false si falló.
    *
    * IMPORTANTE: pasa dbReporteId (ID real de la BD desde ProyectosContext)
    * para que la revisión se guarde y el residente la vea tras recargar.
@@ -140,7 +140,7 @@ export function ReportesProvider({ children }) {
     // Mapear status frontend → estado de la BD
     const estadoBD = status === "Aceptado" ? "Aprobado" : "Rechazado";
 
-    // Persistir en la BD si tenemos el ID real
+    // PRIMERO: Persistir en la BD si tenemos el ID real
     if (dbReporteId) {
       try {
         const token = getAuthToken();
@@ -159,33 +159,50 @@ export function ReportesProvider({ children }) {
           },
         );
         const data = await res.json();
+        
         if (!data.ok) {
           console.error("[reviewReport] Error al guardar en BD:", data.mensaje);
+          return false; // Falló el guardado en BD
         }
+
+        // SEGUNDO: Solo después de éxito en BD, actualizar estado local
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === id
+              ? { ...r, status, feedback, reviewedBy: reviewer, reviewedAt: today }
+              : r,
+          ),
+        );
+
+        // Desbloquear siguiente parcial cuando se acepta
+        if (status === "Aceptado" && typeof id === "number") {
+          setParcialesDesbloqueados((prev) => new Set([...prev, id + 1]));
+        }
+        if (status === "Aceptado" && id === "preliminar") {
+          setParcialesDesbloqueados((prev) => new Set([...prev, 1]));
+        }
+
+        return true; // Éxito completo
+        
       } catch (err) {
         console.error("[reviewReport] Error de conexión:", err);
+        return false; // Falló la conexión
       }
     } else {
       console.warn(
         "[reviewReport] Sin dbReporteId — revisión solo local (no persiste en BD).",
       );
-    }
-
-    // Actualizar estado local inmediatamente para UI responsive
-    setReports((prev) =>
-      prev.map((r) =>
-        r.id === id
-          ? { ...r, status, feedback, reviewedBy: reviewer, reviewedAt: today }
-          : r,
-      ),
-    );
-
-    // Desbloquear siguiente parcial cuando se acepta
-    if (status === "Aceptado" && typeof id === "number") {
-      setParcialesDesbloqueados((prev) => new Set([...prev, id + 1]));
-    }
-    if (status === "Aceptado" && id === "preliminar") {
-      setParcialesDesbloqueados((prev) => new Set([...prev, 1]));
+      
+      // Si no hay dbReporteId, actualizamos solo local pero advertimos
+      setReports((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, status, feedback, reviewedBy: reviewer, reviewedAt: today }
+            : r,
+        ),
+      );
+      
+      return true; // Consideramos éxito aunque no persiste en BD
     }
   };
 

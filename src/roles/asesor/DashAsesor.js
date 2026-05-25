@@ -10,6 +10,7 @@ import {
   TextInput,
   ActivityIndicator,
   Image,
+  Dimensions,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
@@ -27,6 +28,8 @@ import { useFotos } from "../../context/FotosContext";
 // PieChart usando react-native-chart-kit (librería robusta, misma que usa el Jefe)
 // FIXED: El componente anterior usaba un truco CSS de bordes que no renderizaba
 //        correctamente para ángulos arbitrarios. Este usa la librería adecuada.
+
+const screenWidth = Dimensions.get('window').width;
 
 export default function DashAsesor({ onNavigate }) {
   const { colors: C } = useTheme();
