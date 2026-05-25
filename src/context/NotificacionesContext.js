@@ -40,12 +40,14 @@ export function NotificacionesProvider({ children }) {
 
   // Marcar una como leída (optimista + BD)
   const markAsRead = async (id) => {
+    // Actualización optimista del UI
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
     );
-    const res = await apiClient.put(`/api/notificaciones/${id}`, {
-      leida: true,
-    });
+    
+    // Llamada al nuevo endpoint con validación completa
+    const res = await apiClient.put(`/api/notificaciones/${id}/read`);
+    
     if (!res.ok) {
       console.error(
         "Error al marcar notificación como leída:",

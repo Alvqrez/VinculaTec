@@ -7,6 +7,7 @@ import {
   Modal,
   TextInput,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -14,6 +15,7 @@ import { Row, Card, StatCard, Badge, ProgressBar } from "../components";
 import { useProyectos } from "../context/ProyectosContext";
 import { useReportes } from "../context/ReportesContext";
 import { useNotificaciones } from "../context/NotificacionesContext";
+import apiClient from "../utils/apiClient";
 
 // Mapeo fase → id en ReportesContext (para sincronizar feedback al Residente)
 const FASE_TO_REPORTES_ID = {
@@ -53,6 +55,8 @@ export default function SeguimientoAsesor() {
   const [cumpleObjetivos, setCumpleObjetivos] = useState(false);
   const [cumpleDiagnostico, setCumpleDiagnostico] = useState(false);
   const [cumplePlanTrabajo, setCumplePlanTrabajo] = useState(false);
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   // Proyecto activo
   const activeProject = useMemo(
@@ -141,79 +145,181 @@ export default function SeguimientoAsesor() {
     };
   }, [reportesFiltrados, selectedResidente]);
 
-  // ── Guardar revisión ──────────────────────────────────────────────────────
-  const submitReview = (newStatus) => {
-    if (!reviewingReport || !activeProject) return;
+  // ── Función para crear notificación persistente ─────────────────────────────
+  const crearNotificacionPersistente = async (residenteId, datosNotificacion) => {
+    try {
+      const response = await apiClient.post("/api/notificaciones", {
+        usuario_id: residenteId,
+        tipo_notificacion: datosNotificacion.tipo,
+        titulo: datosNotificacion.titulo,
+        mensaje: datosNotificacion.mensaje,
+        icon: datosNotificacion.icon,
+        icon_color: datosNotificacion.iconColor,
+        icon_bg: datosNotificacion.iconBg,
+        proyecto_id: datosNotificacion.proyectoId,
+        fase: datosNotificacion.fase,
+        action_screen: datosNotificacion.actionScreen,
+        action_label: datosNotificacion.actionLabel,
+        metadata: datosNotificacion.metadata || null,
+      });
 
-    // Validar feedback — mostrar error visual en lugar de Alert
+      if (!response.ok) {
+        console.warn("Error al crear notificación persistente:", response.body?.mensaje);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Error de red al crear notificación:", err);
+      return false;
+    }
+  };
+
+  // ── Funciones helper para reducir complejidad ───────────────────────────────
+  const validateReviewInput = () => {
+    if (!reviewingReport || !activeProject) return false;
     if (!feedback.trim()) {
       setFeedbackError(true);
-      return;
+      return false;
     }
     setFeedbackError(false);
+    return true;
+  };
 
-    const today = new Date().toISOString().slice(0, 10);
-    // Los reportes preliminares solo se aceptan o no aceptan, no se califican
+  const getFinalStatus = (newStatus) => {
     const esPreliminar = reviewingReport.fase === "Preliminar";
-    const statusFinal = newStatus === "Aceptado" ? "Aceptado" : (esPreliminar ? "No aceptado" : "Por corregir");
+    return newStatus === "Aceptado" ? "Aceptado" : (esPreliminar ? "No aceptado" : "Por corregir");
+  };
 
-    const historialEntry = {
+  const createHistorialEntry = (statusFinal) => {
+    const today = new Date().toISOString().slice(0, 10);
+    return {
       status: statusFinal,
       fecha: today,
       comentario: feedback.trim(),
     };
+  };
 
-    // 1. Actualizar ProyectosContext (vista del Asesor)
+  const createNotificationData = (statusFinal) => {
+    const esPreliminar = reviewingReport.fase === "Preliminar";
+    const isAceptado = statusFinal === "Aceptado";
+    
+    return {
+      tipo: "REVISION",
+      titulo: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : (isAceptado ? "Aceptado ✓" : "Requiere correcciones")}`,
+      mensaje: feedback.trim(),
+      icon: isAceptado ? "check-circle" : "x-circle",
+      iconColor: isAceptado ? C.green : C.red,
+      iconBg: isAceptado ? C.greenLight : C.redLight,
+      proyectoId: activeProject.id,
+      fase: reviewingReport.fase,
+      actionScreen: "reportes",
+      actionLabel: isAceptado ? "Ver reporte" : "Corregir reporte",
+      metadata: {
+        reporteId: reviewingReport.id,
+        proyectoTitle: activeProject.title,
+        residente: selectedResidente,
+      },
+    };
+  };
+
+  const saveReviewToBackend = async (statusFinal) => {
+    const reportesId = FASE_TO_REPORTES_ID[reviewingReport.fase];
+    if (reportesId === undefined || !reviewReport) return true;
+
+    const reviewResult = await reviewReport(reportesId, {
+      status: statusFinal,
+      feedback: feedback.trim(),
+      reviewer: "Asesor",
+      dbReporteId: reviewingReport.id,
+    });
+
+    if (!reviewResult) {
+      throw new Error("No se pudo guardar la revisión en la base de datos");
+    }
+    return true;
+  };
+
+  const updateLocalState = (statusFinal, historialEntry) => {
     updateReporte(activeProject.id, reviewingReport.id, {
       status: statusFinal,
       feedback: feedback.trim(),
-      fechaRevision: today,
+      fechaRevision: historialEntry.fecha,
       historial: [...(reviewingReport.historial || []), historialEntry],
-
       cumpleObjetivos,
       cumpleDiagnostico,
       cumplePlanTrabajo,
-
-
     });
+  };
 
-    // 2. Sincronizar a ReportesContext para que el RESIDENTE vea el feedback
-    const reportesId = FASE_TO_REPORTES_ID[reviewingReport.fase];
-    if (reportesId !== undefined && reviewReport) {
-      reviewReport(reportesId, {
-        status: statusFinal,
-        feedback: feedback.trim(),
-        reviewer: "Asesor",
-      });
+  const sendNotification = async (datosNotificacion) => {
+    const residenteData = activeProject.residentes?.find(r => r.nombre === selectedResidente);
+    if (!residenteData?.usuarioId) return;
+
+    const notificacionResult = await crearNotificacionPersistente(residenteData.usuarioId, datosNotificacion);
+    if (!notificacionResult) {
+      console.warn("Advertencia: No se pudo crear la notificación, pero la revisión se guardó");
     }
+  };
 
-    // 3. Notificación al residente (aparece en el panel de Notificaciones)
-    if (setNotifications) {
-      const isAceptado = statusFinal === "Aceptado";
-      setNotifications((prev) => [
-        {
-          id: Date.now(),
-          icon: isAceptado ? "check-circle" : "x-circle",
-          iconBg: isAceptado ? C.greenLight : C.redLight,
-          iconColor: isAceptado ? C.green : C.red,
-          title: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : (isAceptado ? "Aceptado ✓" : "Requiere correcciones")}`,
-          body: feedback.trim(),
-          time: "Ahora",
-          unread: true,
-          type: isAceptado ? "Aceptación" : (esPreliminar ? "No aceptado" : "Por corregir"),
-          typeBg: isAceptado ? C.greenLight : C.redLight,
-          typeColor: isAceptado ? C.green : C.red,
-          proyecto: activeProject.title,
-          fase: reviewingReport.fase,
-          actionScreen: "reportes",
-          actionLabel: isAceptado ? "Ver reporte" : "Corregir reporte",
-        },
-        ...(prev || []),
-      ]);
+  const updateLocalNotifications = (datosNotificacion) => {
+    if (!setNotifications) return;
+
+    setNotifications((prev) => [
+      {
+        id: Date.now(),
+        icon: datosNotificacion.icon,
+        iconBg: datosNotificacion.iconBg,
+        iconColor: datosNotificacion.iconColor,
+        title: datosNotificacion.titulo,
+        body: datosNotificacion.mensaje,
+        time: "Ahora",
+        unread: true,
+        type: datosNotificacion.tipo,
+        typeBg: datosNotificacion.iconBg,
+        typeColor: datosNotificacion.iconColor,
+        proyecto: activeProject.title,
+        fase: reviewingReport.fase,
+        actionScreen: datosNotificacion.actionScreen,
+        actionLabel: datosNotificacion.actionLabel,
+      },
+      ...(prev || []),
+    ]);
+  };
+
+  // ── Guardar revisión ──────────────────────────────────────────────────────
+  const submitReview = async (newStatus) => {
+    if (!validateReviewInput()) return;
+
+    setIsSubmittingReview(true);
+    setSubmitError(null);
+
+    try {
+      const statusFinal = getFinalStatus(newStatus);
+      const historialEntry = createHistorialEntry(statusFinal);
+
+      // 1. Guardar en backend
+      await saveReviewToBackend(statusFinal);
+
+      // 2. Actualizar estado local
+      updateLocalState(statusFinal, historialEntry);
+
+      // 3. Enviar notificación
+      const datosNotificacion = createNotificationData(statusFinal);
+      await sendNotification(datosNotificacion);
+
+      // 4. Actualizar notificaciones locales
+      updateLocalNotifications(datosNotificacion);
+
+      // Éxito: limpiar formulario
+      setReviewingReport(null);
+      setFeedback("");
+      
+    } catch (error) {
+      console.error("Error al guardar revisión:", error);
+      setSubmitError(error.message || "No se pudo guardar la revisión. Verifica tu conexión.");
+    } finally {
+      setIsSubmittingReview(false);
     }
-
-    setReviewingReport(null);
-    setFeedback("");
   };
 
   return (
@@ -1495,10 +1601,33 @@ export default function SeguimientoAsesor() {
                   </Row>
                 </View>
 
+                {/* Mensaje de error */}
+                {submitError && (
+                  <View
+                    style={{
+                      padding: 12,
+                      borderRadius: 8,
+                      backgroundColor: C.redLight,
+                      marginBottom: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: C.red,
+                        fontWeight: "500",
+                      }}
+                    >
+                      Error: {submitError}
+                    </Text>
+                  </View>
+                )}
+
                 {/* Botones de acción */}
                 <Row style={{ gap: 10 }}>
                   <TouchableOpacity
                     onPress={() => submitReview("Por corregir")}
+                    disabled={isSubmittingReview}
                     style={{
                       flex: 1,
                       paddingVertical: 13,
@@ -1506,10 +1635,15 @@ export default function SeguimientoAsesor() {
                       borderWidth: 1.5,
                       borderColor: C.red,
                       alignItems: "center",
+                      opacity: isSubmittingReview ? 0.6 : 1,
                     }}
                   >
                     <Row style={{ alignItems: "center", gap: 6 }}>
-                      <Feather name="x-circle" size={14} color={C.red} />
+                      {isSubmittingReview ? (
+                        <ActivityIndicator size="small" color={C.red} />
+                      ) : (
+                        <Feather name="x-circle" size={14} color={C.red} />
+                      )}
                       <Text
                         style={{
                           fontSize: 13,
@@ -1517,22 +1651,28 @@ export default function SeguimientoAsesor() {
                           color: C.red,
                         }}
                       >
-                        Por Corregir
+                        {isSubmittingReview ? "Guardando..." : "Por Corregir"}
                       </Text>
                     </Row>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => submitReview("Aceptado")}
+                    disabled={isSubmittingReview}
                     style={{
                       flex: 2,
                       paddingVertical: 13,
                       borderRadius: 10,
                       backgroundColor: C.teal,
                       alignItems: "center",
+                      opacity: isSubmittingReview ? 0.6 : 1,
                     }}
                   >
                     <Row style={{ alignItems: "center", gap: 6 }}>
-                      <Feather name="check-circle" size={14} color="white" />
+                      {isSubmittingReview ? (
+                        <ActivityIndicator size="small" color="white" />
+                      ) : (
+                        <Feather name="check-circle" size={14} color="white" />
+                      )}
                       <Text
                         style={{
                           fontSize: 13,
@@ -1540,7 +1680,7 @@ export default function SeguimientoAsesor() {
                           color: "white",
                         }}
                       >
-                        Aceptar Reporte
+                        {isSubmittingReview ? "Guardando..." : "Aceptar Reporte"}
                       </Text>
                     </Row>
                   </TouchableOpacity>

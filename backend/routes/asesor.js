@@ -316,4 +316,223 @@ router.post(
   },
 );
 
+// ── PUT /api/asesor/reportes/:id/revisar ─────────────────────────────────────
+// Guarda la revisión (aprobado/rechazado + feedback) del asesor en la BD
+router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
+  const { estado, feedback, calificacion } = req.body;
+  const userId = req.user.id;
+  const reporteId = req.params.id;
+
+  // Validar estado
+  if (!["Aprobado", "Rechazado"].includes(estado))
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Estado inválido. Usa 'Aprobado' o 'Rechazado'.",
+      });
+
+  try {
+    // Obtener asesorId del JWT
+    const [asesorRows] = await db.execute(
+      "SELECT id FROM asesores WHERE usuario_id = ?",
+      [userId],
+    );
+    if (!asesorRows.length)
+      return res
+        .status(403)
+        .json({ ok: false, mensaje: "El usuario no es asesor." });
+
+    const asesorId = asesorRows[0].id;
+
+    // Verificar que el reporte pertenece a un residente de ESTE asesor
+    const [reportRows] = await db.execute(
+      `SELECT r.id FROM reportes r
+       JOIN residentes res ON r.residente_id = res.id
+       WHERE r.id = ? AND res.asesor_id = ?`,
+      [reporteId, asesorId],
+    );
+    if (!reportRows.length)
+      return res.status(404).json({
+        ok: false,
+        mensaje: "Reporte no encontrado o no tienes acceso a este reporte.",
+      });
+
+    // Guardar revisión en la BD
+    await db.execute(
+      "UPDATE reportes SET estado = ?, feedback = ?, calificacion = ? WHERE id = ?",
+      [estado, feedback || null, calificacion || null, reporteId],
+    );
+
+    // Emitir evento WebSocket para que el residente reciba el feedback en tiempo real
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("reporte_revisado", {
+        reporteId,
+        estado,
+        feedback: feedback || null,
+      });
+    }
+
+    return res.json({
+      ok: true,
+      mensaje: `Reporte ${estado === "Aprobado" ? "aprobado" : "rechazado"} correctamente.`,
+    });
+  } catch (err) {
+    console.error("Error en PUT /asesor/reportes/:id/revisar:", err);
+    return res
+      .status(500)
+      .json({ ok: false, mensaje: "Error interno del servidor." });
+  }
+});
+
+// ── POST /api/asesor/proyectos/:id/aprobar-avance ─────────────────────────────
+// Aprobar solicitud de avance de fase con auditoría completa
+router.post(
+  "/proyectos/:id/aprobar-avance",
+  ...soloAsesor,
+  async (req, res) => {
+    const { comentarios = "", fase_destino } = req.body;
+    const userId = req.user.id;
+    const proyectoId = req.params.id;
+
+    // Validar fase_destino
+    const fasesValidas = ["desarrollo", "revision", "concluido"];
+    if (fase_destino && !fasesValidas.includes(fase_destino)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Fase destino inválida. Usa: desarrollo, revision, concluido",
+      });
+    }
+
+    try {
+      // Obtener asesorId del JWT
+      const [asesorRows] = await db.execute(
+        "SELECT id FROM asesores WHERE usuario_id = ?",
+        [userId],
+      );
+      if (!asesorRows.length)
+        return res
+          .status(403)
+          .json({ ok: false, mensaje: "El usuario no es asesor." });
+
+      const asesorId = asesorRows[0].id;
+
+      // Verificar que el proyecto pertenece a este asesor
+      const [paRows] = await db.execute(
+        "SELECT 1 FROM proyecto_asesores WHERE proyecto_id = ? AND asesor_id = ?",
+        [proyectoId, asesorId],
+      );
+      if (!paRows.length)
+        return res
+          .status(404)
+          .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+      // Obtener estado actual del proyecto
+      const [projectRows] = await db.execute(
+        "SELECT id, fase, estado, solicitud_avance FROM proyectos WHERE id = ?",
+        [proyectoId],
+      );
+      if (!projectRows.length)
+        return res
+          .status(404)
+          .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+      const proyecto = projectRows[0];
+
+      // Validar que haya una solicitud de avance pendiente
+      if (!proyecto.solicitud_avance) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: "No hay una solicitud de avance pendiente para este proyecto.",
+        });
+      }
+
+      // Determinar siguiente fase
+      const secuenciaFases = ["propuesto", "desarrollo", "revision", "concluido"];
+      const indiceActual = secuenciaFases.indexOf(proyecto.fase);
+      const siguienteFase = fase_destino || secuenciaFases[indiceActual + 1];
+
+      if (!siguienteFase || indiceActual === -1) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: "No se puede determinar la siguiente fase.",
+        });
+      }
+
+      // Iniciar transacción para auditoría
+      await db.execute("START TRANSACTION");
+
+      try {
+        // Actualizar proyecto
+        await db.execute(
+          "UPDATE proyectos SET fase = ?, solicitud_avance = 0, updated_at = NOW() WHERE id = ?",
+          [siguienteFase, proyectoId]
+        );
+
+        // Registrar auditoría
+        await db.execute(
+          `INSERT INTO auditoria_proyectos 
+           (proyecto_id, asesor_id, accion, fase_anterior, fase_nueva, comentarios, ip_address, user_agent)
+           VALUES (?, ?, 'APROBAR_AVANCE', ?, ?, ?, ?, ?)`,
+          [
+            proyectoId,
+            asesorId,
+            proyecto.fase,
+            siguienteFase,
+            comentarios,
+            req.ip,
+            req.get('User-Agent') || 'Unknown'
+          ]
+        );
+
+        // Confirmar transacción
+        await db.execute("COMMIT");
+
+        // Emitir evento WebSocket
+        const io = req.app.get("io");
+        if (io) {
+          io.to(`proyecto_${proyectoId}`).emit("avance_aprobado", {
+            proyectoId,
+            fase_anterior: proyecto.fase,
+            fase_nueva: siguienteFase,
+            comentarios,
+            aprobado_por: userId,
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        // Devolver objeto actualizado
+        const [updatedRows] = await db.execute(
+          "SELECT id, titulo, fase, estado, updated_at FROM proyectos WHERE id = ?",
+          [proyectoId]
+        );
+
+        return res.json({
+          ok: true,
+          data: updatedRows[0],
+          mensaje: `Avance a fase "${siguienteFase}" aprobado correctamente.`,
+          auditoria: {
+            accion: "APROBAR_AVANCE",
+            fase_anterior: proyecto.fase,
+            fase_nueva: siguienteFase,
+            comentarios,
+            timestamp: new Date().toISOString()
+          }
+        });
+
+      } catch (transError) {
+        await db.execute("ROLLBACK");
+        throw transError;
+      }
+
+    } catch (err) {
+      console.error("Error en POST /asesor/proyectos/:id/aprobar-avance:", err);
+      return res
+        .status(500)
+        .json({ ok: false, mensaje: "Error interno del servidor." });
+    }
+  }
+);
+
 module.exports = router;
