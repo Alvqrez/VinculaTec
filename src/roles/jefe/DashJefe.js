@@ -11,12 +11,17 @@ import { Feather } from "@expo/vector-icons";
 import { PieChart } from "react-native-chart-kit";
 import { useTheme } from "../../context/ThemeContext";
 import { Row, Card, StatCard, Badge, SectionTitle } from "../../components";
+import { useNotificaciones } from "../../context/NotificacionesContext";
+import { NotificationBadge } from "../../components/NotificationBadge";
+import { useRealTimeStats } from "../../hooks/useRealTimeStats";
 import apiClient from "../../utils/apiClient";
 
 const screenWidth = Dimensions.get("window").width;
 
 export default function DashJefe({ onNavigate }) {
   const { colors: C } = useTheme();
+  const { unreadCount } = useNotificaciones();
+  const { stats: realTimeStats, loading: statsLoading, refresh } = useRealTimeStats(30000);
 
   const STATUS_STYLE = {
     Activa: { color: C.green, bg: C.greenLight },
@@ -145,7 +150,16 @@ const pieData = [
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24 }}>
-      <SectionTitle title="Dashboard — Departamento de Sistemas" />
+      <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Dashboard — Departamento de Sistemas</Text>
+      <TouchableOpacity 
+        onPress={() => onNavigate?.("Notificaciones")}
+        style={{ position: "relative" }}
+      >
+        <Feather name="bell" size={20} color={C.text} />
+        <NotificationBadge count={unreadCount} />
+      </TouchableOpacity>
+    </Row>
 
       {/* Filtro por período — botones generados desde la BD */}
       <Row style={{ gap: 10, marginBottom: 20, flexWrap: "wrap" }}>

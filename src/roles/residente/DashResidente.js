@@ -11,12 +11,17 @@ import {
   SectionTitle,
 } from "../../components";
 import { useReportes } from "../../context/ReportesContext";
+import { useNotificaciones } from "../../context/NotificacionesContext";
+import { NotificationBadge } from "../../components/NotificationBadge";
+import { useRealTimeStats } from "../../hooks/useRealTimeStats";
 import apiClient from "../../utils/apiClient";
 
 
 export default function DashResidente({ onNavigate }) {
   const { colors: C } = useTheme();
   const { reports } = useReportes() || {};
+  const { unreadCount } = useNotificaciones();
+  const { stats, loading: statsLoading, refresh } = useRealTimeStats(30000);
   const [asesor, setAsesor] = useState(null);
   const [proyecto, setProyecto] = useState(null);
 
@@ -118,7 +123,16 @@ export default function DashResidente({ onNavigate }) {
       style={{ flex: 1, backgroundColor: C.bg }}
       contentContainerStyle={{ padding: 24 }}
     >
-      <SectionTitle title="Dashboard Residente" />
+      <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+      <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Dashboard Residente</Text>
+      <TouchableOpacity 
+        onPress={() => onNavigate?.("Notificaciones")}
+        style={{ position: "relative" }}
+      >
+        <Feather name="bell" size={20} color={C.text} />
+        <NotificationBadge count={unreadCount} />
+      </TouchableOpacity>
+    </Row>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>

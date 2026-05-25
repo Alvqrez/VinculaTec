@@ -2,6 +2,9 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { auth, requireRol } = require("../middleware");
+const { validateRequest, schemas, errorHandler } = require("../middleware/validation");
+const { createError, ERROR_CODES } = require("../utils/errorCodes");
+const { logger } = require("../utils/logger");
 
 const router = express.Router();
 
@@ -12,6 +15,10 @@ const soloJefe = [auth, requireRol("jefe")];
 // ── GET /api/jefe/dashboard ───────────────────────────────────────────────────
 router.get("/dashboard", ...soloJefe, async (req, res) => {
   try {
+    logger.logBusinessOperation('jefe_dashboard_access', req.user.id, { 
+      endpoint: '/dashboard' 
+    });
+
     const [[{ totalResidentes }]] = await db.execute(
       "SELECT COUNT(*) AS totalResidentes FROM residentes WHERE estado = 'activo'",
     );
@@ -173,49 +180,90 @@ router.get("/asignacion/datos", ...soloJefe, async (req, res) => {
   }
 });
 
-// ── POST /api/jefe/asignacion ─────────────────────────────────────────────────
-router.post("/asignacion", ...soloJefe, async (req, res) => {
-  let { proyectoNombre, empresaId, descripcion, asesorId, asesorIds, residentesIds, periodo } = req.body;
+// Helper functions para reducir complejidad
+const validateAsignacionData = (data) => {
+  const { proyectoNombre, empresaId, asesorId, asesorIds, residentesIds } = data;
+  
   if (!asesorIds?.length && asesorId) asesorIds = [asesorId];
   const asesorIdPrimario = asesorIds?.[0];
-  if (!proyectoNombre?.trim() || !empresaId || !asesorIdPrimario || !residentesIds?.length)
-    return res.status(400).json({ ok: false, mensaje: "Faltan datos requeridos." });
+  
+  if (!proyectoNombre?.trim() || !empresaId || !asesorIdPrimario || !residentesIds?.length) {
+    throw createError(ERROR_CODES.VALIDATION.REQUIRED_FIELD, "Faltan datos requeridos.");
+  }
+  
+  return { asesorIds, asesorIdPrimario };
+};
 
-  try {
-    const proyectoId = `p_${Date.now()}`;
-    await db.execute(
-      `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, periodo, estado, prioridad)
-       VALUES (?,?,?,?,?,?,?,?,'propuesto','Media')`,
-      [proyectoId, proyectoNombre.trim(), descripcion || null, empresaId, asesorIdPrimario, residentesIds[0], periodo || null],
-    );
-    for (const rId of residentesIds) {
-      await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [asesorIdPrimario, rId]);
-    }
-    for (const aId of asesorIds) {
-      await db.execute("INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)", [proyectoId, aId]);
-    }
-    const tiposReportes = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
-    const fechasLimite = ["2026-02-28", "2026-04-30", "2026-06-30", "2026-08-30", "2026-10-31"];
-    for (const rId of residentesIds) {
-      for (let i = 0; i < tiposReportes.length; i++) {
-        const [existing] = await db.execute(
-          "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
-          [rId, tiposReportes[i]],
+const createProyecto = async (data) => {
+  const { proyectoNombre, empresaId, descripcion, asesorIdPrimario, residentesIds, periodo } = data;
+  const proyectoId = `p_${Date.now()}`;
+  
+  await db.execute(
+    `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, periodo, estado, prioridad)
+     VALUES (?,?,?,?,?,?,?,?,'propuesto','Media')`,
+    [proyectoId, proyectoNombre.trim(), descripcion || null, empresaId, asesorIdPrimario, residentesIds[0], periodo || null],
+  );
+  
+  return proyectoId;
+};
+
+const assignResidentesToAsesor = async (residentesIds, asesorIdPrimario) => {
+  for (const rId of residentesIds) {
+    await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [asesorIdPrimario, rId]);
+  }
+};
+
+const assignAsesoresToProyecto = async (proyectoId, asesorIds) => {
+  for (const aId of asesorIds) {
+    await db.execute("INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)", [proyectoId, aId]);
+  }
+};
+
+const createReportesForResidentes = async (residentesIds) => {
+  const tiposReportes = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
+  const fechasLimite = ["2026-02-28", "2026-04-30", "2026-06-30", "2026-08-30", "2026-10-31"];
+  
+  for (const rId of residentesIds) {
+    for (let i = 0; i < tiposReportes.length; i++) {
+      const [existing] = await db.execute(
+        "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
+        [rId, tiposReportes[i]],
+      );
+      if (existing.length === 0) {
+        await db.execute(
+          `INSERT INTO reportes (id, residente_id, tipo, fecha_limite, estado) VALUES (?, ?, ?, ?, 'Pendiente')`,
+          [`REP-${rId}-${i + 1}`, rId, tiposReportes[i], fechasLimite[i]],
         );
-        if (existing.length === 0) {
-          await db.execute(
-            `INSERT INTO reportes (id, residente_id, tipo, fecha_limite, estado) VALUES (?, ?, ?, ?, 'Pendiente')`,
-            [`REP-${rId}-${i + 1}`, rId, tiposReportes[i], fechasLimite[i]],
-          );
-        }
       }
     }
+  }
+};
+
+// ── POST /api/jefe/asignacion ─────────────────────────────────────────────────
+router.post("/asignacion", ...soloJefe, async (req, res) => {
+  try {
+    logger.logBusinessOperation('jefe_asignacion_proyecto', req.user.id, { 
+      endpoint: '/asignacion',
+      body: req.body 
+    });
+
+    const { asesorIds, asesorIdPrimario } = validateAsignacionData(req.body);
+    const proyectoId = await createProyecto({ ...req.body, asesorIdPrimario });
+    
+    await assignResidentesToAsesor(req.body.residentesIds, asesorIdPrimario);
+    await assignAsesoresToProyecto(proyectoId, asesorIds);
+    await createReportesForResidentes(req.body.residentesIds);
+    
+    logger.logAudit('ASIGNACION_PROYECTO', req.user.id, proyectoId, {
+      asesorIdPrimario,
+      residentesCount: req.body.residentesIds.length,
+      empresaId: req.body.empresaId
+    });
+
     return res.json({ ok: true, id: proyectoId });
   } catch (err) {
-    console.error("Error en POST /jefe/asignacion:", err);
-    if (err.code === "ER_DUP_ENTRY") return res.status(400).json({ ok: false, mensaje: "Ya existe un registro duplicado." });
-    if (err.code === "ER_BAD_FIELD_ERROR") return res.status(500).json({ ok: false, mensaje: "Error en la estructura de la base de datos." });
-    return res.status(500).json({ ok: false, mensaje: "Error interno: " + err.message });
+    logger.logAppError(err, req, { asignacion: true });
+    return errorHandler(err, req, res, () => {});
   }
 });
 

@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { Alert, View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
+import PropTypes from "prop-types";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { Row, Card, Badge } from "../components";
+import { ValidatedInput, validators } from "../components/ValidatedInput";
 import { useReportes } from "../context/ReportesContext";
 import { useProyectos } from "../context/ProyectosContext";
 import apiClient from "../utils/apiClient";
@@ -363,15 +365,20 @@ export default function ReportePreliminar() {
   );
 }
 
-function FormField({ label, value, onChange, placeholder, multiline, disabled = false }) {
+function FormField({ label, value, onChange, placeholder, multiline, disabled = false, required = false, validator }) {
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text style={{ fontSize: 12, fontWeight: "700", color: C.textSub, marginBottom: 6 }}>{label}</Text>
-      <TextInput
-        value={value} onChangeText={onChange}
-        placeholder={placeholder} placeholderTextColor={C.textLight}
-        multiline={multiline} numberOfLines={multiline ? 4 : 1}
+      <Text style={{ fontSize: 12, fontWeight: "700", color: C.textSub, marginBottom: 6 }}>
+        {label} {required && <Text style={{ color: C.red }}>*</Text>}
+      </Text>
+      <ValidatedInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        multiline={multiline}
         editable={!disabled}
+        required={required}
+        validator={validator}
         style={{
           padding: 11, borderRadius: 8, borderWidth: 1,
           borderColor: disabled ? C.borderLight : C.border,
@@ -383,3 +390,23 @@ function FormField({ label, value, onChange, placeholder, multiline, disabled = 
     </View>
   );
 }
+
+// PropTypes para FormField
+FormField.propTypes = {
+  label: PropTypes.string.isRequired,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  placeholder: PropTypes.string,
+  multiline: PropTypes.bool,
+  disabled: PropTypes.bool,
+  required: PropTypes.bool,
+  validator: PropTypes.func,
+};
+
+FormField.defaultProps = {
+  placeholder: "",
+  multiline: false,
+  disabled: false,
+  required: false,
+  validator: null,
+};
