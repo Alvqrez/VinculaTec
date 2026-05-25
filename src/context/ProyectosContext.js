@@ -17,7 +17,9 @@ export function ProyectosProvider({ children }) {
   const [propuestas, setPropuestas] = useState(INITIAL_PROPOSED);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState({});
+  const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState(
+    {},
+  );
 
   /** El asesor desbloquea una fase para un residente específico */
   const desbloquearReporteResidente = (residenteNombre, fase) => {
@@ -51,7 +53,8 @@ export function ProyectosProvider({ children }) {
 
       if (!response.ok) {
         setError(
-          response.body?.mensaje || response.error?.message ||
+          response.body?.mensaje ||
+            response.error?.message ||
             "Error al cargar proyectos",
         );
         setProyectos([]);
@@ -87,25 +90,38 @@ export function ProyectosProvider({ children }) {
   // reload: llamar desde AsesorApp al montar (después del login)
   const reload = fetchProyectos;
 
-  // Agregado: Escuchar eventos WebSocket para actualizaciones en tiempo real
-  // Por qué: El profe pidió que la aplicación sea capaz de abrirse en múltiples dispositivos simultáneamente
-  // Para qué: Cuando un residente sube un reporte, los asesores conectados reciban la actualización automáticamente
-  const { socket } = useWebSocket();
+  // ── WebSocket: actualizaciones en tiempo real ────────────────────────────────
+  const { subscribe } = useWebSocket();
+
   useEffect(() => {
-    if (!socket) return;
-
-    const handleReporteActualizado = (data) => {
-      console.log("[ProyectosContext] Reporte actualizado vía WebSocket:", data);
-      // Recargar proyectos para mostrar la actualización
+    // BUG FIX: el backend emite "reporte_revisado", no "reporte_actualizado"
+    const off1 = subscribe("reporte_revisado", (data) => {
+      console.log("[ProyectosContext] Reporte revisado por asesor:", data);
+      // Recargar para que el asesor vea el feedback actualizado
       reload();
-    };
+    });
 
-    socket.on("reporte_actualizado", handleReporteActualizado);
+    // Cuando el Jefe aprueba el avance de fase → el Asesor ve el cambio de inmediato
+    const off2 = subscribe("proyecto_fase_aprobada", (data) => {
+      console.log("[ProyectosContext] Fase aprobada:", data);
+      updateProyecto(data.proyectoId, {
+        phase: data.nuevaFase,
+        solicitudAvance: false,
+      });
+    });
+
+    // Cuando el Jefe asigna un asesor → recargar para que aparezca el proyecto
+    const off3 = subscribe("asesor_asignado", (data) => {
+      console.log("[ProyectosContext] Asesor asignado:", data);
+      reload();
+    });
 
     return () => {
-      socket.off("reporte_actualizado", handleReporteActualizado);
+      off1();
+      off2();
+      off3();
     };
-  }, [socket, reload]);
+  }, [subscribe]);
 
   const updateProyecto = (id, changes) =>
     setProyectos((prev) =>
@@ -253,7 +269,8 @@ export function ProyectosProvider({ children }) {
       return {
         ok: false,
         mensaje:
-          resultado?.mensaje || response.error?.message ||
+          resultado?.mensaje ||
+          response.error?.message ||
           "Error al solicitar avance",
       };
     } catch (err) {
