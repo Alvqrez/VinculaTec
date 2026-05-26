@@ -543,4 +543,96 @@ router.post(
   },
 );
 
+// ── POST /api/asesor/desbloquear-reporte ───────────────────────────────────────
+// Persistir el estado de desbloqueo manual de un reporte para un residente
+router.post("/desbloquear-reporte", auth, requireRol("asesor"), async (req, res) => {
+  const { residenteNombre, fase, proyectoId } = req.body;
+
+  if (!residenteNombre || !fase || !proyectoId) {
+    return res.status(400).json({
+      ok: false,
+      mensaje: "residenteNombre, fase y proyectoId son requeridos.",
+    });
+  }
+
+  try {
+    // Obtener asesor_id del usuario autenticado
+    const [asesorRows] = await db.execute(
+      "SELECT id FROM asesores WHERE usuario_id = ?",
+      [req.user.id],
+    );
+    if (!asesorRows.length) {
+      return res.status(403).json({ ok: false, mensaje: "El usuario no es asesor." });
+    }
+    const asesorId = asesorRows[0].id;
+
+    // Obtener residente_id del nombre
+    const [residenteRows] = await db.execute(
+      `SELECT r.id FROM residentes r
+       JOIN usuarios u ON r.usuario_id = u.id
+       WHERE CONCAT(u.nombre, ' ', u.apellidos) = ? AND r.asesor_id = ?`,
+      [residenteNombre, asesorId],
+    );
+    if (!residenteRows.length) {
+      return res.status(404).json({ ok: false, mensaje: "Residente no encontrado." });
+    }
+    const residenteId = residenteRows[0].id;
+
+    // Mapear fase al tipo de reporte en la base de datos
+    const faseToTipo = {
+      "Parcial 1": "parcial1",
+      "Parcial 2": "parcial2",
+      "Parcial 3": "parcial3",
+      "Final": "final",
+    };
+    const tipo = faseToTipo[fase];
+    if (!tipo) {
+      return res.status(400).json({ ok: false, mensaje: "Fase no válida." });
+    }
+
+    // Verificar si el reporte ya existe
+    const [existingReport] = await db.execute(
+      "SELECT id FROM reportes WHERE residente_id = ? AND tipo = ?",
+      [residenteId, tipo],
+    );
+
+    if (existingReport.length > 0) {
+      // Si el reporte ya existe, actualizar su estado a "Pendiente" para permitir reenvío
+      await db.execute(
+        "UPDATE reportes SET estado = 'Pendiente' WHERE id = ?",
+        [existingReport[0].id],
+      );
+    } else {
+      // Si no existe, crear un reporte vacío con estado "Pendiente"
+      const tsShort = Date.now().toString().slice(-8);
+      const newId = `r_${residenteId}_${tipo}_${tsShort}`;
+      await db.execute(
+        `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega)
+         VALUES (?, ?, ?, 'Pendiente', NULL)`,
+        [newId, residenteId, tipo],
+      );
+    }
+
+    // Emitir evento WebSocket para notificar al residente
+    const io = req.app.get("io");
+    if (io) {
+      const [usuarioRows] = await db.execute(
+        "SELECT usuario_id FROM residentes WHERE id = ?",
+        [residenteId],
+      );
+      if (usuarioRows.length > 0) {
+        io.to(`user_${usuarioRows[0].usuario_id}`).emit("reporte_desbloqueado", {
+          fase,
+          proyectoId,
+        });
+      }
+    }
+
+    return res.json({ ok: true, mensaje: "Reporte desbloqueado correctamente." });
+  } catch (err) {
+    console.error("Error en POST /asesor/desbloquear-reporte:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno del servidor." });
+  }
+});
+
 module.exports = router;

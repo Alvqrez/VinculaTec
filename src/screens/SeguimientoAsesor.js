@@ -869,7 +869,17 @@ export default function SeguimientoAsesor() {
                       {/* ── Botón Desbloquear (en la card del reporte bloqueado) ── */}
                       {puedeDesbloquear && (
                         <TouchableOpacity
-                          onPress={() => {
+                          onPress={async () => {
+                            // Llamar al backend para persistir el desbloqueo
+                            try {
+                              await apiClient.post("/api/asesor/desbloquear-reporte", {
+                                residenteNombre: selectedResidente,
+                                fase: report.fase,
+                                proyectoId: activeProject?.id,
+                              });
+                            } catch (err) {
+                              console.error("Error al persistir desbloqueo:", err);
+                            }
                             // Actualizar ProyectosContext (vista del asesor)
                             desbloquearReporteResidente?.(
                               selectedResidente,
@@ -1184,7 +1194,17 @@ export default function SeguimientoAsesor() {
                                 </Row>
                               ) : (
                                 <TouchableOpacity
-                                  onPress={() => {
+                                  onPress={async () => {
+                                    // Llamar al backend para persistir el desbloqueo
+                                    try {
+                                      await apiClient.post("/api/asesor/desbloquear-reporte", {
+                                        residenteNombre: selectedResidente,
+                                        fase: faseSig,
+                                        proyectoId: activeProject?.id,
+                                      });
+                                    } catch (err) {
+                                      console.error("Error al persistir desbloqueo:", err);
+                                    }
                                     desbloquearReporteResidente?.(
                                       selectedResidente,
                                       faseSig,
