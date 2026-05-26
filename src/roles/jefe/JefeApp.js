@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Platform, Animated, ScrollView } from "react-native";
-import { useTheme } from "../../context/ThemeContext";
-import Sidebar from "../../components/Sidebar";
-import TopBar from "../../components/TopBar";
+import { Animated } from "react-native";
+import AdaptiveLayout from "../../components/AdaptiveLayout";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 
@@ -30,12 +28,11 @@ const NAV = [
   { id: "utilerias", label: "Utilerías", icon: "tool" },
 ];
 
-function JefeAppInner({ usuario, onLogout }) {
+export default function JefeApp({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
 
-  const { colors: C, isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const navigateTo = (id) => {
@@ -83,47 +80,17 @@ function JefeAppInner({ usuario, onLogout }) {
   };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: "row",
-        height: Platform.OS === "web" ? "100vh" : "100%",
-        backgroundColor: isDark ? "#0D1117" : C.bg,
-      }}
+    <AdaptiveLayout
+      activeNav={activeNav}
+      setActiveNav={navigateTo}
+      role="Jefe de Vinculación"
+      navItems={NAV}
+      onLogout={onLogout}
+      usuario={usuario}
+      fotoPerfil={fotoPerfil}
+      fadeAnim={fadeAnim}
     >
-      <Sidebar
-        activeNav={activeNav}
-        setActiveNav={navigateTo}
-        role="Jefe de Vinculación"
-        navItems={NAV}
-        onLogout={onLogout}
-        usuario={usuario}
-        fotoPerfil={fotoPerfil}
-      />
-      <View style={{ flex: 1, flexDirection: "column" }}>
-        <TopBar
-          activeNav={activeNav}
-          setActiveNav={navigateTo}
-          navItems={NAV}
-          role="Jefe de Vinculación"
-          onLogout={onLogout}
-          usuario={usuario}
-          fotoPerfil={fotoPerfil}
-        />
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 24 }}
-          >
-            {views[activeNav] || views.dashboard}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </View>
+      {views[activeNav] || views.dashboard}
+    </AdaptiveLayout>
   );
-}
-
-export default function JefeApp({ usuario, onLogout }) {
-  const { colors: C } = useTheme();
-  return <JefeAppInner usuario={usuario} onLogout={onLogout} />;
 }

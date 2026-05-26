@@ -17,6 +17,8 @@
  *   Mac/Linux: ifconfig | grep "inet "
  */
 
+import { REACT_APP_API_URL } from '@env';
+
 const isDevelopment = process.env.NODE_ENV === "development";
 
 const isLocalhost = (() => {
@@ -44,7 +46,7 @@ const isMobile = (() => {
 
 // SEGURIDAD FIX #11: La IP local ya no está hardcodeada aquí.
 // Se obtiene de la variable de entorno REACT_APP_API_URL definida en .env.local
-const envUrl = process.env.REACT_APP_API_URL;
+const envUrl = REACT_APP_API_URL;
 
 // Fallback solo para entorno localhost (navegador en la misma máquina)
 // Para móvil o dispositivos externos, REACT_APP_API_URL es obligatorio

@@ -211,6 +211,10 @@ export default function CalendarioCitas() {
     if (!validateTime(formTime)) { setTimeError("Ingresa hora válida (HH:MM)"); return; }
     if (!formConcepto.trim()) { Alert.alert("Error", "Ingresa el concepto de la cita."); return; }
 
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (date < hoy) { setDateError("No puedes agendar citas en fechas pasadas"); return; }
+
     const day = date.getDate(), month = date.getMonth(), year = date.getFullYear();
     const title = formConcepto.trim();
     const key = monthKey(new Date(year, month, 1));

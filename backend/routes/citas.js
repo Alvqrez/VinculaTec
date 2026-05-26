@@ -11,6 +11,13 @@ router.post("/", auth, async (req, res) => {
   if (!fecha_hora)
     return res.status(400).json({ ok: false, mensaje: "fecha_hora es requerida." });
 
+  const fechaCita = new Date(fecha_hora);
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  if (fechaCita < hoy) {
+    return res.status(400).json({ ok: false, mensaje: "No puedes agendar citas en fechas pasadas." });
+  }
+
   try {
     const [result] = await db.execute(
       `INSERT INTO citas
