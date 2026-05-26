@@ -147,6 +147,29 @@ CREATE TABLE IF NOT EXISTS notificaciones (
   INDEX idx_usuario_leida (usuario_id, leida)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Notificaciones Activas (Tiempo Real) ─────────────────────
+-- Tabla extendida para notificaciones con metadata adicional
+-- usada por el sistema de notificaciones en tiempo real
+CREATE TABLE IF NOT EXISTS notificaciones_activas (
+  id VARCHAR(50) PRIMARY KEY,
+  usuario_id VARCHAR(50) NOT NULL,
+  tipo_notificacion VARCHAR(100),
+  titulo VARCHAR(255),
+  mensaje TEXT,
+  is_read TINYINT(1) DEFAULT 0,
+  icon VARCHAR(50),
+  icon_color VARCHAR(20),
+  icon_bg VARCHAR(20),
+  proyecto_id VARCHAR(50),
+  fase VARCHAR(50),
+  action_screen VARCHAR(100),
+  action_label VARCHAR(100),
+  metadata JSON,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_usuario (usuario_id),
+  INDEX idx_proyecto (proyecto_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ── Citas / Calendario ──────────────────────────────────────
 -- FIX: id cambiado a INT AUTO_INCREMENT porque los INSERTs usan result.insertId
 --      (antes era VARCHAR(50) sin DEFAULT, lo que causaba error al insertar sin proveer id)

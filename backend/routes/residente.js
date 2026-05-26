@@ -213,10 +213,19 @@ router.put("/reportes/:tipo", auth, async (req, res) => {
 
     const io = req.app.get("io");
     if (io) {
-      io.emit("reporte_actualizado", {
-        residente_id: residenteId, tipo, estado: "En Revisión",
-        archivo_url: archivoUrl, nombre_archivo,
-      });
+      // Obtener asesor del residente para enviar notificación solo al asesor
+      const [asesorRows] = await db.execute(
+        "SELECT asesor_id, usuario_id as asesor_usuario_id FROM residentes WHERE id = ?",
+        [residenteId]
+      );
+      
+      if (asesorRows.length > 0 && asesorRows[0].asesor_usuario_id) {
+        // Emitir solo al asesor, no al residente
+        io.to(`user_${asesorRows[0].asesor_usuario_id}`).emit("reporte_actualizado", {
+          residente_id: residenteId, tipo, estado: "En Revisión",
+          archivo_url: archivoUrl, nombre_archivo,
+        });
+      }
     }
 
     return res.json({ ok: true, archivo_url: archivoUrl, nombre_archivo });

@@ -426,28 +426,20 @@ export default function AsignacionJefe() {
           </Row>
 
           <Field
+            key="nombre-proyecto"
             C={C}
             label="Nombre del Proyecto *"
             value={proyecto.nombre}
-            onChangeText={(v) =>
-              setProyecto({
-                ...proyecto,
-                nombre: v,
-              })
-            }
+            onChangeText={(v) => setProyecto(prev => ({...prev, nombre: v}))}
             placeholder="Ej: Sistema de Gestión de Inventarios"
           />
 
           <Field
+            key="periodo-proyecto"
             C={C}
             label="Periodo Escolar"
             value={proyecto.periodo}
-            onChangeText={(v) =>
-              setProyecto({
-                ...proyecto,
-                periodo: v,
-              })
-            }
+            onChangeText={(v) => setProyecto(prev => ({...prev, periodo: v}))}
             placeholder="Ej: 2025-1"
           />
 
@@ -506,10 +498,11 @@ export default function AsignacionJefe() {
           </ScrollView>
 
           <Field
+            key="descripcion-proyecto"
             C={C}
             label="Descripción del Proyecto"
             value={proyecto.descripcion}
-            onChangeText={(v) => setProyecto({ ...proyecto, descripcion: v })}
+            onChangeText={(v) => setProyecto(prev => ({...prev, descripcion: v}))}
             placeholder="Breve descripción del proyecto y sus objetivos..."
             multiline
           />
