@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { View, Platform, Animated, ScrollView } from "react-native";
-import { useTheme } from "../../context/ThemeContext";
-import Sidebar from "../../components/Sidebar";
-import TopBar from "../../components/TopBar";
+import { Animated } from "react-native";
+import AdaptiveLayout from "../../components/AdaptiveLayout";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 import { useProyectos } from "../../context/ProyectosContext";
@@ -24,13 +22,11 @@ const NAV = [
 ];
 
 export default function AsesorApp({ usuario, onLogout }) {
-  const { colors: C } = useTheme();
   const [activeNav, setActiveNav] = useState("dashboard");
   const { getFoto, setFoto, initUser } = useFotos();
   const { reload: reloadNotifs } = useNotificaciones();
   const { reload: reloadProyectos } = useProyectos();
 
-  const { isDark } = useTheme();
   const fadeAnim = useRef(new Animated.Value(1)).current;
 
   const navigateTo = (id) => {
@@ -75,42 +71,17 @@ export default function AsesorApp({ usuario, onLogout }) {
   };
 
   return (
-    <View
-      style={{
-        flex: 1,
-        flexDirection: "row",
-        height: Platform.OS === "web" ? "100vh" : "100%",
-        backgroundColor: isDark ? "#0D1117" : C.bg,
-      }}
+    <AdaptiveLayout
+      activeNav={activeNav}
+      setActiveNav={navigateTo}
+      role="Asesor"
+      navItems={NAV}
+      onLogout={onLogout}
+      usuario={usuario}
+      fotoPerfil={fotoPerfil}
+      fadeAnim={fadeAnim}
     >
-      <Sidebar
-        activeNav={activeNav}
-        setActiveNav={navigateTo}
-        role="Asesor"
-        navItems={NAV}
-        onLogout={onLogout}
-        usuario={usuario}
-        fotoPerfil={fotoPerfil}
-      />
-      <View style={{ flex: 1, flexDirection: "column" }}>
-        <TopBar
-          activeNav={activeNav}
-          setActiveNav={navigateTo}
-          role="Asesor"
-          navItems={NAV}
-          onLogout={onLogout}
-          usuario={usuario}
-          fotoPerfil={fotoPerfil}
-        />
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <ScrollView
-            style={{ flex: 1 }}
-            contentContainerStyle={{ padding: 24 }}
-          >
-            {views[activeNav] || views.dashboard}
-          </ScrollView>
-        </Animated.View>
-      </View>
-    </View>
+      {views[activeNav] || views.dashboard}
+    </AdaptiveLayout>
   );
 }

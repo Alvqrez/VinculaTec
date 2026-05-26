@@ -1,6 +1,7 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { getAuthToken } from "./AuthContext";
 import { API_BASE } from "../config/api";
+import { useWebSocket } from "./WebSocketContext";
 
 const ReportesCtx = createContext(null);
 
@@ -159,7 +160,7 @@ export function ReportesProvider({ children }) {
           },
         );
         const data = await res.json();
-        
+
         if (!data.ok) {
           console.error("[reviewReport] Error al guardar en BD:", data.mensaje);
           return false; // Falló el guardado en BD
@@ -169,7 +170,13 @@ export function ReportesProvider({ children }) {
         setReports((prev) =>
           prev.map((r) =>
             r.id === id
-              ? { ...r, status, feedback, reviewedBy: reviewer, reviewedAt: today }
+              ? {
+                  ...r,
+                  status,
+                  feedback,
+                  reviewedBy: reviewer,
+                  reviewedAt: today,
+                }
               : r,
           ),
         );
@@ -183,7 +190,6 @@ export function ReportesProvider({ children }) {
         }
 
         return true; // Éxito completo
-        
       } catch (err) {
         console.error("[reviewReport] Error de conexión:", err);
         return false; // Falló la conexión
@@ -192,16 +198,22 @@ export function ReportesProvider({ children }) {
       console.warn(
         "[reviewReport] Sin dbReporteId — revisión solo local (no persiste en BD).",
       );
-      
+
       // Si no hay dbReporteId, actualizamos solo local pero advertimos
       setReports((prev) =>
         prev.map((r) =>
           r.id === id
-            ? { ...r, status, feedback, reviewedBy: reviewer, reviewedAt: today }
+            ? {
+                ...r,
+                status,
+                feedback,
+                reviewedBy: reviewer,
+                reviewedAt: today,
+              }
             : r,
         ),
       );
-      
+
       return true; // Consideramos éxito aunque no persiste en BD
     }
   };
@@ -331,6 +343,33 @@ export function ReportesProvider({ children }) {
       console.warn("No se pudo deshacer en el backend:", err.message);
     }
   };
+
+  // ── WebSocket: el Residente ve el feedback del Asesor en tiempo real ────────
+  const { subscribe } = useWebSocket();
+  useEffect(() => {
+    const off = subscribe("reporte_revisado", (data) => {
+      console.log("[ReportesContext] Reporte revisado:", data);
+      // Mapear estado de BD al status del frontend
+      const statusMap = { Aprobado: "Aceptado", Rechazado: "Por corregir" };
+      const nuevoStatus = statusMap[data.estado] || data.estado;
+
+      setReports((prev) =>
+        prev.map((r) => {
+          // Comparar por tipo (id del reporte local) no por ID de BD
+          // El evento trae reporteId de la BD; buscamos si algún reporte local coincide
+          if (String(r.dbId) === String(data.reporteId)) {
+            return {
+              ...r,
+              status: nuevoStatus,
+              feedback: data.feedback ?? r.feedback,
+            };
+          }
+          return r;
+        }),
+      );
+    });
+    return off;
+  }, [subscribe]);
 
   // ── Derivados ──────────────────────────────────────────────────────────────
   const preliminarAprobado =

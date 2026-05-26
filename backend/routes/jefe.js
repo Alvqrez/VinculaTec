@@ -2,7 +2,11 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const db = require("../db");
 const { auth, requireRol } = require("../middleware");
-const { validateRequest, schemas, errorHandler } = require("../middleware/validation");
+const {
+  validateRequest,
+  schemas,
+  errorHandler,
+} = require("../middleware/validation");
 const { createError, ERROR_CODES } = require("../utils/errorCodes");
 const { logger } = require("../utils/logger");
 
@@ -15,8 +19,8 @@ const soloJefe = [auth, requireRol("jefe")];
 // ── GET /api/jefe/dashboard ───────────────────────────────────────────────────
 router.get("/dashboard", ...soloJefe, async (req, res) => {
   try {
-    logger.logBusinessOperation('jefe_dashboard_access', req.user.id, { 
-      endpoint: '/dashboard' 
+    logger.logBusinessOperation("jefe_dashboard_access", req.user.id, {
+      endpoint: "/dashboard",
     });
 
     const [[{ totalResidentes }]] = await db.execute(
@@ -42,7 +46,16 @@ router.get("/dashboard", ...soloJefe, async (req, res) => {
        ORDER BY residentes DESC
        LIMIT 6`,
     );
-    return res.json({ ok: true, stats: { totalResidentes, empresasVinculadas, proyectosActivos, reportesPendientes }, topEmpresas });
+    return res.json({
+      ok: true,
+      stats: {
+        totalResidentes,
+        empresasVinculadas,
+        proyectosActivos,
+        reportesPendientes,
+      },
+      topEmpresas,
+    });
   } catch (err) {
     console.error("Error en /jefe/dashboard:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
@@ -70,15 +83,36 @@ router.get("/empresas", ...soloJefe, async (req, res) => {
 
 // ── POST /api/jefe/empresas ───────────────────────────────────────────────────
 router.post("/empresas", ...soloJefe, async (req, res) => {
-  const { name, sector, ciudad, convenio, contactoNombre, contactoEmail, contactoTel, status } = req.body;
+  const {
+    name,
+    sector,
+    ciudad,
+    convenio,
+    contactoNombre,
+    contactoEmail,
+    contactoTel,
+    status,
+  } = req.body;
   if (!name?.trim())
-    return res.status(400).json({ ok: false, mensaje: "El nombre es requerido." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "El nombre es requerido." });
   try {
     const newId = `emp_${Date.now()}`;
     await db.execute(
       `INSERT INTO empresas (id, nombre, sector, ciudad, estado, convenio_vencimiento, contacto_nombre, contacto_email, contacto_telefono)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      [newId, name.trim(), sector || null, ciudad || null, status || "Nueva", convenio || null, contactoNombre || null, contactoEmail || null, contactoTel || null],
+      [
+        newId,
+        name.trim(),
+        sector || null,
+        ciudad || null,
+        status || "Nueva",
+        convenio || null,
+        contactoNombre || null,
+        contactoEmail || null,
+        contactoTel || null,
+      ],
     );
     return res.json({ ok: true, id: newId });
   } catch (err) {
@@ -89,7 +123,6 @@ router.post("/empresas", ...soloJefe, async (req, res) => {
 
 // ── PUT /api/jefe/empresas/:id ────────────────────────────────────────────────
 router.put("/empresas/:id", ...soloJefe, async (req, res) => {
-
   console.log("===== BODY =====");
   console.log(req.body);
 
@@ -104,17 +137,16 @@ router.put("/empresas/:id", ...soloJefe, async (req, res) => {
     contactoNombre,
     contactoEmail,
     contactoTel,
-    status
+    status,
   } = req.body;
 
   try {
     console.log("Intentando UPDATE...");
 
-const result = await db.execute(
-  
+    const result = await db.execute(
       `UPDATE empresas SET nombre=?, sector=?, ciudad=?, estado=?, convenio_vencimiento=?,
       contacto_nombre=?, contacto_email=?, contacto_telefono=? WHERE id=?`,
-            [
+      [
         name,
         sector || null,
         ciudad || null,
@@ -123,30 +155,28 @@ const result = await db.execute(
         contactoNombre || null,
         contactoEmail || null,
         contactoTel || null,
-        req.params.id
+        req.params.id,
       ],
     );
     console.log("UPDATE OK");
-console.log(result);
+    console.log(result);
     return res.json({ ok: true });
+  } catch (err) {
+    console.log("===== ERROR MYSQL =====");
+    console.log(err);
+
+    console.log("MESSAGE:", err.message);
+    console.log("CODE:", err.code);
+
+    console.log("SQL MESSAGE:", err.sqlMessage);
+    console.log("SQL:", err.sql);
+
+    return res.status(500).json({
+      ok: false,
+      mensaje: err.message,
+      code: err.code,
+    });
   }
-  
-  catch (err) {
-  console.log("===== ERROR MYSQL =====");
-  console.log(err);
-
-  console.log("MESSAGE:", err.message);
-  console.log("CODE:", err.code);
-
-  console.log("SQL MESSAGE:", err.sqlMessage);
-  console.log("SQL:", err.sql);
-
-  return res.status(500).json({
-    ok: false,
-    mensaje: err.message,
-    code: err.code,
-  });
-}
 });
 
 // ── DELETE /api/jefe/empresas/:id ─────────────────────────────────────────────
@@ -186,11 +216,66 @@ router.get("/proyectos", ...soloJefe, async (req, res) => {
   }
 });
 
+// ── POST /api/jefe/proyectos ──────────────────────────────────────────────────
+router.post("/proyectos", ...soloJefe, async (req, res) => {
+  const {
+    titulo,
+    empresa_id,
+    prioridad,
+    estado,
+    tecnologias,
+    descripcion,
+    periodo,
+  } = req.body;
+  if (!titulo?.trim())
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "El título del proyecto es requerido." });
+  const estadosValidos = ["propuesto", "desarrollo", "revision", "concluido"];
+  const prioridadesValidas = ["Alta", "Media", "Baja"];
+  const estadoFinal = estadosValidos.includes(estado) ? estado : "desarrollo";
+  const prioridadFinal = prioridadesValidas.includes(prioridad)
+    ? prioridad
+    : "Media";
+  try {
+    const proyectoId = `p_${Date.now()}`;
+    await db.execute(
+      `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, periodo, estado, prioridad, tecnologias)
+       VALUES (?,?,?,?,?,?,?,?)`,
+      [
+        proyectoId,
+        titulo.trim(),
+        descripcion || null,
+        empresa_id || null,
+        periodo || null,
+        estadoFinal,
+        prioridadFinal,
+        tecnologias || null,
+      ],
+    );
+    return res.json({ ok: true, id: proyectoId });
+  } catch (err) {
+    console.error("Error en POST /jefe/proyectos:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 // ── PUT /api/jefe/proyectos/:id ───────────────────────────────────────────────
 router.put("/proyectos/:id", ...soloJefe, async (req, res) => {
-  const { title } = req.body;
+  const { title, priority, tags } = req.body;
+  if (!title?.trim())
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "El título es requerido." });
+  const prioridadesValidas = ["Alta", "Media", "Baja"];
+  const prioridadFinal = prioridadesValidas.includes(priority)
+    ? priority
+    : "Media";
   try {
-    if (title) await db.execute("UPDATE proyectos SET titulo=? WHERE id=?", [title, req.params.id]);
+    await db.execute(
+      "UPDATE proyectos SET titulo=?, prioridad=?, tecnologias=? WHERE id=?",
+      [title.trim(), prioridadFinal, tags || null, req.params.id],
+    );
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error en PUT /jefe/proyectos/:id:", err);
@@ -228,47 +313,90 @@ router.get("/asignacion/datos", ...soloJefe, async (req, res) => {
 
 // Helper functions para reducir complejidad
 const validateAsignacionData = (data) => {
-  const { proyectoNombre, empresaId, asesorId, asesorIds, residentesIds } = data;
-  
+  // BUG FIX: usar let en lugar de const para permitir reasignación de asesorIds
+  let { proyectoNombre, empresaId, asesorId, asesorIds, residentesIds } = data;
+
   if (!asesorIds?.length && asesorId) asesorIds = [asesorId];
   const asesorIdPrimario = asesorIds?.[0];
-  
-  if (!proyectoNombre?.trim() || !empresaId || !asesorIdPrimario || !residentesIds?.length) {
-    throw createError(ERROR_CODES.VALIDATION.REQUIRED_FIELD, "Faltan datos requeridos.");
+
+  if (
+    !proyectoNombre?.trim() ||
+    !empresaId ||
+    !asesorIdPrimario ||
+    !residentesIds?.length
+  ) {
+    throw createError(
+      ERROR_CODES.VALIDATION.REQUIRED_FIELD,
+      "Faltan datos requeridos.",
+    );
   }
-  
+
   return { asesorIds, asesorIdPrimario };
 };
 
 const createProyecto = async (data) => {
-  const { proyectoNombre, empresaId, descripcion, asesorIdPrimario, residentesIds, periodo } = data;
+  const {
+    proyectoNombre,
+    empresaId,
+    descripcion,
+    asesorIdPrimario,
+    residentesIds,
+    periodo,
+  } = data;
   const proyectoId = `p_${Date.now()}`;
-  
+
+  // BUG FIX: había 8 '?' pero solo 7 parámetros; estado y prioridad son literales hardcodeados
   await db.execute(
     `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, asesor_id, residente_id, periodo, estado, prioridad)
-     VALUES (?,?,?,?,?,?,?,?,'propuesto','Media')`,
-    [proyectoId, proyectoNombre.trim(), descripcion || null, empresaId, asesorIdPrimario, residentesIds[0], periodo || null],
+     VALUES (?,?,?,?,?,?,?,'propuesto','Media')`,
+    [
+      proyectoId,
+      proyectoNombre.trim(),
+      descripcion || null,
+      empresaId,
+      asesorIdPrimario,
+      residentesIds[0],
+      periodo || null,
+    ],
   );
-  
+
   return proyectoId;
 };
 
 const assignResidentesToAsesor = async (residentesIds, asesorIdPrimario) => {
   for (const rId of residentesIds) {
-    await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [asesorIdPrimario, rId]);
+    await db.execute("UPDATE residentes SET asesor_id = ? WHERE id = ?", [
+      asesorIdPrimario,
+      rId,
+    ]);
   }
 };
 
 const assignAsesoresToProyecto = async (proyectoId, asesorIds) => {
   for (const aId of asesorIds) {
-    await db.execute("INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)", [proyectoId, aId]);
+    await db.execute(
+      "INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?)",
+      [proyectoId, aId],
+    );
   }
 };
 
 const createReportesForResidentes = async (residentesIds) => {
-  const tiposReportes = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
-  const fechasLimite = ["2026-02-28", "2026-04-30", "2026-06-30", "2026-08-30", "2026-10-31"];
-  
+  const tiposReportes = [
+    "preliminar",
+    "parcial1",
+    "parcial2",
+    "parcial3",
+    "final",
+  ];
+  const fechasLimite = [
+    "2026-02-28",
+    "2026-04-30",
+    "2026-06-30",
+    "2026-08-30",
+    "2026-10-31",
+  ];
+
   for (const rId of residentesIds) {
     for (let i = 0; i < tiposReportes.length; i++) {
       const [existing] = await db.execute(
@@ -288,22 +416,22 @@ const createReportesForResidentes = async (residentesIds) => {
 // ── POST /api/jefe/asignacion ─────────────────────────────────────────────────
 router.post("/asignacion", ...soloJefe, async (req, res) => {
   try {
-    logger.logBusinessOperation('jefe_asignacion_proyecto', req.user.id, { 
-      endpoint: '/asignacion',
-      body: req.body 
+    logger.logBusinessOperation("jefe_asignacion_proyecto", req.user.id, {
+      endpoint: "/asignacion",
+      body: req.body,
     });
 
     const { asesorIds, asesorIdPrimario } = validateAsignacionData(req.body);
     const proyectoId = await createProyecto({ ...req.body, asesorIdPrimario });
-    
+
     await assignResidentesToAsesor(req.body.residentesIds, asesorIdPrimario);
     await assignAsesoresToProyecto(proyectoId, asesorIds);
     await createReportesForResidentes(req.body.residentesIds);
-    
-    logger.logAudit('ASIGNACION_PROYECTO', req.user.id, proyectoId, {
+
+    logger.logAudit("ASIGNACION_PROYECTO", req.user.id, proyectoId, {
       asesorIdPrimario,
       residentesCount: req.body.residentesIds.length,
-      empresaId: req.body.empresaId
+      empresaId: req.body.empresaId,
     });
 
     return res.json({ ok: true, id: proyectoId });
@@ -316,11 +444,43 @@ router.post("/asignacion", ...soloJefe, async (req, res) => {
 // ── POST /api/jefe/proyectos/:id/asesores ────────────────────────────────────
 router.post("/proyectos/:id/asesores", ...soloJefe, async (req, res) => {
   const { asesorId } = req.body;
-  if (!asesorId) return res.status(400).json({ ok: false, mensaje: "asesorId requerido." });
+  const proyectoId = req.params.id;
+  if (!asesorId)
+    return res.status(400).json({ ok: false, mensaje: "asesorId requerido." });
   try {
-    const [pRows] = await db.execute("SELECT id FROM proyectos WHERE id = ?", [req.params.id]);
-    if (!pRows.length) return res.status(404).json({ ok: false, mensaje: "Proyecto no encontrado." });
-    await db.execute("UPDATE proyectos SET asesor_id = ? WHERE id = ?", [asesorId, req.params.id]);
+    const [pRows] = await db.execute(
+      "SELECT p.id, p.titulo, u.nombre, u.apellidos FROM proyectos p LEFT JOIN asesores a ON a.id=? LEFT JOIN usuarios u ON u.id=a.usuario_id WHERE p.id=?",
+      [asesorId, proyectoId],
+    );
+    if (!pRows.length)
+      return res
+        .status(404)
+        .json({ ok: false, mensaje: "Proyecto no encontrado." });
+
+    // BUG FIX: también sincronizar tabla proyecto_asesores para que el asesor
+    // pueda usar el endpoint /solicitar-avance que verifica dicha tabla.
+    await db.execute("UPDATE proyectos SET asesor_id = ? WHERE id = ?", [
+      asesorId,
+      proyectoId,
+    ]);
+    await db.execute(
+      "INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE asesor_id = asesor_id",
+      [proyectoId, asesorId],
+    );
+
+    // Emitir evento en tiempo real para que el Asesor lo vea de inmediato
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("asesor_asignado", {
+        proyectoId,
+        asesorId,
+        titulo: pRows[0].titulo,
+        asesorNombre: pRows[0].nombre
+          ? `${pRows[0].nombre} ${pRows[0].apellidos}`
+          : null,
+      });
+    }
+
     return res.json({ ok: true });
   } catch (err) {
     console.error("Error en POST /jefe/proyectos/:id/asesores:", err);
@@ -331,18 +491,46 @@ router.post("/proyectos/:id/asesores", ...soloJefe, async (req, res) => {
 // ── PUT /api/jefe/proyectos/:id/aprobar-avance ────────────────────────────────
 router.put("/proyectos/:id/aprobar-avance", ...soloJefe, async (req, res) => {
   const phases = ["propuesto", "desarrollo", "revision", "concluido"];
+  const proyectoId = req.params.id;
   try {
     const [rows] = await db.execute(
-      "SELECT estado, solicitud_avance FROM proyectos WHERE id = ?",
-      [req.params.id],
+      "SELECT estado, solicitud_avance, titulo FROM proyectos WHERE id = ?",
+      [proyectoId],
     );
-    if (!rows.length) return res.status(404).json({ ok: false, mensaje: "Proyecto no encontrado." });
-    const { estado, solicitud_avance } = rows[0];
-    if (!solicitud_avance) return res.status(400).json({ ok: false, mensaje: "El proyecto no tiene solicitud de avance pendiente." });
+    if (!rows.length)
+      return res
+        .status(404)
+        .json({ ok: false, mensaje: "Proyecto no encontrado." });
+    const { estado, solicitud_avance, titulo } = rows[0];
+    if (!solicitud_avance)
+      return res
+        .status(400)
+        .json({
+          ok: false,
+          mensaje: "El proyecto no tiene solicitud de avance pendiente.",
+        });
     const idx = phases.indexOf(estado);
-    if (idx < 0 || idx >= phases.length - 1) return res.status(400).json({ ok: false, mensaje: "El proyecto ya está en la fase final." });
+    if (idx < 0 || idx >= phases.length - 1)
+      return res
+        .status(400)
+        .json({ ok: false, mensaje: "El proyecto ya está en la fase final." });
     const nuevoEstado = phases[idx + 1];
-    await db.execute("UPDATE proyectos SET estado = ?, solicitud_avance = 0 WHERE id = ?", [nuevoEstado, req.params.id]);
+    await db.execute(
+      "UPDATE proyectos SET estado = ?, solicitud_avance = 0 WHERE id = ?",
+      [nuevoEstado, proyectoId],
+    );
+
+    // Emitir en tiempo real: el Asesor verá el cambio de fase sin recargar
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("proyecto_fase_aprobada", {
+        proyectoId,
+        faseAnterior: estado,
+        nuevaFase: nuevoEstado,
+        titulo,
+      });
+    }
+
     return res.json({ ok: true, nuevoEstado });
   } catch (err) {
     console.error("Error en PUT /jefe/proyectos/:id/aprobar-avance:", err);
@@ -395,8 +583,10 @@ router.get("/usuarios-registrados", ...soloJefe, async (req, res) => {
        ORDER BY u.created_at DESC LIMIT 20`,
     );
     const usuarios = rows.map((u) => ({
-      id: u.id, nombre: `${u.nombre} ${u.apellidos}`,
-      correo: u.correo, rol: u.rol,
+      id: u.id,
+      nombre: `${u.nombre} ${u.apellidos}`,
+      correo: u.correo,
+      rol: u.rol,
       fecha: new Date(u.fecha).toLocaleDateString("es-MX"),
     }));
     return res.json({ ok: true, usuarios });
@@ -408,21 +598,49 @@ router.get("/usuarios-registrados", ...soloJefe, async (req, res) => {
 
 // ── POST /api/jefe/registrar-usuario ─────────────────────────────────────────
 router.post("/registrar-usuario", ...soloJefe, async (req, res) => {
-  const { rol, nombre, apellidos, correo, password, numControl, carrera, semestre, departamento, numEmpleado } = req.body;
+  const {
+    rol,
+    nombre,
+    apellidos,
+    correo,
+    password,
+    numControl,
+    carrera,
+    semestre,
+    departamento,
+    numEmpleado,
+  } = req.body;
 
   if (!["residente", "asesor"].includes(rol))
-    return res.status(400).json({ ok: false, mensaje: "Rol inválido. Debe ser 'residente' o 'asesor'." });
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Rol inválido. Debe ser 'residente' o 'asesor'.",
+      });
   if (!nombre?.trim() || !apellidos?.trim() || !correo?.trim() || !password)
-    return res.status(400).json({ ok: false, mensaje: "Nombre, apellidos, correo y contraseña son requeridos." });
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "Nombre, apellidos, correo y contraseña son requeridos.",
+      });
 
   // SEGURIDAD FIX #10: Aumentado mínimo de contraseña de 6 a 8 caracteres
   if (password.length < 8)
-    return res.status(400).json({ ok: false, mensaje: "La contraseña debe tener al menos 8 caracteres." });
+    return res
+      .status(400)
+      .json({
+        ok: false,
+        mensaje: "La contraseña debe tener al menos 8 caracteres.",
+      });
 
   // Validación básica de formato de correo
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(correo.trim()))
-    return res.status(400).json({ ok: false, mensaje: "El formato del correo no es válido." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "El formato del correo no es válido." });
 
   try {
     const [existing] = await db.execute(
@@ -430,7 +648,9 @@ router.post("/registrar-usuario", ...soloJefe, async (req, res) => {
       [correo.trim().toLowerCase()],
     );
     if (existing.length)
-      return res.status(409).json({ ok: false, mensaje: "Ya existe un usuario con ese correo." });
+      return res
+        .status(409)
+        .json({ ok: false, mensaje: "Ya existe un usuario con ese correo." });
 
     const userId = `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const passHash = await bcrypt.hash(password, 10);
@@ -438,14 +658,27 @@ router.post("/registrar-usuario", ...soloJefe, async (req, res) => {
     await db.execute(
       `INSERT INTO usuarios (id, nombre, apellidos, correo, password_hash, rol, activo)
        VALUES (?,?,?,?,?,?,1)`,
-      [userId, nombre.trim(), apellidos.trim(), correo.trim().toLowerCase(), passHash, rol],
+      [
+        userId,
+        nombre.trim(),
+        apellidos.trim(),
+        correo.trim().toLowerCase(),
+        passHash,
+        rol,
+      ],
     );
 
     if (rol === "residente") {
       const resId = `res_${Date.now()}`;
       await db.execute(
         `INSERT INTO residentes (id, usuario_id, num_control, carrera, semestre) VALUES (?,?,?,?,?)`,
-        [resId, userId, numControl?.trim() || null, carrera || null, semestre || null],
+        [
+          resId,
+          userId,
+          numControl?.trim() || null,
+          carrera || null,
+          semestre || null,
+        ],
       );
     } else if (rol === "asesor") {
       const asesorId = `ase_${Date.now()}`;
@@ -455,10 +688,16 @@ router.post("/registrar-usuario", ...soloJefe, async (req, res) => {
       );
     }
 
-    return res.json({ ok: true, id: userId, mensaje: `${rol === "residente" ? "Residente" : "Asesor"} registrado correctamente.` });
+    return res.json({
+      ok: true,
+      id: userId,
+      mensaje: `${rol === "residente" ? "Residente" : "Asesor"} registrado correctamente.`,
+    });
   } catch (err) {
     console.error("Error en POST /jefe/registrar-usuario:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno al registrar usuario." });
+    return res
+      .status(500)
+      .json({ ok: false, mensaje: "Error interno al registrar usuario." });
   }
 });
 
@@ -470,7 +709,8 @@ router.get("/estadisticas-por-periodo", ...soloJefe, async (req, res) => {
       "SELECT DISTINCT periodo FROM proyectos WHERE periodo IS NOT NULL ORDER BY periodo DESC",
     );
     const periodoSeleccionado = periodo || periodos[0]?.periodo;
-    if (!periodoSeleccionado) return res.json({ ok: true, periodos: [], estadisticas: null });
+    if (!periodoSeleccionado)
+      return res.json({ ok: true, periodos: [], estadisticas: null });
 
     const [[{ totalResidentes }]] = await db.execute(
       "SELECT COUNT(DISTINCT p.residente_id) AS totalResidentes FROM proyectos p WHERE p.periodo = ?",
@@ -495,7 +735,14 @@ router.get("/estadisticas-por-periodo", ...soloJefe, async (req, res) => {
        FROM proyectos p WHERE p.periodo = ? GROUP BY p.id ORDER BY alumnos DESC`,
       [periodoSeleccionado],
     );
-    return res.json({ ok: true, periodos, periodoSeleccionado, estadisticas: { totalResidentes, totalEmpresas, proyectosActivos }, empresasPeriodo, alumnosPorProyecto });
+    return res.json({
+      ok: true,
+      periodos,
+      periodoSeleccionado,
+      estadisticas: { totalResidentes, totalEmpresas, proyectosActivos },
+      empresasPeriodo,
+      alumnosPorProyecto,
+    });
   } catch (err) {
     console.error("Error en GET /jefe/estadisticas-por-periodo:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });

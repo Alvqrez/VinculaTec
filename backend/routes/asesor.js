@@ -275,23 +275,20 @@ router.post(
 
       const asesorId = asesorRows[0].id;
 
-      const [paRows] = await db.execute(
-        "SELECT 1 FROM proyecto_asesores WHERE proyecto_id = ? AND asesor_id = ?",
-        [proyectoId, asesorId],
-      );
-      if (!paRows.length)
-        return res
-          .status(404)
-          .json({ ok: false, mensaje: "Proyecto no encontrado." });
-
+      // BUG FIX: verificar acceso por proyecto_asesores O por asesor_id directo
+      // (proyectos asignados vía el panel del Jefe solo tienen asesor_id)
       const [projectRows] = await db.execute(
-        "SELECT id, estado FROM proyectos WHERE id = ?",
-        [proyectoId],
+        `SELECT p.id, p.titulo, p.estado,
+                (SELECT 1 FROM proyecto_asesores pa WHERE pa.proyecto_id = p.id AND pa.asesor_id = ?) AS en_tabla
+         FROM proyectos p WHERE p.id = ? AND (p.asesor_id = ? OR EXISTS(
+           SELECT 1 FROM proyecto_asesores pa2 WHERE pa2.proyecto_id = p.id AND pa2.asesor_id = ?
+         ))`,
+        [asesorId, proyectoId, asesorId, asesorId],
       );
       if (!projectRows.length)
         return res
           .status(404)
-          .json({ ok: false, mensaje: "Proyecto no encontrado." });
+          .json({ ok: false, mensaje: "Proyecto no encontrado o sin acceso." });
 
       if (projectRows[0].estado === "concluido")
         return res
@@ -302,6 +299,15 @@ router.post(
         "UPDATE proyectos SET solicitud_avance = 1 WHERE id = ?",
         [proyectoId],
       );
+
+      // Emitir en tiempo real: el Jefe verá la solicitud sin recargar
+      const io = req.app.get("io");
+      if (io) {
+        io.emit("proyecto_solicitud_avance", {
+          proyectoId,
+          titulo: projectRows[0].titulo,
+        });
+      }
 
       return res.json({
         ok: true,
@@ -325,12 +331,10 @@ router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
 
   // Validar estado
   if (!["Aprobado", "Rechazado"].includes(estado))
-    return res
-      .status(400)
-      .json({
-        ok: false,
-        mensaje: "Estado inválido. Usa 'Aprobado' o 'Rechazado'.",
-      });
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Estado inválido. Usa 'Aprobado' o 'Rechazado'.",
+    });
 
   try {
     // Obtener asesorId del JWT
@@ -444,12 +448,18 @@ router.post(
       if (!proyecto.solicitud_avance) {
         return res.status(400).json({
           ok: false,
-          mensaje: "No hay una solicitud de avance pendiente para este proyecto.",
+          mensaje:
+            "No hay una solicitud de avance pendiente para este proyecto.",
         });
       }
 
       // Determinar siguiente fase
-      const secuenciaFases = ["propuesto", "desarrollo", "revision", "concluido"];
+      const secuenciaFases = [
+        "propuesto",
+        "desarrollo",
+        "revision",
+        "concluido",
+      ];
       const indiceActual = secuenciaFases.indexOf(proyecto.fase);
       const siguienteFase = fase_destino || secuenciaFases[indiceActual + 1];
 
@@ -467,7 +477,7 @@ router.post(
         // Actualizar proyecto
         await db.execute(
           "UPDATE proyectos SET fase = ?, solicitud_avance = 0, updated_at = NOW() WHERE id = ?",
-          [siguienteFase, proyectoId]
+          [siguienteFase, proyectoId],
         );
 
         // Registrar auditoría
@@ -482,8 +492,8 @@ router.post(
             siguienteFase,
             comentarios,
             req.ip,
-            req.get('User-Agent') || 'Unknown'
-          ]
+            req.get("User-Agent") || "Unknown",
+          ],
         );
 
         // Confirmar transacción
@@ -498,14 +508,14 @@ router.post(
             fase_nueva: siguienteFase,
             comentarios,
             aprobado_por: userId,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
 
         // Devolver objeto actualizado
         const [updatedRows] = await db.execute(
           "SELECT id, titulo, fase, estado, updated_at FROM proyectos WHERE id = ?",
-          [proyectoId]
+          [proyectoId],
         );
 
         return res.json({
@@ -517,22 +527,20 @@ router.post(
             fase_anterior: proyecto.fase,
             fase_nueva: siguienteFase,
             comentarios,
-            timestamp: new Date().toISOString()
-          }
+            timestamp: new Date().toISOString(),
+          },
         });
-
       } catch (transError) {
         await db.execute("ROLLBACK");
         throw transError;
       }
-
     } catch (err) {
       console.error("Error en POST /asesor/proyectos/:id/aprobar-avance:", err);
       return res
         .status(500)
         .json({ ok: false, mensaje: "Error interno del servidor." });
     }
-  }
+  },
 );
 
 module.exports = router;
