@@ -1,4 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+} from "react";
 import {
   View,
   Text,
@@ -32,6 +37,25 @@ const EMPTY_REGISTER_FORM = {
   descripcion: "",
   periodo: "",
 };
+
+const Field = ({ label, children, C }) => (
+  <View style={{ marginBottom: 18 }}>
+    <Text
+      style={{
+        fontSize: 11,
+        fontWeight: "700",
+        color: C.textMuted,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        marginBottom: 7,
+      }}
+    >
+      {label}
+    </Text>
+
+    {children}
+  </View>
+);
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function GestionProyectos() {
@@ -99,23 +123,6 @@ export default function GestionProyectos() {
       Baja: { color: C.green, bg: C.greenLight },
     })[priority] || { color: C.amber, bg: C.amberLight };
 
-  const Field = ({ label, children }) => (
-    <View style={{ marginBottom: 18 }}>
-      <Text
-        style={{
-          fontSize: 11,
-          fontWeight: "700",
-          color: C.textMuted,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 7,
-        }}
-      >
-        {label}
-      </Text>
-      {children}
-    </View>
-  );
 
   const inputStyle = {
     padding: 11,
@@ -172,14 +179,19 @@ export default function GestionProyectos() {
   }, [subscribe, fetchProyectos, showToast]);
 
   // ── Columnas del tablero ───────────────────────────────────────────────────
-  const columns = PHASE_COLUMNS.map((col) => ({
-    ...col,
-    cards: proyectos.filter(
-      (p) =>
-        p.phase === col.id &&
-        (priorityFilter === "Todas" || p.priority === priorityFilter),
-    ),
-  }));
+  const columns = React.useMemo(
+  () =>
+    PHASE_COLUMNS.map((col) => ({
+      ...col,
+      cards: proyectos.filter(
+        (p) =>
+          p.phase === col.id &&
+          (priorityFilter === "Todas" ||
+            p.priority === priorityFilter),
+      ),
+    })),
+  [proyectos, priorityFilter]
+);
 
   // ── Acciones: Editar ───────────────────────────────────────────────────────
   const openEdit = (card) => {
@@ -299,16 +311,16 @@ export default function GestionProyectos() {
   };
 
   // ── ProjectCard ────────────────────────────────────────────────────────────
-  function ProjectCard({
-    card,
-    index,
-    col,
-    active,
-    onPress,
-    onEdit,
-    onAprobarAvance,
-    onAsignar,
-  }) {
+  const ProjectCard = React.memo(({
+  card,
+  index,
+  col,
+  active,
+  onPress,
+  onEdit,
+  onAprobarAvance,
+  onAsignar,
+}) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(16)).current;
 
@@ -557,6 +569,7 @@ export default function GestionProyectos() {
       </Animated.View>
     );
   }
+);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -884,7 +897,7 @@ export default function GestionProyectos() {
               </TouchableOpacity>
             </Row>
 
-            <Field label="Nombre del Proyecto">
+            <Field label="Nombre del Proyecto"C={C}>
               <TextInput
                 value={editForm.title}
                 onChangeText={(v) => setEditForm({ ...editForm, title: v })}
@@ -894,7 +907,7 @@ export default function GestionProyectos() {
               />
             </Field>
 
-            <Field label="Prioridad">
+            <Field label="Prioridad"C={C}>
               <Row style={{ gap: 8 }}>
                 {PRIORIDADES.map((p) => {
                   const sel = editForm.priority === p;
@@ -928,7 +941,7 @@ export default function GestionProyectos() {
               </Row>
             </Field>
 
-            <Field label="Tecnologías (separadas por coma)">
+            <Field label="Tecnologías (separadas por coma)"C={C}>
               <TextInput
                 value={editForm.tags}
                 onChangeText={(v) => setEditForm({ ...editForm, tags: v })}
@@ -1330,7 +1343,7 @@ export default function GestionProyectos() {
               contentContainerStyle={{ padding: 24, paddingBottom: 8 }}
               showsVerticalScrollIndicator={false}
             >
-              <Field label="Título del Proyecto *">
+              <Field label="Título del Proyecto *" C={C}>
                 <TextInput
                   value={registerForm.titulo}
                   onChangeText={(v) =>
@@ -1342,7 +1355,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Empresa">
+              <Field label="Empresa"C={C}>
                 <TouchableOpacity
                   onPress={() => setShowEmpresaPick(!showEmpresaPick)}
                   style={{
@@ -1446,7 +1459,7 @@ export default function GestionProyectos() {
                 )}
               </Field>
 
-              <Field label="Prioridad">
+              <Field label="Prioridad"C={C}>
                 <Row style={{ gap: 8 }}>
                   {PRIORIDADES.map((p) => {
                     const sel = registerForm.prioridad === p;
@@ -1482,7 +1495,7 @@ export default function GestionProyectos() {
                 </Row>
               </Field>
 
-              <Field label="Fase Inicial">
+              <Field label="Fase Inicial"C={C}>
                 <Row style={{ gap: 8 }}>
                   {FASES.map((f) => {
                     const sel = registerForm.estado === f.id;
@@ -1525,7 +1538,7 @@ export default function GestionProyectos() {
                 </Row>
               </Field>
 
-              <Field label="Tecnologías (separadas por coma)">
+              <Field label="Tecnologías (separadas por coma)"C={C}>
                 <TextInput
                   value={registerForm.tecnologias}
                   onChangeText={(v) =>
@@ -1537,7 +1550,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Período">
+              <Field label="Período"C={C}>
                 <TextInput
                   value={registerForm.periodo}
                   onChangeText={(v) =>
@@ -1549,7 +1562,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Descripción">
+              <Field label="Descripción"C={C}>
                 <TextInput
                   value={registerForm.descripcion}
                   onChangeText={(v) =>
