@@ -206,46 +206,145 @@ export default function CalendarioCitas() {
   };
 
   const confirmAppointment = () => {
-    const date = validateDate(formDate);
-    if (!date) { setDateError("Ingresa fecha válida (DD/MM/AAAA)"); return; }
-    if (!validateTime(formTime)) { setTimeError("Ingresa hora válida (HH:MM)"); return; }
-    if (!formConcepto.trim()) { Alert.alert("Error", "Ingresa el concepto de la cita."); return; }
+  const date = validateDate(formDate);
 
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    if (date < hoy) { setDateError("No puedes agendar citas en fechas pasadas"); return; }
+  // Validar fecha
+  if (!date) {
+    setDateError("Ingresa fecha válida (DD/MM/AAAA)");
+    return;
+  }
 
-    const day = date.getDate(), month = date.getMonth(), year = date.getFullYear();
-    const title = formConcepto.trim();
-    const key = monthKey(new Date(year, month, 1));
-    const cat = categorizarEvento(formType);
-    const catColors = { revision: C.amber, residente: C.teal, empresa: C.purple, reunion: C.blue };
-    const color = catColors[cat] || C.teal;
+  // Limpiar errores previos
+  setDateError("");
+  setTimeError("");
 
-    saveCitaAPI({
-      tipo: formType,
-      modalidad: formModalidad,
-      motivo: title,
-      notas: formNotes.trim() || null,
-      residente: formResidente.trim() || null,
-      fecha_hora: date.toISOString().slice(0, 19).replace("T", " "),
-    });
+  // Bloquear fechas pasadas
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
 
-    setEvents((prev) => ({
-      ...prev,
-      [key]: { ...(prev[key] || {}), [day]: [...(prev[key]?.[day] || []), { label: title, color, bg: color + "22", tipo: formType, modalidad: formModalidad, categoria: cat }] },
-    }));
-    setUpcoming((prev) => [...prev, {
-      day, month: MONTHS[month].slice(0, 3), monthIndex: month, year, title, time: formTime,
-      color, bg: color + "22", icon: formModalidad === "Virtual" ? "monitor" : "map-pin",
-      tipo: formType, modalidad: formModalidad, categoria: cat,
-    }].sort((a, b) => new Date(a.year, a.monthIndex, a.day) - new Date(b.year, b.monthIndex, b.day)));
+  const fechaComparar = new Date(date);
+  fechaComparar.setHours(0, 0, 0, 0);
 
-    setMonthDate(new Date(year, month, 1));
-    setSelected(day);
-    setShowModal(false);
-    Alert.alert("Cita agendada", `"${title}" — ${formModalidad}`);
+  if (fechaComparar < hoy) {
+    setDateError("No puedes agendar citas en fechas pasadas");
+    return;
+  }
+
+  // Validar hora
+  if (!validateTime(formTime)) {
+    setTimeError("Ingresa hora válida (HH:MM)");
+    return;
+  }
+
+  // Validar concepto
+  if (!formConcepto.trim()) {
+    Alert.alert("Error", "Ingresa el concepto de la cita.");
+    return;
+  }
+
+  // Aplicar hora real al objeto Date
+  const [hours, minutes] = formTime.split(":").map(Number);
+
+  date.setHours(hours);
+  date.setMinutes(minutes);
+  date.setSeconds(0);
+  date.setMilliseconds(0);
+  const ahora = new Date();
+
+  if (date < ahora) {
+  setTimeError("No puedes agendar citas en horas pasadas");
+  return;
+  }
+
+  const day = date.getDate();
+  const month = date.getMonth();
+  const year = date.getFullYear();
+
+  const title = formConcepto.trim();
+
+  const key = monthKey(new Date(year, month, 1));
+
+  // Categoría
+  const cat = categorizarEvento(formType);
+
+  const catColors = {
+    revision: C.amber,
+    residente: C.teal,
+    empresa: C.purple,
+    reunion: C.blue,
   };
+
+  const color = catColors[cat] || C.teal;
+
+  // Fecha local SIN problemas de timezone
+  const fechaHoraLocal =
+    `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")} ` +
+    `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`;
+
+  // Guardar en API
+  saveCitaAPI({
+    tipo: formType,
+    modalidad: formModalidad,
+    motivo: title,
+    notas: formNotes.trim() || null,
+    residente: formResidente.trim() || null,
+    fecha_hora: fechaHoraLocal,
+  });
+
+  // Guardar en calendario local
+  setEvents((prev) => ({
+    ...prev,
+    [key]: {
+      ...(prev[key] || {}),
+      [day]: [
+        ...(prev[key]?.[day] || []),
+        {
+          label: title,
+          color,
+          bg: color + "22",
+          tipo: formType,
+          modalidad: formModalidad,
+          categoria: cat,
+          timestamp: date.getTime(),
+        },
+      ],
+    },
+  }));
+
+  // Guardar en próximos eventos
+  setUpcoming((prev) =>
+    [
+      ...prev,
+      {
+        day,
+        month: MONTHS[month].slice(0, 3),
+        monthIndex: month,
+        year,
+        title,
+        time: formTime,
+        color,
+        bg: color + "22",
+        icon: formModalidad === "Virtual" ? "monitor" : "map-pin",
+        tipo: formType,
+        modalidad: formModalidad,
+        categoria: cat,
+        timestamp: date.getTime(),
+      },
+    ].sort((a, b) => a.timestamp - b.timestamp)
+  );
+
+  // Actualizar calendario
+  setMonthDate(new Date(year, month, 1));
+  setSelected(day);
+
+  // Cerrar modal
+  setShowModal(false);
+
+  Alert.alert(
+    "Cita agendada",
+    `"${title}" — ${formModalidad} (${formDate} ${formTime})`
+  );
+};
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: C.bg }} contentContainerStyle={{ padding: 24 }}>
