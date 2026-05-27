@@ -8,7 +8,7 @@ import React from "react";
         Platform,
     } from "react-native";
 
-import { useResponsive } from "../hooks/useResponsive";
+import { useResponsive } from "../mobile/hooks/useResponsive";
 import { useTheme } from "../context/ThemeContext";
 
 export default function ResponsiveModal({

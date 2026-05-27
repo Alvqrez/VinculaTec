@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Animated } from "react-native";
-import AdaptiveLayout from "../../components/AdaptiveLayout";
+import { AdaptiveLayout } from "../../mobile";
 import { useFotos } from "../../context/FotosContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 import { useReportes } from "../../context/ReportesContext";

@@ -1,11 +1,11 @@
 import React from "react";
 import { View } from "react-native";
-import { useResponsive } from "../hooks/useResponsive";
+import { useResponsive } from "../mobile/hooks/useResponsive";
 
 export default function ResponsiveContainer({ children }) {
     const { isMobile, spacing } = useResponsive();
 
-eturn (
+    return (
     <View
         style={{
         width: "100%",

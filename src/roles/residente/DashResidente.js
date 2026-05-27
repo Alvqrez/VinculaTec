@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
+import { useResponsive } from "../../hooks/useResponsive";
 import {
   Row,
   Card,
@@ -19,6 +20,7 @@ import apiClient from "../../utils/apiClient";
 
 export default function DashResidente({ onNavigate }) {
   const { colors: C } = useTheme();
+  const { isMobile } = useResponsive();
   const { reports } = useReportes() || {};
   const { unreadCount } = useNotificaciones();
   const { stats, loading: statsLoading, refresh } = useRealTimeStats(30000);
@@ -164,9 +166,9 @@ export default function DashResidente({ onNavigate }) {
         />
       </Row>
 
-      <Row style={{ gap: 20, alignItems: "flex-start" }}>
+      <Row style={{ gap: 20, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
         {/* Columna izquierda */}
-        <View style={{ flex: 1, gap: 20 }}>
+        <View style={{ flex: 1, gap: 20, width: "100%" }}>
           {/* Mi Proyecto */}
           {proyecto ? (
             <Card>
@@ -595,7 +597,7 @@ export default function DashResidente({ onNavigate }) {
         </View>
 
         {/* Sidebar derecho */}
-        <View style={{ width: 280, gap: 20 }}>
+        <View style={{ width: isMobile ? "100%" : 280, gap: 20 }}>
           {/* Mi Asesor */}
           <Card>
             <Text
