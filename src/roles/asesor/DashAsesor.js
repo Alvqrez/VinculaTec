@@ -124,45 +124,24 @@ export default function DashAsesor({ onNavigate }) {
     // Usar los datos filtrados por período (coherente con las barras inferiores)
     const data = [
       {
-<<<<<<< Updated upstream
         name: "Desarrollo",
         population: enDesarrollo,
         color: "#F59E0B",
-        legendFontColor: C.text,
+        legendFontColor: "#6B7280",
         legendFontSize: 12,
       },
       {
         name: "Revisión",
         population: enRevision,
         color: "#8B5CF6",
-        legendFontColor: C.text,
+        legendFontColor: "#6B7280",
         legendFontSize: 12,
       },
       {
         name: "Concluidos",
         population: concluidos,
         color: "#10B981",
-        legendFontColor: C.text,
-=======
-        name: "Aceptados",
-        population: filteredAceptados,
-        color: C.green,
         legendFontColor: "#6B7280",
-        legendFontSize: 12,
-      },
-      {
-        name: "Pendientes",
-        population: filteredPendientes,
-        color: C.amber,
-        legendFontColor: "#6B7280",
-        legendFontSize: 12,
-      },
-      {
-        name: "Por corregir",
-        population: filteredPorCorregir,
-        color: C.red,
-        legendFontColor: "#6B7280",
->>>>>>> Stashed changes
         legendFontSize: 12,
       },
     ].filter((d) => d.population > 0);
