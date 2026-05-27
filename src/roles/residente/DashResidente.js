@@ -125,13 +125,6 @@ export default function DashResidente({ onNavigate }) {
     >
       <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
       <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Dashboard Residente</Text>
-      <TouchableOpacity 
-        onPress={() => onNavigate?.("Notificaciones")}
-        style={{ position: "relative" }}
-      >
-        <Feather name="bell" size={20} color={C.text} />
-        <NotificationBadge count={unreadCount} />
-      </TouchableOpacity>
     </Row>
 
       {/* Stat Cards */}
