@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, ScrollView, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -14,7 +14,6 @@ import {
 import { useReportes } from "../../context/ReportesContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 import { NotificationBadge } from "../../components/NotificationBadge";
-import { useRealTimeStats } from "../../hooks/useRealTimeStats";
 import apiClient from "../../utils/apiClient";
 
 
@@ -23,7 +22,6 @@ export default function DashResidente({ onNavigate }) {
   const { isMobile } = useResponsive();
   const { reports } = useReportes() || {};
   const { unreadCount } = useNotificaciones();
-  const { stats, loading: statsLoading, refresh } = useRealTimeStats(30000);
   const [asesor, setAsesor] = useState(null);
   const [proyecto, setProyecto] = useState(null);
 
@@ -452,50 +450,52 @@ export default function DashResidente({ onNavigate }) {
               >
                 Mis Reportes
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  // Función para exportar reportes a CSV
-                  const csvContent = [
-                    ["Reporte", "Límite", "Entrega", "Estado"],
-                    ...reportesTabla.map((r) => [
-                      r.nombre,
-                      r.fechaLimite,
-                      r.fechaEntrega,
-                      r.estado,
-                    ]),
-                  ]
-                    .map((row) => row.join(","))
-                    .join("\n");
+              {Platform.OS === "web" && (
+                <TouchableOpacity
+                  onPress={() => {
+                    // Función para exportar reportes a CSV (solo web)
+                    const csvContent = [
+                      ["Reporte", "Límite", "Entrega", "Estado"],
+                      ...reportesTabla.map((r) => [
+                        r.nombre,
+                        r.fechaLimite,
+                        r.fechaEntrega,
+                        r.estado,
+                      ]),
+                    ]
+                      .map((row) => row.join(","))
+                      .join("\n");
 
-                  const blob = new Blob([csvContent], {
-                    type: "text/csv;charset=utf-8;",
-                  });
-                  const link = document.createElement("a");
-                  const url = URL.createObjectURL(blob);
-                  link.setAttribute("href", url);
-                  link.setAttribute("download", "mis_reportes.csv");
-                  link.style.visibility = "hidden";
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  backgroundColor: C.teal,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                }}
-              >
-                <Feather name="download" size={14} color="white" />
-                <Text
-                  style={{ color: "white", fontSize: 13, fontWeight: "600" }}
+                    const blob = new Blob([csvContent], {
+                      type: "text/csv;charset=utf-8;",
+                    });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", "mis_reportes.csv");
+                    link.style.visibility = "hidden";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: C.teal,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                  }}
                 >
-                  Exportar
-                </Text>
-              </TouchableOpacity>
+                  <Feather name="download" size={14} color="white" />
+                  <Text
+                    style={{ color: "white", fontSize: 13, fontWeight: "600" }}
+                  >
+                    Exportar
+                  </Text>
+                </TouchableOpacity>
+              )}
             </Row>
             <Row
               style={{

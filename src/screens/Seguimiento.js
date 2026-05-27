@@ -7,15 +7,12 @@ import { useReportes } from "../context/ReportesContext";
 import { useNotificaciones } from "../context/NotificacionesContext";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const statusStyle = (status) =>{
-  const { colors: C } = useTheme();
-  return({
-    Aceptado:       { color: C.green,    bg: C.greenLight  },
-    "Por corregir": { color: C.red,      bg: C.redLight    },
-    Pendiente:      { color: C.amber,    bg: C.amberLight  },
-    Entregado:      { color: C.blue,     bg: C.blueLight   },
-  }[status] || { color: C.textMuted, bg: C.bg });
-};
+const statusStyle = (status, C) => ({
+  Aceptado:       { color: C.green,    bg: C.greenLight  },
+  "Por corregir": { color: C.red,      bg: C.redLight    },
+  Pendiente:      { color: C.amber,    bg: C.amberLight  },
+  Entregado:      { color: C.blue,     bg: C.blueLight   },
+}[status] || { color: C.textMuted, bg: C.bg });
 const todayStr = () => {
   const d = new Date();
   return d.toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
@@ -80,7 +77,7 @@ export default function Seguimiento() {
   // ── Report card renderer ──────────────────────────────────────────────────
   const ReportCard = ({ report, canDeliver = false }) => {
     const isOpen = selected === report.id;
-    const { color, bg } = statusStyle(report.status);
+    const { color, bg } = statusStyle(report.status, C);
     const statusIcon = report.status === "Aceptado" ? "check" : report.status === "Por corregir" ? "x" : "clock";
     return (
       <Card style={{ padding: 0, overflow: "hidden" }}>
@@ -261,7 +258,7 @@ export default function Seguimiento() {
                 </Row>
                 <Text style={{ fontSize: 13, color: C.textMuted, marginBottom: 12 }}>{viewingReport.subtitle}</Text>
                 <Row style={{ gap: 8, marginBottom: 14 }}>
-                  <Badge text={viewingReport.status} color={statusStyle(viewingReport.status).color} bg={statusStyle(viewingReport.status).bg} />
+                  <Badge text={viewingReport.status} color={statusStyle(viewingReport.status, C).color} bg={statusStyle(viewingReport.status, C).bg} />
                 </Row>
                 <Text style={{ fontSize: 13, fontWeight: "700", color: C.textSub, marginBottom: 8 }}>Secciones</Text>
                 <View style={{ gap: 6, marginBottom: 14 }}>
