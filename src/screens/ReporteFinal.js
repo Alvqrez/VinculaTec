@@ -43,6 +43,7 @@ export default function ReporteFinal({ usuario }) {
   const [uploadHover, setUploadHover] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [submitted, setSubmitted] = useState(false);
+  const [fileData, setFileData] = useState(null);
 
   // ── Datos reales del residente / asesor / proyecto ─────────────────────
   const [asesor,   setAsesor]   = useState(null);
@@ -255,8 +256,61 @@ export default function ReporteFinal({ usuario }) {
         size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
         type: file.type || "Documento",
       });
+
+      // Convertir archivo a base64 para enviar al backend
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFileData(e.target.result);
+      };
+      reader.readAsDataURL(file);
     };
     input.click();
+  };
+
+  const uploadReport = async () => {
+    if (!selectedFile) {
+      Alert.alert("Sin archivo", "Selecciona tu documento antes de entregar.");
+      return;
+    }
+    if (!fileData) {
+      Alert.alert("Error", "El archivo no se ha procesado correctamente.");
+      return;
+    }
+
+    const today = new Date().toLocaleDateString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+
+    try {
+      const res = await apiClient.put("/api/residente/reportes/final", {
+        archivo: fileData,
+        nombre_archivo: selectedFile.name,
+      });
+
+      if (!res.ok) {
+        Alert.alert("Error", res.body?.mensaje || "No se pudo subir el reporte.");
+        return;
+      }
+
+      // Actualizar estado local
+      if (updateReport) {
+        updateReport("final", {
+          status: "En Revisión",
+          submitted: today,
+        });
+      }
+
+      setSubmitted(true);
+      Alert.alert(
+        "Reporte Final entregado",
+        "Tu asesor recibirá una notificación para revisarlo."
+      );
+    } catch (error) {
+      console.error("Error al subir reporte:", error);
+      Alert.alert("Error", "No se pudo conectar con el servidor.");
+    }
   };
 
   return (
@@ -646,30 +700,7 @@ export default function ReporteFinal({ usuario }) {
           {/* Submit button */}
           {!submitted ? (
             <TouchableOpacity
-              onPress={() => {
-                if (!selectedFile) {
-                  Alert.alert(
-                    "Sin archivo",
-                    "Selecciona tu documento antes de entregar.",
-                  );
-                  return;
-                }
-                const today = new Date().toLocaleDateString("es-MX", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                });
-                updateReport &&
-                  updateReport("final", {
-                    status: "En Revisión",
-                    submitted: today,
-                  });
-                setSubmitted(true);
-                Alert.alert(
-                  "Reporte Final entregado",
-                  "Tu asesor recibirá una notificación para revisarlo.",
-                );
-              }}
+              onPress={uploadReport}
               style={{
                 backgroundColor: C.navy,
                 borderRadius: 12,
