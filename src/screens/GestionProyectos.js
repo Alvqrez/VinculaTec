@@ -23,14 +23,44 @@ const FASES = [
   { id: "revision", label: "En Revisión" },
   { id: "concluido", label: "Concluido" },
 ];
+const FUENTE_PROYECTO = ["Banco de Proyectos", "Propuesta Propia", "Propuesta Organización o Empresa"];
 const EMPTY_REGISTER_FORM = {
+  // Datos Generales del Proyecto
+  fuente_proyecto: "",
   titulo: "",
+  periodo: "",
+  num_alumnos: "",
+  // Datos del Alumno
+  alumno_nombre: "",
+  alumno_carrera: "",
+  alumno_no_control: "",
+  alumno_correo: "",
+  alumno_telefono: "",
+  alumno_facebook: "",
+  // Datos de la Organización/Empresa
   empresa_id: "",
+  empresa_domicilio: "",
+  empresa_red_social: "",
+  empresa_telefono: "",
+  empresa_extension: "",
+  asesor_externo_nombre: "",
+  asesor_externo_puesto: "",
+  asesor_externo_contacto: "",
+  // Personal Académico
+  asesor_interno: "",
+  // Detalles del Proyecto
+  introduccion: "",
+  problematica: "",
+  objetivo_general: "",
+  objetivos_especificos: "",
+  justificacion: "",
+  // Plan de Trabajo
+  actividades: [{ actividad: "", descripcion: "" }],
+  // Campos originales (mantener compatibilidad)
   prioridad: "Media",
   estado: "desarrollo",
   tecnologias: "",
   descripcion: "",
-  periodo: "",
 };
 
 const Field = ({ label, children, C }) => (
@@ -375,6 +405,7 @@ export default function GestionProyectos() {
   const [registerForm, setRegisterForm] = useState(EMPTY_REGISTER_FORM);
   const [registering, setRegistering] = useState(false);
   const [showEmpresaPick, setShowEmpresaPick] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Modal: asignar asesor
   const [asignarTarget, setAsignarTarget] = useState(null);
@@ -387,6 +418,26 @@ export default function GestionProyectos() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   }, []);
+
+  const addActividad = () => {
+    setRegisterForm({
+      ...registerForm,
+      actividades: [...registerForm.actividades, { actividad: "", descripcion: "" }],
+    });
+  };
+
+  const removeActividad = (index) => {
+    setRegisterForm({
+      ...registerForm,
+      actividades: registerForm.actividades.filter((_, i) => i !== index),
+    });
+  };
+
+  const updateActividad = (index, field, value) => {
+    const nuevasActividades = [...registerForm.actividades];
+    nuevasActividades[index][field] = value;
+    setRegisterForm({ ...registerForm, actividades: nuevasActividades });
+  };
 
   const inputStyle = {
     padding: 11,
@@ -516,13 +567,42 @@ export default function GestionProyectos() {
     }
     setRegistering(true);
     const res = await apiClient.post("/api/jefe/proyectos", {
+      // Datos Generales del Proyecto
+      fuente_proyecto: registerForm.fuente_proyecto || null,
       titulo: registerForm.titulo.trim(),
+      periodo: registerForm.periodo.trim() || null,
+      num_alumnos: registerForm.num_alumnos.trim() || null,
+      // Datos del Alumno
+      alumno_nombre: registerForm.alumno_nombre.trim() || null,
+      alumno_carrera: registerForm.alumno_carrera.trim() || null,
+      alumno_no_control: registerForm.alumno_no_control.trim() || null,
+      alumno_correo: registerForm.alumno_correo.trim() || null,
+      alumno_telefono: registerForm.alumno_telefono.trim() || null,
+      alumno_facebook: registerForm.alumno_facebook.trim() || null,
+      // Datos de la Organización/Empresa
       empresa_id: registerForm.empresa_id || null,
+      empresa_domicilio: registerForm.empresa_domicilio.trim() || null,
+      empresa_red_social: registerForm.empresa_red_social.trim() || null,
+      empresa_telefono: registerForm.empresa_telefono.trim() || null,
+      empresa_extension: registerForm.empresa_extension.trim() || null,
+      asesor_externo_nombre: registerForm.asesor_externo_nombre.trim() || null,
+      asesor_externo_puesto: registerForm.asesor_externo_puesto.trim() || null,
+      asesor_externo_contacto: registerForm.asesor_externo_contacto.trim() || null,
+      // Personal Académico
+      asesor_interno: registerForm.asesor_interno.trim() || null,
+      // Detalles del Proyecto
+      introduccion: registerForm.introduccion.trim() || null,
+      problematica: registerForm.problematica.trim() || null,
+      objetivo_general: registerForm.objetivo_general.trim() || null,
+      objetivos_especificos: registerForm.objetivos_especificos.trim() || null,
+      justificacion: registerForm.justificacion.trim() || null,
+      // Plan de Trabajo
+      actividades: registerForm.actividades || [],
+      // Campos originales (mantener compatibilidad)
       prioridad: registerForm.prioridad,
       estado: registerForm.estado,
       tecnologias: registerForm.tecnologias.trim() || null,
       descripcion: registerForm.descripcion.trim() || null,
-      periodo: registerForm.periodo.trim() || null,
     });
     if (res.ok) {
       setShowRegister(false);
@@ -1322,245 +1402,874 @@ export default function GestionProyectos() {
               </Row>
             </View>
 
-            <ScrollView
-              contentContainerStyle={{ padding: 24, paddingBottom: 8 }}
-              showsVerticalScrollIndicator={false}
+            {/* ── Barra de pestañas ── */}
+            <View
+              style={{
+                flexDirection: "row",
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+                backgroundColor: C.bg,
+              }}
             >
-              <Field label="Título del Proyecto *" C={C}>
-                <TextInput
-                  value={registerForm.titulo}
-                  onChangeText={(v) =>
-                    setRegisterForm({ ...registerForm, titulo: v })
-                  }
-                  placeholder="Nombre del proyecto"
-                  placeholderTextColor={C.textLight}
-                  style={inputStyle}
-                />
-              </Field>
-
-              <Field label="Empresa" C={C}>
+              {[
+                "Proyecto y Alumno",
+                "Organización",
+                "Detalles",
+                "Plan de Trabajo",
+              ].map((tab, index) => (
                 <TouchableOpacity
-                  onPress={() => setShowEmpresaPick(!showEmpresaPick)}
+                  key={index}
+                  onPress={() => setActiveTab(index)}
                   style={{
-                    ...inputStyle,
-                    flexDirection: "row",
-                    justifyContent: "space-between",
+                    flex: 1,
+                    paddingVertical: 14,
                     alignItems: "center",
+                    borderBottomWidth: 2,
+                    borderBottomColor:
+                      activeTab === index ? C.navy : "transparent",
                   }}
                 >
                   <Text
                     style={{
-                      fontSize: 14,
-                      color: registerForm.empresa_id ? C.text : C.textLight,
+                      fontSize: 12,
+                      fontWeight: activeTab === index ? "800" : "600",
+                      color: activeTab === index ? C.navy : C.textMuted,
                     }}
                   >
-                    {registerForm.empresa_id
-                      ? empresas.find((e) => e.id === registerForm.empresa_id)
-                          ?.name || "Seleccionar…"
-                      : "Seleccionar empresa…"}
+                    {tab}
                   </Text>
-                  <Feather
-                    name={showEmpresaPick ? "chevron-up" : "chevron-down"}
-                    size={14}
-                    color={C.textMuted}
-                  />
                 </TouchableOpacity>
-                {showEmpresaPick && (
+              ))}
+            </View>
+
+            <ScrollView
+              contentContainerStyle={{ padding: 24, paddingBottom: 8 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* ── Tab 1: Proyecto y Alumno (Sección 1 y Sección 2) ── */}
+              {activeTab === 0 && (
+                <>
+                  {/* ── Sección 1: Datos Generales del Proyecto ── */}
                   <View
                     style={{
-                      backgroundColor: C.card,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: C.border,
-                      marginTop: 4,
-                      maxHeight: 180,
-                      overflow: "hidden",
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
                     }}
                   >
-                    <ScrollView nestedScrollEnabled>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setRegisterForm({ ...registerForm, empresa_id: "" });
-                          setShowEmpresaPick(false);
-                        }}
-                        style={{
-                          padding: 11,
-                          borderBottomWidth: 1,
-                          borderBottomColor: C.borderLight,
-                        }}
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="folder" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
                       >
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            color: C.textMuted,
-                            fontStyle: "italic",
-                          }}
-                        >
-                          Sin empresa
-                        </Text>
-                      </TouchableOpacity>
-                      {empresas.map((emp) => (
-                        <TouchableOpacity
-                          key={emp.id}
-                          onPress={() => {
-                            setRegisterForm({
-                              ...registerForm,
-                              empresa_id: emp.id,
-                            });
-                            setShowEmpresaPick(false);
-                          }}
-                          style={{
-                            padding: 11,
-                            borderBottomWidth: 1,
-                            borderBottomColor: C.borderLight,
-                            backgroundColor:
-                              registerForm.empresa_id === emp.id
-                                ? C.tealLighter
-                                : "transparent",
-                          }}
-                        >
-                          <Text
+                        1. Datos Generales del Proyecto
+                      </Text>
+                    </Row>
+                  </View>
+
+                  <Field label="Fuente del Proyecto" C={C}>
+                    <Row style={{ gap: 8 }}>
+                      {FUENTE_PROYECTO.map((fp) => {
+                        const sel = registerForm.fuente_proyecto === fp;
+                        return (
+                          <TouchableOpacity
+                            key={fp}
+                            onPress={() =>
+                              setRegisterForm({ ...registerForm, fuente_proyecto: fp })
+                            }
                             style={{
-                              fontSize: 13,
-                              color:
-                                registerForm.empresa_id === emp.id
-                                  ? C.teal
-                                  : C.text,
-                              fontWeight:
-                                registerForm.empresa_id === emp.id
-                                  ? "700"
-                                  : "400",
+                              flex: 1,
+                              paddingVertical: 8,
+                              paddingHorizontal: 8,
+                              borderRadius: 8,
+                              borderWidth: 1.5,
+                              borderColor: sel ? C.teal : C.border,
+                              backgroundColor: sel ? C.tealLighter : C.bg,
+                              alignItems: "center",
                             }}
                           >
-                            {emp.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </ScrollView>
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: "700",
+                                textAlign: "center",
+                                color: sel ? C.teal : C.textMuted,
+                              }}
+                            >
+                              {fp}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </Row>
+                  </Field>
+
+                  <Field label="Nombre del Proyecto *" C={C}>
+                    <TextInput
+                      value={registerForm.titulo}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, titulo: v })
+                      }
+                      placeholder="Nombre del proyecto"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Periodo de Residencia" C={C}>
+                    <TextInput
+                      value={registerForm.periodo}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, periodo: v })
+                      }
+                      placeholder="Ej: Enero-Junio 2025"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Número de Alumnos asignados" C={C}>
+                    <TextInput
+                      value={registerForm.num_alumnos}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, num_alumnos: v })
+                      }
+                      placeholder="Ej: 1, 2, 3…"
+                      placeholderTextColor={C.textLight}
+                      keyboardType="number-pad"
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  {/* ── Sección 2: Datos del Alumno ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="user" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        2. Datos del Alumno
+                      </Text>
+                    </Row>
                   </View>
-                )}
-              </Field>
 
-              <Field label="Prioridad" C={C}>
-                <Row style={{ gap: 8 }}>
-                  {PRIORIDADES.map((p) => {
-                    const sel = registerForm.prioridad === p;
-                    const cm = getPriorityStyle(p, C);
-                    return (
-                      <TouchableOpacity
-                        key={p}
-                        onPress={() =>
-                          setRegisterForm({ ...registerForm, prioridad: p })
-                        }
+                  <Field label="Nombre del alumno" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_nombre}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_nombre: v })
+                      }
+                      placeholder="Nombre completo"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Carrera" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_carrera}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_carrera: v })
+                      }
+                      placeholder="Ej: Ingeniería en Software"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Número de control" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_no_control}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_no_control: v })
+                      }
+                      placeholder="Ej: 2024001234"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Correo electrónico" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_correo}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_correo: v })
+                      }
+                      placeholder="alumno@ejemplo.com"
+                      placeholderTextColor={C.textLight}
+                      keyboardType="email-address"
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Teléfono (Casa/Celular)" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_telefono}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_telefono: v })
+                      }
+                      placeholder="Ej: 271 123 4567"
+                      placeholderTextColor={C.textLight}
+                      keyboardType="phone-pad"
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Perfil de Facebook" C={C}>
+                    <TextInput
+                      value={registerForm.alumno_facebook}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, alumno_facebook: v })
+                      }
+                      placeholder="URL del perfil de Facebook"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── Tab 2: Organización y Asesores (Sección 3 y Sección 4) ── */}
+              {activeTab === 1 && (
+                <>
+                  {/* ── Sección 3: Datos de la Organización/Empresa ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="briefcase" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        3. Datos de la Organización/Empresa
+                      </Text>
+                    </Row>
+                  </View>
+
+                  <Field label="Nombre de la empresa" C={C}>
+                    <TouchableOpacity
+                      onPress={() => setShowEmpresaPick(!showEmpresaPick)}
+                      style={{
+                        ...inputStyle,
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Text
                         style={{
-                          flex: 1,
-                          paddingVertical: 9,
+                          fontSize: 14,
+                          color: registerForm.empresa_id ? C.text : C.textLight,
+                        }}
+                      >
+                        {registerForm.empresa_id
+                          ? empresas.find((e) => e.id === registerForm.empresa_id)
+                              ?.name || "Seleccionar…"
+                          : "Seleccionar empresa…"}
+                      </Text>
+                      <Feather
+                        name={showEmpresaPick ? "chevron-up" : "chevron-down"}
+                        size={14}
+                        color={C.textMuted}
+                      />
+                    </TouchableOpacity>
+                    {showEmpresaPick && (
+                      <View
+                        style={{
+                          backgroundColor: C.card,
                           borderRadius: 8,
-                          borderWidth: 1.5,
-                          borderColor: sel ? cm.color : C.border,
-                          backgroundColor: sel ? cm.bg : C.bg,
+                          borderWidth: 1,
+                          borderColor: C.border,
+                          marginTop: 4,
+                          maxHeight: 180,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <ScrollView nestedScrollEnabled>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setRegisterForm({ ...registerForm, empresa_id: "" });
+                              setShowEmpresaPick(false);
+                            }}
+                            style={{
+                              padding: 11,
+                              borderBottomWidth: 1,
+                              borderBottomColor: C.borderLight,
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                color: C.textMuted,
+                                fontStyle: "italic",
+                              }}
+                            >
+                              Sin empresa
+                            </Text>
+                          </TouchableOpacity>
+                          {empresas.map((emp) => (
+                            <TouchableOpacity
+                              key={emp.id}
+                              onPress={() => {
+                                setRegisterForm({
+                                  ...registerForm,
+                                  empresa_id: emp.id,
+                                });
+                                setShowEmpresaPick(false);
+                              }}
+                              style={{
+                                padding: 11,
+                                borderBottomWidth: 1,
+                                borderBottomColor: C.borderLight,
+                                backgroundColor:
+                                  registerForm.empresa_id === emp.id
+                                    ? C.tealLighter
+                                    : "transparent",
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 13,
+                                  color:
+                                    registerForm.empresa_id === emp.id
+                                      ? C.teal
+                                      : C.text,
+                                  fontWeight:
+                                    registerForm.empresa_id === emp.id
+                                      ? "700"
+                                      : "400",
+                                }}
+                              >
+                                {emp.name}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    )}
+                  </Field>
+
+                  <Field label="Domicilio" C={C}>
+                    <TextInput
+                      value={registerForm.empresa_domicilio}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, empresa_domicilio: v })
+                      }
+                      placeholder="Dirección completa de la empresa"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={2}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 60,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Red Social / Sitio web" C={C}>
+                    <TextInput
+                      value={registerForm.empresa_red_social}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, empresa_red_social: v })
+                      }
+                      placeholder="URL del sitio web o red social"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Row style={{ gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Field label="Teléfono" C={C}>
+                        <TextInput
+                          value={registerForm.empresa_telefono}
+                          onChangeText={(v) =>
+                            setRegisterForm({ ...registerForm, empresa_telefono: v })
+                          }
+                          placeholder="Ej: 271 123 4567"
+                          placeholderTextColor={C.textLight}
+                          keyboardType="phone-pad"
+                          style={inputStyle}
+                        />
+                      </Field>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Field label="Extensión" C={C}>
+                        <TextInput
+                          value={registerForm.empresa_extension}
+                          onChangeText={(v) =>
+                            setRegisterForm({ ...registerForm, empresa_extension: v })
+                          }
+                          placeholder="Ext."
+                          placeholderTextColor={C.textLight}
+                          keyboardType="number-pad"
+                          style={inputStyle}
+                        />
+                      </Field>
+                    </View>
+                  </Row>
+
+                  <Field label="Asesor Externo - Nombre" C={C}>
+                    <TextInput
+                      value={registerForm.asesor_externo_nombre}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, asesor_externo_nombre: v })
+                      }
+                      placeholder="Nombre completo del asesor externo"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Asesor Externo - Puesto" C={C}>
+                    <TextInput
+                      value={registerForm.asesor_externo_puesto}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, asesor_externo_puesto: v })
+                      }
+                      placeholder="Puesto en la empresa"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Asesor Externo - Contacto/Correo" C={C}>
+                    <TextInput
+                      value={registerForm.asesor_externo_contacto}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, asesor_externo_contacto: v })
+                      }
+                      placeholder="Correo electrónico o teléfono"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  {/* ── Sección 4: Personal Académico ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="award" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        4. Personal Académico (Propuesta)
+                      </Text>
+                    </Row>
+                  </View>
+
+                  <Field label="Nombre del Asesor Interno" C={C}>
+                    <TextInput
+                      value={registerForm.asesor_interno}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, asesor_interno: v })
+                      }
+                      placeholder="Nombre del docente propuesto"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <View
+                    style={{
+                      backgroundColor: C.amberLight,
+                      borderRadius: 8,
+                      padding: 10,
+                      marginBottom: 18,
+                      borderWidth: 1,
+                      borderColor: C.amber,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="info" size={14} color={C.amber} />
+                      <Text
+                        style={{ fontSize: 11, color: C.amber, fontWeight: "600" }}
+                      >
+                        La asignación final del asesor es responsabilidad del jefe del
+                        Dpto. Académico
+                      </Text>
+                    </Row>
+                  </View>
+                </>
+              )}
+
+              {/* ── Tab 3: Detalles del Proyecto (Sección 5) ── */}
+              {activeTab === 2 && (
+                <>
+                  {/* ── Sección 5: Detalles del Proyecto ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="file-text" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        5. Detalles del Proyecto
+                      </Text>
+                    </Row>
+                  </View>
+
+                  <Field label="Introducción" C={C}>
+                    <TextInput
+                      value={registerForm.introduccion}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, introduccion: v })
+                      }
+                      placeholder="Describe el contexto y antecedentes del proyecto…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={4}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 100,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Problemática" C={C}>
+                    <TextInput
+                      value={registerForm.problematica}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, problematica: v })
+                      }
+                      placeholder="Describe el problema a resolver…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={4}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 100,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Objetivo General" C={C}>
+                    <TextInput
+                      value={registerForm.objetivo_general}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, objetivo_general: v })
+                      }
+                      placeholder="Objetivo principal del proyecto…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={3}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 80,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Objetivos Específicos" C={C}>
+                    <TextInput
+                      value={registerForm.objetivos_especificos}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, objetivos_especificos: v })
+                      }
+                      placeholder="Lista los objetivos específicos (separados por puntos)…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={4}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 100,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Justificación" C={C}>
+                    <TextInput
+                      value={registerForm.justificacion}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, justificacion: v })
+                      }
+                      placeholder="Explica la importancia y viabilidad del proyecto…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={4}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 100,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {/* ── Tab 4: Plan de Trabajo (Sección 6 + campos originales) ── */}
+              {activeTab === 3 && (
+                <>
+                  {/* ── Sección 6: Plan de Trabajo ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="list" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        6. Plan de Trabajo
+                      </Text>
+                    </Row>
+                  </View>
+
+                  {registerForm.actividades.map((act, index) => (
+                    <View
+                      key={index}
+                      style={{
+                        backgroundColor: C.bg,
+                        borderRadius: 10,
+                        padding: 14,
+                        marginBottom: 14,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                      }}
+                    >
+                      <Row
+                        style={{
+                          justifyContent: "space-between",
                           alignItems: "center",
+                          marginBottom: 10,
                         }}
                       >
                         <Text
                           style={{
-                            fontSize: 13,
+                            fontSize: 12,
                             fontWeight: "700",
-                            color: sel ? cm.color : C.textMuted,
+                            color: C.textMuted,
                           }}
                         >
-                          {p}
+                          Actividad {index + 1}
                         </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </Row>
-              </Field>
+                        {registerForm.actividades.length > 1 && (
+                          <TouchableOpacity
+                            onPress={() => removeActividad(index)}
+                            style={{ padding: 4 }}
+                          >
+                            <Feather name="trash-2" size={14} color={C.red} />
+                          </TouchableOpacity>
+                        )}
+                      </Row>
 
-              <Field label="Fase Inicial" C={C}>
-                <Row style={{ gap: 8 }}>
-                  {FASES.map((f) => {
-                    const sel = registerForm.estado === f.id;
-                    const phaseCol = PHASE_COLUMNS.find((c) => c.id === f.id);
-                    return (
-                      <TouchableOpacity
-                        key={f.id}
-                        onPress={() =>
-                          setRegisterForm({ ...registerForm, estado: f.id })
-                        }
-                        style={{
-                          flex: 1,
-                          paddingVertical: 9,
-                          borderRadius: 8,
-                          borderWidth: 1.5,
-                          borderColor: sel
-                            ? phaseCol?.color || C.teal
-                            : C.border,
-                          backgroundColor: sel
-                            ? phaseCol?.bg || C.tealLight
-                            : C.bg,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text
+                      <Field label="Actividad a realizar" C={C}>
+                        <TextInput
+                          value={act.actividad}
+                          onChangeText={(v) => updateActividad(index, "actividad", v)}
+                          placeholder="Nombre de la actividad"
+                          placeholderTextColor={C.textLight}
+                          style={inputStyle}
+                        />
+                      </Field>
+
+                      <Field label="Descripción" C={C}>
+                        <TextInput
+                          value={act.descripcion}
+                          onChangeText={(v) =>
+                            updateActividad(index, "descripcion", v)
+                          }
+                          placeholder="Descripción detallada de la actividad"
+                          placeholderTextColor={C.textLight}
+                          multiline
+                          numberOfLines={2}
                           style={{
-                            fontSize: 11,
-                            fontWeight: "700",
-                            textAlign: "center",
-                            color: sel
-                              ? phaseCol?.color || C.teal
-                              : C.textMuted,
+                            ...inputStyle,
+                            minHeight: 60,
+                            textAlignVertical: "top",
                           }}
-                        >
-                          {f.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </Row>
-              </Field>
+                        />
+                      </Field>
+                    </View>
+                  ))}
 
-              <Field label="Tecnologías (separadas por coma)" C={C}>
-                <TextInput
-                  value={registerForm.tecnologias}
-                  onChangeText={(v) =>
-                    setRegisterForm({ ...registerForm, tecnologias: v })
-                  }
-                  placeholder="React, Node.js, MySQL…"
-                  placeholderTextColor={C.textLight}
-                  style={inputStyle}
-                />
-              </Field>
+                  <TouchableOpacity
+                    onPress={addActividad}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      backgroundColor: C.bg,
+                      borderRadius: 10,
+                      padding: 12,
+                      borderWidth: 1.5,
+                      borderColor: C.border,
+                      borderStyle: "dashed",
+                      marginBottom: 18,
+                    }}
+                  >
+                    <Feather name="plus-circle" size={18} color={C.teal} />
+                    <Text
+                      style={{ fontSize: 13, fontWeight: "700", color: C.teal }}
+                    >
+                      Agregar otra actividad
+                    </Text>
+                  </TouchableOpacity>
 
-              <Field label="Período" C={C}>
-                <TextInput
-                  value={registerForm.periodo}
-                  onChangeText={(v) =>
-                    setRegisterForm({ ...registerForm, periodo: v })
-                  }
-                  placeholder="Ej: 2025-1, 2025-2…"
-                  placeholderTextColor={C.textLight}
-                  style={inputStyle}
-                />
-              </Field>
+                  {/* ── Campos originales (mantenidos para compatibilidad) ── */}
+                  <View
+                    style={{
+                      backgroundColor: C.navy,
+                      borderRadius: 10,
+                      padding: 14,
+                      marginBottom: 20,
+                    }}
+                  >
+                    <Row style={{ alignItems: "center", gap: 8 }}>
+                      <Feather name="settings" size={16} color={C.teal} />
+                      <Text
+                        style={{ fontSize: 14, fontWeight: "800", color: "white" }}
+                      >
+                        Configuración Adicional
+                      </Text>
+                    </Row>
+                  </View>
 
-              <Field label="Descripción" C={C}>
-                <TextInput
-                  value={registerForm.descripcion}
-                  onChangeText={(v) =>
-                    setRegisterForm({ ...registerForm, descripcion: v })
-                  }
-                  placeholder="Descripción breve del proyecto…"
-                  placeholderTextColor={C.textLight}
-                  multiline
-                  numberOfLines={3}
-                  style={{
-                    ...inputStyle,
-                    minHeight: 80,
-                    textAlignVertical: "top",
-                  }}
-                />
-              </Field>
+                  <Field label="Prioridad" C={C}>
+                    <Row style={{ gap: 8 }}>
+                      {PRIORIDADES.map((p) => {
+                        const sel = registerForm.prioridad === p;
+                        const cm = getPriorityStyle(p, C);
+                        return (
+                          <TouchableOpacity
+                            key={p}
+                            onPress={() =>
+                              setRegisterForm({ ...registerForm, prioridad: p })
+                            }
+                            style={{
+                              flex: 1,
+                              paddingVertical: 9,
+                              borderRadius: 8,
+                              borderWidth: 1.5,
+                              borderColor: sel ? cm.color : C.border,
+                              backgroundColor: sel ? cm.bg : C.bg,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "700",
+                                color: sel ? cm.color : C.textMuted,
+                              }}
+                            >
+                              {p}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </Row>
+                  </Field>
+
+                  <Field label="Fase Inicial" C={C}>
+                    <Row style={{ gap: 8 }}>
+                      {FASES.map((f) => {
+                        const sel = registerForm.estado === f.id;
+                        const phaseCol = PHASE_COLUMNS.find((c) => c.id === f.id);
+                        return (
+                          <TouchableOpacity
+                            key={f.id}
+                            onPress={() =>
+                              setRegisterForm({ ...registerForm, estado: f.id })
+                            }
+                            style={{
+                              flex: 1,
+                              paddingVertical: 9,
+                              borderRadius: 8,
+                              borderWidth: 1.5,
+                              borderColor: sel
+                                ? phaseCol?.color || C.teal
+                                : C.border,
+                              backgroundColor: sel
+                                ? phaseCol?.bg || C.tealLight
+                                : C.bg,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: "700",
+                                textAlign: "center",
+                                color: sel
+                                  ? phaseCol?.color || C.teal
+                                  : C.textMuted,
+                              }}
+                            >
+                              {f.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </Row>
+                  </Field>
+
+                  <Field label="Tecnologías (separadas por coma)" C={C}>
+                    <TextInput
+                      value={registerForm.tecnologias}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, tecnologias: v })
+                      }
+                      placeholder="React, Node.js, MySQL…"
+                      placeholderTextColor={C.textLight}
+                      style={inputStyle}
+                    />
+                  </Field>
+
+                  <Field label="Descripción breve" C={C}>
+                    <TextInput
+                      value={registerForm.descripcion}
+                      onChangeText={(v) =>
+                        setRegisterForm({ ...registerForm, descripcion: v })
+                      }
+                      placeholder="Descripción breve del proyecto…"
+                      placeholderTextColor={C.textLight}
+                      multiline
+                      numberOfLines={2}
+                      style={{
+                        ...inputStyle,
+                        minHeight: 60,
+                        textAlignVertical: "top",
+                      }}
+                    />
+                  </Field>
+                </>
+              )}
             </ScrollView>
 
             <View
