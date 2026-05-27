@@ -813,4 +813,212 @@ router.get("/grafica-reportes", ...soloJefe, async (_, res) => {
   }
 });
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ADMIN: Residentes ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+router.get("/admin/residentes", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre, u.correo,
+              r.num_control, r.carrera, r.semestre, r.estado,
+              CONCAT(ua.nombre,' ',ua.apellidos) AS asesor_nombre
+       FROM residentes r
+       JOIN usuarios u ON r.usuario_id = u.id
+       LEFT JOIN asesores a ON r.asesor_id = a.id
+       LEFT JOIN usuarios ua ON a.usuario_id = ua.id
+       ORDER BY u.apellidos, u.nombre ASC`,
+    );
+    return res.json({ ok: true, residentes: rows });
+  } catch (err) {
+    console.error("Error GET /admin/residentes:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.put("/admin/residentes/:id", ...soloJefe, async (req, res) => {
+  const { carrera, semestre, estado } = req.body;
+  const estadosValidos = ["activo", "completado", "baja"];
+  if (estado && !estadosValidos.includes(estado))
+    return res.status(400).json({ ok: false, mensaje: "Estado inválido." });
+  try {
+    await db.execute(
+      "UPDATE residentes SET carrera=?, semestre=?, estado=? WHERE id=?",
+      [carrera || null, semestre || null, estado || "activo", req.params.id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error PUT /admin/residentes/:id:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ADMIN: Asesores ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+router.get("/admin/asesores", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT a.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre, u.correo,
+              u.activo, a.departamento, a.num_empleado, a.max_residentes,
+              COUNT(DISTINCT p.id) AS proyectos_activos
+       FROM asesores a
+       JOIN usuarios u ON a.usuario_id = u.id
+       LEFT JOIN proyectos p ON p.asesor_id = a.id AND p.estado IN ('desarrollo','revision')
+       GROUP BY a.id ORDER BY u.apellidos, u.nombre ASC`,
+    );
+    return res.json({ ok: true, asesores: rows });
+  } catch (err) {
+    console.error("Error GET /admin/asesores:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.put("/admin/asesores/:id", ...soloJefe, async (req, res) => {
+  const { departamento, num_empleado, max_residentes } = req.body;
+  try {
+    await db.execute(
+      "UPDATE asesores SET departamento=?, num_empleado=?, max_residentes=? WHERE id=?",
+      [departamento || null, num_empleado || null, max_residentes || 10, req.params.id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error PUT /admin/asesores/:id:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.put("/admin/asesores/:id/toggle", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      "SELECT u.id AS uid, u.activo FROM asesores a JOIN usuarios u ON a.usuario_id=u.id WHERE a.id=?",
+      [req.params.id],
+    );
+    if (!rows.length) return res.status(404).json({ ok: false, mensaje: "Asesor no encontrado." });
+    const nuevoActivo = rows[0].activo ? 0 : 1;
+    await db.execute("UPDATE usuarios SET activo=? WHERE id=?", [nuevoActivo, rows[0].uid]);
+    return res.json({ ok: true, activo: nuevoActivo });
+  } catch (err) {
+    console.error("Error PUT /admin/asesores/:id/toggle:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ADMIN: Períodos ──────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+router.get("/periodos", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT p.id, p.nombre, p.fecha_inicio, p.fecha_fin, p.descripcion, p.estado,
+              COUNT(DISTINCT ep.empresa_id) AS num_empresas
+       FROM periodos p
+       LEFT JOIN empresa_periodos ep ON ep.periodo_id = p.id
+       GROUP BY p.id ORDER BY p.fecha_inicio DESC`,
+    );
+    return res.json({ ok: true, periodos: rows });
+  } catch (err) {
+    console.error("Error GET /periodos:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.post("/periodos", ...soloJefe, async (req, res) => {
+  const { nombre, fecha_inicio, fecha_fin, descripcion, estado } = req.body;
+  if (!nombre?.trim() || !fecha_inicio || !fecha_fin)
+    return res.status(400).json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
+  try {
+    const id = `per_${Date.now()}`;
+    await db.execute(
+      "INSERT INTO periodos (id, nombre, fecha_inicio, fecha_fin, descripcion, estado) VALUES (?,?,?,?,?,?)",
+      [id, nombre.trim(), fecha_inicio, fecha_fin, descripcion || null, estado || "planificado"],
+    );
+    return res.json({ ok: true, id });
+  } catch (err) {
+    console.error("Error POST /periodos:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.put("/periodos/:id", ...soloJefe, async (req, res) => {
+  const { nombre, fecha_inicio, fecha_fin, descripcion, estado } = req.body;
+  if (!nombre?.trim() || !fecha_inicio || !fecha_fin)
+    return res.status(400).json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
+  try {
+    await db.execute(
+      "UPDATE periodos SET nombre=?, fecha_inicio=?, fecha_fin=?, descripcion=?, estado=? WHERE id=?",
+      [nombre.trim(), fecha_inicio, fecha_fin, descripcion || null, estado || "planificado", req.params.id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error PUT /periodos/:id:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.delete("/periodos/:id", ...soloJefe, async (req, res) => {
+  try {
+    const [ep] = await db.execute("SELECT COUNT(*) AS c FROM empresa_periodos WHERE periodo_id=?", [req.params.id]);
+    if (ep[0].c > 0)
+      return res.status(400).json({ ok: false, mensaje: "El período tiene empresas asociadas. Elimínalas primero." });
+    await db.execute("DELETE FROM periodos WHERE id=?", [req.params.id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error DELETE /periodos/:id:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ADMIN: Empresas por Período ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+router.get("/periodos/:id/empresas", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT e.id, e.nombre, e.sector, e.ciudad, e.estado
+       FROM empresa_periodos ep
+       JOIN empresas e ON ep.empresa_id = e.id
+       WHERE ep.periodo_id = ?
+       ORDER BY e.nombre ASC`,
+      [req.params.id],
+    );
+    return res.json({ ok: true, empresas: rows });
+  } catch (err) {
+    console.error("Error GET /periodos/:id/empresas:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.post("/periodos/:id/empresas", ...soloJefe, async (req, res) => {
+  const { empresa_id } = req.body;
+  if (!empresa_id) return res.status(400).json({ ok: false, mensaje: "empresa_id requerido." });
+  try {
+    await db.execute(
+      "INSERT IGNORE INTO empresa_periodos (periodo_id, empresa_id) VALUES (?,?)",
+      [req.params.id, empresa_id],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error POST /periodos/:id/empresas:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
+router.delete("/periodos/:id/empresas/:empresaId", ...soloJefe, async (req, res) => {
+  try {
+    await db.execute(
+      "DELETE FROM empresa_periodos WHERE periodo_id=? AND empresa_id=?",
+      [req.params.id, req.params.empresaId],
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("Error DELETE /periodos/:id/empresas/:eid:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 module.exports = router;

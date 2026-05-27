@@ -217,3 +217,26 @@ CREATE TABLE IF NOT EXISTS fotos_perfil (
   updated_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Períodos ────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS periodos (
+  id          VARCHAR(50)  PRIMARY KEY,
+  nombre      VARCHAR(100) NOT NULL,
+  fecha_inicio DATE        NOT NULL,
+  fecha_fin    DATE        NOT NULL,
+  descripcion  TEXT,
+  estado       ENUM('planificado','activo','cerrado') DEFAULT 'planificado',
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_estado (estado),
+  INDEX idx_fechas (fecha_inicio, fecha_fin)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Empresas por Período (N:M) ───────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS empresa_periodos (
+  periodo_id  VARCHAR(50) NOT NULL,
+  empresa_id  VARCHAR(50) NOT NULL,
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (periodo_id, empresa_id),
+  FOREIGN KEY (periodo_id) REFERENCES periodos(id)  ON DELETE CASCADE,
+  FOREIGN KEY (empresa_id) REFERENCES empresas(id)  ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

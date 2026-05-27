@@ -30,6 +30,7 @@ import { useFotos } from "../../context/FotosContext";
 //        correctamente para ángulos arbitrarios. Este usa la librería adecuada.
 
 const screenWidth = Dimensions.get('window').width;
+const isMobile = screenWidth < 768;
 
 export default function DashAsesor({ onNavigate }) {
   const { colors: C } = useTheme();
@@ -84,7 +85,7 @@ export default function DashAsesor({ onNavigate }) {
   const allResidentes = useMemo(() => {
     const res = [];
     proyectos.forEach((p) => {
-      p.residentes.forEach((r) => {
+      (p.residentes || []).forEach((r) => {
         if (!res.find((x) => x.nombre === r.nombre)) {
           res.push({
             ...r,
@@ -102,7 +103,7 @@ export default function DashAsesor({ onNavigate }) {
   const allReportes = useMemo(() => {
     const reps = [];
     proyectos.forEach((p) => {
-      p.reportes.forEach((r) =>
+      (p.reportes || []).forEach((r) =>
         reps.push({ ...r, proyecto: p.title, proyectoId: p.id }),
       );
     });
@@ -112,7 +113,7 @@ export default function DashAsesor({ onNavigate }) {
   const allReuniones = useMemo(() => {
     const reuniones = [];
     proyectos.forEach((p) => {
-      p.reuniones.forEach((r) => reuniones.push({ ...r, proyecto: p.title }));
+      (p.reuniones || []).forEach((r) => reuniones.push({ ...r, proyecto: p.title }));
     });
     return reuniones;
   }, [proyectos]);
@@ -132,21 +133,21 @@ export default function DashAsesor({ onNavigate }) {
         name: "Desarrollo",
         population: enDesarrollo,
         color: "#F59E0B",
-        legendFontColor: "#6B7280",
+        legendFontColor: C.text,
         legendFontSize: 12,
       },
       {
         name: "Revisión",
         population: enRevision,
         color: "#8B5CF6",
-        legendFontColor: "#6B7280",
+        legendFontColor: C.text,
         legendFontSize: 12,
       },
       {
         name: "Concluidos",
         population: concluidos,
         color: "#10B981",
-        legendFontColor: "#6B7280",
+        legendFontColor: C.text,
         legendFontSize: 12,
       },
     ].filter((d) => d.population > 0);
@@ -158,7 +159,7 @@ export default function DashAsesor({ onNavigate }) {
           name: "Sin proyectos",
           population: 1,
           color: "#E5E7EB",
-          legendFontColor: "#9CA3AF",
+          legendFontColor: C.text,
           legendFontSize: 12,
         },
       ];
@@ -179,7 +180,7 @@ export default function DashAsesor({ onNavigate }) {
       modalidad: "Presencial",
       proyecto: "Cita",
     }));
-  }, [backendData.proximasCitas]);
+  }, [(backendData.proximasCitas || []).map]);
 
   // Usar SIEMPRE datos del backend (nunca del Context como fallback)
   const residentesActivos = backendData.totalResidentes;
@@ -319,7 +320,7 @@ export default function DashAsesor({ onNavigate }) {
         <Text
           style={{
             marginTop: 16,
-            fontSize: 16,
+            fontSize: isMobile ? 14 : 16,
             fontWeight: "600",
             color: C.text,
             textAlign: "center",
@@ -344,7 +345,7 @@ export default function DashAsesor({ onNavigate }) {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: C.bg }}
-      contentContainerStyle={{ padding: 24 }}
+      contentContainerStyle={{ padding: isMobile ? 14 : 24 }}
     >
       {/* Search Bar */}
       <View style={{ marginBottom: 20, position: "relative", zIndex: 50 }}>
@@ -395,7 +396,7 @@ export default function DashAsesor({ onNavigate }) {
           <View
             style={{
               position: "absolute",
-              top: 48,
+              top: isMobile ? 52 : 48,
               left: 0,
               right: 0,
               backgroundColor: C.card,
@@ -459,6 +460,9 @@ export default function DashAsesor({ onNavigate }) {
 
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <StatCard
+         style={{
+         width: isMobile ? "100%" : undefined,
+         }}
           label="Residentes Activos"
           value={String(residentesActivos)}
           sub={`${proyectosActivos} proyectos`}
@@ -467,6 +471,9 @@ export default function DashAsesor({ onNavigate }) {
           iconColor={C.teal}
         />
         <StatCard
+         style={{
+         width: isMobile ? "100%" : undefined,
+         }}
           label="Reportes Pendientes"
           value={String(reportesPendientes)}
           sub="Por revisar"
@@ -475,6 +482,9 @@ export default function DashAsesor({ onNavigate }) {
           iconColor={C.amber}
         />
         <StatCard
+         style={{
+         width: isMobile ? "100%" : undefined,
+         }}
           label="Tasa Aceptación"
           value={`${promedioAprobacion}%`}
           sub="Global"
@@ -483,6 +493,9 @@ export default function DashAsesor({ onNavigate }) {
           iconColor={C.green}
         />
         <StatCard
+          style={{
+          width: isMobile ? "100%" : undefined,
+          }}
           label="Próx. Reuniones"
           value={String(proximasReuniones.length)}
           sub={
@@ -496,8 +509,8 @@ export default function DashAsesor({ onNavigate }) {
         />
       </Row>
 
-      <Row style={{ gap: 20, marginBottom: 20, alignItems: "flex-start" }}>
-        <Card style={{ flex: 1 }}>
+      <Row style={{ gap: 20, marginBottom: 20, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
+        <Card style={{ flex: isMobile ? undefined : 1, width: isMobile ? "100%" : undefined }}>
           <Row
             style={{
               justifyContent: "space-between",
@@ -505,10 +518,10 @@ export default function DashAsesor({ onNavigate }) {
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+            <Text style={{ fontSize: isMobile ? 13 : 15, fontWeight: "700", color: C.text }}>
               Estado de Reportes
             </Text>
-            <Row style={{ gap: 6 }}>
+            <Row style={{ gap: 6, flexWrap: "wrap" }}>
               {[
                 { id: "todo", label: "Todo" },
                 { id: "mes", label: "Mes" },
@@ -541,7 +554,7 @@ export default function DashAsesor({ onNavigate }) {
           </Row>
           <PieChart
             data={datosGraficaReal}
-            width={screenWidth - 80}
+            width={isMobile ? screenWidth - 60 : screenWidth * 0.35}
             height={200}
             accessor="population"
             backgroundColor="transparent"
@@ -549,10 +562,18 @@ export default function DashAsesor({ onNavigate }) {
             absolute
             hasLegend={true}
             chartConfig={{
-              backgroundColor: "transparent",
-              backgroundGradientFrom: "#fff",
-              backgroundGradientTo: "#fff",
-              color: (opacity = 1) => `rgba(0,0,0,${opacity})`,
+             backgroundColor: C.card,
+             backgroundGradientFrom: C.card,
+             backgroundGradientTo: C.card,
+             color: (opacity = 1) =>
+             C.text === "#fff"
+             ? `rgba(255,255,255,${opacity})`
+             : `rgba(0,0,0,${opacity})`,
+
+             labelColor: (opacity = 1) =>
+             C.text === "#fff"
+             ? `rgba(255,255,255,${opacity})`
+             : `rgba(0,0,0,${opacity})`,
             }}
           />
           <View style={{ marginTop: 16, gap: 8 }}>
@@ -598,7 +619,7 @@ export default function DashAsesor({ onNavigate }) {
           </View>
         </Card>
 
-        <Card style={{ flex: 1 }}>
+        <Card style={{ flex: isMobile ? undefined : 1, width: isMobile ? "100%" : undefined }}>
           <Row
             style={{
               justifyContent: "space-between",
@@ -606,7 +627,7 @@ export default function DashAsesor({ onNavigate }) {
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+            <Text style={{ fontSize: isMobile ? 13 : 15, fontWeight: "700", color: C.text }}>
               Alertas de Rezagados
             </Text>
             {alertasRezagados.length > 0 && (
@@ -650,9 +671,9 @@ export default function DashAsesor({ onNavigate }) {
                       borderLeftColor: C.red,
                     }}
                   >
-                    <Row style={{ alignItems: "center", gap: 8 }}>
+                    <Row style={{ alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <Feather name="alert-triangle" size={14} color={C.red} />
-                      <View style={{ flex: 1 }}>
+                      <View style={{ flex: 1, minWidth: 180 }}>
                         <Text
                           style={{
                             fontSize: 12,
@@ -703,7 +724,7 @@ export default function DashAsesor({ onNavigate }) {
             marginBottom: 16,
           }}
         >
-          <Text style={{ fontSize: 16, fontWeight: "700", color: C.text }}>
+          <Text style={{ fontSize: isMobile ? 14 : 16, fontWeight: "700", color: C.text }}>
             Mis Residentes
           </Text>
           <View
@@ -817,7 +838,7 @@ export default function DashAsesor({ onNavigate }) {
                   </View>
 
                   {/* Badge + chevron */}
-                  <Row style={{ alignItems: "center", gap: 8 }}>
+                  <Row style={{ alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <Badge
                       text={faseLabel.toUpperCase()}
                       color={faseColor}
@@ -845,7 +866,7 @@ export default function DashAsesor({ onNavigate }) {
                     borderColor: C.border,
                   }}
                 >
-                  <Row style={{ gap: 14, alignItems: "flex-start" }}>
+                  <Row style={{ gap: 14, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
                     {/* Foto grande */}
                     {fotoRes ? (
                       <Image
@@ -907,7 +928,7 @@ export default function DashAsesor({ onNavigate }) {
                           d.val !== "—" && (
                             <Row
                               key={di}
-                              style={{ alignItems: "center", gap: 8 }}
+                              style={{ alignItems: "center", gap: 8, flexWrap: "wrap" }}
                             >
                               <View
                                 style={{
@@ -984,8 +1005,8 @@ export default function DashAsesor({ onNavigate }) {
         })}
       </Card>
 
-      <Row style={{ gap: 20, alignItems: "flex-start" }}>
-        <Card style={{ flex: 1 }}>
+      <Row style={{ gap: 20, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
+        <Card style={{ flex: isMobile ? undefined : 1, width: isMobile ? "100%" : undefined }}>
           <Row
             style={{
               justifyContent: "space-between",
@@ -993,7 +1014,7 @@ export default function DashAsesor({ onNavigate }) {
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+            <Text style={{ fontSize: isMobile ? 13 : 15, fontWeight: "700", color: C.text }}>
               Reportes por Revisar
             </Text>
             <Badge
@@ -1059,7 +1080,7 @@ export default function DashAsesor({ onNavigate }) {
           </TouchableOpacity>
         </Card>
 
-        <Card style={{ flex: 1 }}>
+        <Card style={{ flex: isMobile ? undefined : 1, width: isMobile ? "100%" : undefined }}>
           <Row
             style={{
               justifyContent: "space-between",
@@ -1067,7 +1088,7 @@ export default function DashAsesor({ onNavigate }) {
               marginBottom: 16,
             }}
           >
-            <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+            <Text style={{ fontSize: isMobile ? 13 : 15, fontWeight: "700", color: C.text }}>
               Próximas Reuniones
             </Text>
             <Badge
@@ -1162,7 +1183,7 @@ export default function DashAsesor({ onNavigate }) {
             marginBottom: 16,
           }}
         >
-          <Text style={{ fontSize: 15, fontWeight: "700", color: C.text }}>
+          <Text style={{ fontSize: isMobile ? 13 : 15, fontWeight: "700", color: C.text }}>
             Historial de Cambios
           </Text>
           <Feather name="git-branch" size={16} color={C.textMuted} />

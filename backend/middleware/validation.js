@@ -103,7 +103,8 @@ const schemas = {
   // Notificaciones
   createNotification: {
     body: {
-      usuario_id: { type: 'number', required: true, numeric: true },
+      // BUG FIX: usuario_id es string (ej: "u_1234_abc"), no número
+      usuario_id: { type: 'string', required: true },
       tipo_notificacion: { 
         type: 'string', 
         required: true, 

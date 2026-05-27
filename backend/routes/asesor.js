@@ -199,6 +199,7 @@ router.get("/proyectos", ...soloAsesor, async (req, res) => {
           solicitudAvance: Boolean(project.solicitud_avance),
           residentes: residentes.map((r) => ({
             id: r.id,
+            usuarioId: r.usuario_id,   // BUG FIX #1: necesario para enviar notif al residente
             nombre: `${r.nombre} ${r.apellidos}`,
             iniciales: `${r.nombre.charAt(0)}${r.apellidos.charAt(0)}`,
             rol: "Residente",
@@ -350,12 +351,28 @@ router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
 
     const asesorId = asesorRows[0].id;
 
-    // Verificar que el reporte pertenece a un residente de ESTE asesor
+    // BUG FIX #2: La consulta anterior solo verificaba res.asesor_id, pero cuando
+    // el asesor se asigna vía el panel del Jefe (proyectos.asesor_id o proyecto_asesores)
+    // el campo residentes.asesor_id puede estar vacío → retornaba 404 → error en front.
+    // Ahora se permite el acceso si el asesor está vinculado al residente por CUALQUIERA
+    // de las tres vías: residentes.asesor_id, proyectos.asesor_id, o proyecto_asesores.
     const [reportRows] = await db.execute(
-      `SELECT r.id FROM reportes r
+      `SELECT r.id, res.usuario_id AS residente_usuario_id
+       FROM reportes r
        JOIN residentes res ON r.residente_id = res.id
-       WHERE r.id = ? AND res.asesor_id = ?`,
-      [reporteId, asesorId],
+       WHERE r.id = ? AND (
+         res.asesor_id = ?
+         OR EXISTS (
+           SELECT 1 FROM proyectos p
+           WHERE p.residente_id = res.id AND p.asesor_id = ?
+         )
+         OR EXISTS (
+           SELECT 1 FROM proyectos p
+           JOIN proyecto_asesores pa ON pa.proyecto_id = p.id
+           WHERE p.residente_id = res.id AND pa.asesor_id = ?
+         )
+       )`,
+      [reporteId, asesorId, asesorId, asesorId],
     );
     if (!reportRows.length)
       return res.status(404).json({
@@ -363,16 +380,18 @@ router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
         mensaje: "Reporte no encontrado o no tienes acceso a este reporte.",
       });
 
+    const residenteUsuarioId = reportRows[0].residente_usuario_id;
+
     // Guardar revisión en la BD
     await db.execute(
       "UPDATE reportes SET estado = ?, feedback = ?, calificacion = ? WHERE id = ?",
       [estado, feedback || null, calificacion || null, reporteId],
     );
 
-    // Emitir evento WebSocket para que el residente reciba el feedback en tiempo real
+    // BUG FIX #1 (partial): Emitir SOLO al residente correspondiente, no broadcast global.
     const io = req.app.get("io");
-    if (io) {
-      io.emit("reporte_revisado", {
+    if (io && residenteUsuarioId) {
+      io.to(`user_${residenteUsuarioId}`).emit("reporte_revisado", {
         reporteId,
         estado,
         feedback: feedback || null,
@@ -382,6 +401,7 @@ router.put("/reportes/:id/revisar", ...soloAsesor, async (req, res) => {
     return res.json({
       ok: true,
       mensaje: `Reporte ${estado === "Aprobado" ? "aprobado" : "rechazado"} correctamente.`,
+      residenteUsuarioId, // Devolver el userId del residente para que el front cree la notif
     });
   } catch (err) {
     console.error("Error en PUT /asesor/reportes/:id/revisar:", err);
