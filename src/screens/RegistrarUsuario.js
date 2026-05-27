@@ -51,21 +51,21 @@ const EMPTY_FORM = {
 export default function RegistrarUsuario() {
   const { colors: C } = useTheme();
   const ROL_OPTS = [
-  {
-    id: "residente",
-    label: "Residente",
-    icon: "user",
-    color: C.blue,
-    bg: C.blueLight,
-  },
-  {
-    id: "asesor",
-    label: "Asesor",
-    icon: "user-check",
-    color: C.teal,
-    bg: C.tealLight,
-  },
-];
+    {
+      id: "residente",
+      label: "Residente",
+      icon: "user",
+      color: C.blue,
+      bg: C.blueLight,
+    },
+    {
+      id: "asesor",
+      label: "Asesor",
+      icon: "user-check",
+      color: C.teal,
+      bg: C.tealLight,
+    },
+  ];
   const [rol, setRol] = useState("residente");
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -98,10 +98,12 @@ export default function RegistrarUsuario() {
       Alert.alert("Falta información", "Ingresa un correo válido.");
       return false;
     }
-    if (form.password.length < 6) {
+    // FIX #3: El backend exige mínimo 8 caracteres; la validación frontend
+    // debe coincidir para evitar que el usuario pase aquí y falle en el servidor.
+    if (form.password.length < 8) {
       Alert.alert(
         "Contraseña inválida",
-        "La contraseña debe tener al menos 6 caracteres.",
+        "La contraseña debe tener al menos 8 caracteres.",
       );
       return false;
     }

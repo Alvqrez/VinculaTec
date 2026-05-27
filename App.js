@@ -111,7 +111,7 @@ export default function App() {
 
   // ── 3. Árbol de providers ─────────────────────────────────────────────────
   return (
-    <WebSocketProvider>
+    <WebSocketProvider usuario={usuario}>
       <ThemeProvider>
         <FotosProvider>
           <ProyectosProvider>

@@ -30,12 +30,12 @@ const isDev = process.env.NODE_ENV !== "production";
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim())
   : isDev
-  ? [
-      "http://localhost:8081",
-      "http://localhost:19006",
-      "http://localhost:3000",
-    ]
-  : [];
+    ? [
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://localhost:3000",
+      ]
+    : [];
 
 function isOriginAllowed(origin) {
   if (!origin) return true; // Peticiones sin origin (móvil nativo, Postman)
@@ -89,7 +89,10 @@ const authLimiter = rateLimit({
   max: 10, // Máximo 10 intentos de login por IP cada 15 minutos
   standardHeaders: true,
   legacyHeaders: false,
-  message: { ok: false, mensaje: "Demasiados intentos de inicio de sesión. Espera 15 minutos." },
+  message: {
+    ok: false,
+    mensaje: "Demasiados intentos de inicio de sesión. Espera 15 minutos.",
+  },
 });
 
 app.use(globalLimiter);
@@ -105,7 +108,9 @@ app.get("/uploads/:filename", (req, res) => {
   }
   try {
     if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ ok: false, mensaje: "JWT_SECRET no configurado." });
+      return res
+        .status(500)
+        .json({ ok: false, mensaje: "JWT_SECRET no configurado." });
     }
     jwt.verify(authHeader.split(" ")[1], process.env.JWT_SECRET);
   } catch {
@@ -117,7 +122,9 @@ app.get("/uploads/:filename", (req, res) => {
   const filePath = path.join(__dirname, "uploads", filename);
 
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ ok: false, mensaje: "Archivo no encontrado." });
+    return res
+      .status(404)
+      .json({ ok: false, mensaje: "Archivo no encontrado." });
   }
 
   res.sendFile(filePath);
@@ -126,6 +133,20 @@ app.get("/uploads/:filename", (req, res) => {
 // ── WebSockets ────────────────────────────────────────────────────────────────
 io.on("connection", (socket) => {
   console.log(`[WebSocket] Cliente conectado: ${socket.id}`);
+
+  // FIX #4: El cliente emite "join_room" tras iniciar sesión para que el
+  // servidor pueda enviar eventos solo a usuarios/roles específicos en lugar
+  // de hacer broadcast global con io.emit().
+  socket.on("join_room", ({ userId, rol }) => {
+    if (userId) {
+      socket.join(`user_${userId}`);
+    }
+    if (rol) {
+      socket.join(`role_${rol}`);
+    }
+    console.log(`[WebSocket] ${socket.id} → user_${userId} / role_${rol}`);
+  });
+
   socket.on("disconnect", () => {
     console.log(`[WebSocket] Cliente desconectado: ${socket.id}`);
   });

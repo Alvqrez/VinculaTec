@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -52,275 +47,38 @@ const Field = ({ label, children, C }) => (
     >
       {label}
     </Text>
-
     {children}
   </View>
 );
 
-// ─── Componente Principal ─────────────────────────────────────────────────────
-export default function GestionProyectos() {
-  const { colors: C } = useTheme();
+// ── FIX #2: getPriorityStyle definido FUERA del componente para que sea
+//    una referencia estable. Recibe `C` como parámetro. ─────────────────────
+const getPriorityStyle = (priority, C) =>
+  ({
+    Alta: { color: C.red, bg: C.redLight },
+    Media: { color: C.amber, bg: C.amberLight },
+    Baja: { color: C.green, bg: C.greenLight },
+  })[priority] || { color: C.amber, bg: C.amberLight };
 
-  // Estado de datos
-  const [proyectos, setProyectos] = useState([]);
-  const [empresas, setEmpresas] = useState([]);
-  const [asesores, setAsesores] = useState([]);
-  const [loading, setLoading] = useState(true);
+// ── FIX #2: ProjectCard definido FUERA de GestionProyectos.
+//    Al estar fuera, React siempre usa la misma referencia de función como
+//    "tipo" del elemento. Con React.memo, el componente solo se re-renderiza
+//    si sus props cambian, y NUNCA se desmonta/remonta al tipear en el modal
+//    de "Registrar proyecto". ───────────────────────────────────────────────
+const ProjectCard = React.memo(
+  ({
+    card,
+    index,
+    col,
+    active,
+    onPress,
+    onEdit,
+    onAprobarAvance,
+    onAsignar,
+  }) => {
+    // Cada tarjeta obtiene sus propios colores directamente
+    const { colors: C } = useTheme();
 
-  // Estado de UI
-  const [active, setActive] = useState(null);
-  const [showFilter, setShowFilter] = useState(false);
-  const [priorityFilter, setPriorityFilter] = useState("Todas");
-  const [toast, setToast] = useState(null);
-
-  // Modal: editar
-  const [editingCard, setEditingCard] = useState(null);
-  const [editForm, setEditForm] = useState({
-    title: "",
-    priority: "Media",
-    tags: "",
-  });
-  const [saving, setSaving] = useState(false);
-
-  // Modal: registrar
-  const [showRegister, setShowRegister] = useState(false);
-  const [registerForm, setRegisterForm] = useState(EMPTY_REGISTER_FORM);
-  const [registering, setRegistering] = useState(false);
-  const [showEmpresaPick, setShowEmpresaPick] = useState(false);
-
-  // Modal: asignar asesor
-  const [asignarTarget, setAsignarTarget] = useState(null); // { id, title }
-  const [asignarSel, setAsignarSel] = useState(null); // asesorId
-  const [asignando, setAsignando] = useState(false);
-  const [searchAsesor, setSearchAsesor] = useState("");
-
-  const PHASE_COLUMNS = [
-    {
-      id: "desarrollo",
-      label: "En Desarrollo",
-      color: C.amber,
-      bg: C.amberLight,
-    },
-    {
-      id: "revision",
-      label: "En Revisión",
-      color: C.purple,
-      bg: C.purpleLight,
-    },
-    { id: "concluido", label: "Concluido", color: C.green, bg: C.greenLight },
-  ];
-
-  // ── Helpers ────────────────────────────────────────────────────────────────
-  const showToast = useCallback((msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  }, []);
-
-  const getPriorityStyle = (priority) =>
-    ({
-      Alta: { color: C.red, bg: C.redLight },
-      Media: { color: C.amber, bg: C.amberLight },
-      Baja: { color: C.green, bg: C.greenLight },
-    })[priority] || { color: C.amber, bg: C.amberLight };
-
-
-  const inputStyle = {
-    padding: 11,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: C.border,
-    fontSize: 14,
-    color: C.text,
-    backgroundColor: C.bg,
-  };
-
-  // ── Carga de datos ─────────────────────────────────────────────────────────
-  const fetchProyectos = useCallback(() => {
-    setLoading(true);
-    apiClient.get("/api/jefe/proyectos").then((res) => {
-      if (res.ok && res.body?.ok) setProyectos(res.body.proyectos);
-      setLoading(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    fetchProyectos();
-    apiClient.get("/api/jefe/empresas").then((res) => {
-      if (res.ok && res.body?.ok) setEmpresas(res.body.empresas);
-    });
-    // Cargar asesores para el modal de asignación
-    apiClient.get("/api/jefe/asignacion/datos").then((res) => {
-      if (res.ok && res.body?.ok) setAsesores(res.body.asesores || []);
-    });
-  }, []);
-
-  // ── WebSocket: tiempo real ──────────────────────────────────────────────────
-  const { subscribe } = useWebSocket();
-
-  useEffect(() => {
-    // Cuando el Asesor solicita avance → el Jefe ve el badge ⬆ aparecer al instante
-    const off1 = subscribe("proyecto_solicitud_avance", (data) => {
-      console.log("[GestionProyectos] Solicitud de avance recibida:", data);
-      setProyectos((prev) =>
-        prev.map((p) =>
-          p.id === data.proyectoId ? { ...p, solicitud_avance: true } : p,
-        ),
-      );
-      showToast(`📬 "${data.titulo}" solicita avance de fase`, "info");
-    });
-
-    // Cuando se asigna un asesor → refrescar para mostrar su nombre en la tarjeta
-    const off2 = subscribe("asesor_asignado", () => fetchProyectos());
-
-    return () => {
-      off1();
-      off2();
-    };
-  }, [subscribe, fetchProyectos, showToast]);
-
-  // ── Columnas del tablero ───────────────────────────────────────────────────
-  const columns = React.useMemo(
-  () =>
-    PHASE_COLUMNS.map((col) => ({
-      ...col,
-      cards: proyectos.filter(
-        (p) =>
-          p.phase === col.id &&
-          (priorityFilter === "Todas" ||
-            p.priority === priorityFilter),
-      ),
-    })),
-  [proyectos, priorityFilter]
-);
-
-  // ── Acciones: Editar ───────────────────────────────────────────────────────
-  const openEdit = (card) => {
-    setEditingCard(card);
-    setEditForm({
-      title: card.title,
-      priority: card.priority || "Media",
-      tags: card.tags || "",
-    });
-  };
-
-  const saveEdit = async () => {
-    if (!editForm.title.trim()) return;
-    setSaving(true);
-    const res = await apiClient.put(`/api/jefe/proyectos/${editingCard.id}`, {
-      title: editForm.title.trim(),
-      priority: editForm.priority,
-      tags: editForm.tags.trim(),
-    });
-    if (res.ok) {
-      setProyectos((prev) =>
-        prev.map((p) =>
-          p.id === editingCard.id
-            ? {
-                ...p,
-                title: editForm.title.trim(),
-                priority: editForm.priority,
-                tags: editForm.tags.trim(),
-              }
-            : p,
-        ),
-      );
-      showToast("Proyecto actualizado");
-    } else {
-      showToast(res.body?.mensaje || "Error al guardar", "error");
-    }
-    setSaving(false);
-    setEditingCard(null);
-  };
-
-  // ── Acciones: Aprobar avance ───────────────────────────────────────────────
-  const handleAprobarAvance = async (card) => {
-    const res = await apiClient.put(
-      `/api/jefe/proyectos/${card.id}/aprobar-avance`,
-    );
-    if (res.ok && res.body?.ok) {
-      setProyectos((prev) =>
-        prev.map((p) =>
-          p.id === card.id
-            ? { ...p, phase: res.body.nuevoEstado, solicitud_avance: false }
-            : p,
-        ),
-      );
-      showToast("Avance aprobado correctamente");
-    } else {
-      showToast(res.body?.mensaje || "Error al aprobar", "error");
-    }
-  };
-
-  // ── Acciones: Registrar ────────────────────────────────────────────────────
-  const handleRegister = async () => {
-    if (!registerForm.titulo.trim()) {
-      showToast("El título es requerido", "error");
-      return;
-    }
-    setRegistering(true);
-    const res = await apiClient.post("/api/jefe/proyectos", {
-      titulo: registerForm.titulo.trim(),
-      empresa_id: registerForm.empresa_id || null,
-      prioridad: registerForm.prioridad,
-      estado: registerForm.estado,
-      tecnologias: registerForm.tecnologias.trim() || null,
-      descripcion: registerForm.descripcion.trim() || null,
-      periodo: registerForm.periodo.trim() || null,
-    });
-    if (res.ok) {
-      setShowRegister(false);
-      showToast("Proyecto registrado con éxito");
-      fetchProyectos();
-    } else {
-      showToast(res.body?.mensaje || "Error al registrar el proyecto", "error");
-    }
-    setRegistering(false);
-  };
-
-  // ── Acciones: Asignar asesor ───────────────────────────────────────────────
-  const openAsignar = (card) => {
-    setAsignarTarget(card);
-    setAsignarSel(null);
-    setSearchAsesor("");
-  };
-
-  const handleAsignar = async () => {
-    if (!asignarSel) {
-      showToast("Selecciona un asesor", "error");
-      return;
-    }
-    setAsignando(true);
-    const res = await apiClient.post(
-      `/api/jefe/proyectos/${asignarTarget.id}/asesores`,
-      { asesorId: asignarSel },
-    );
-    if (res.ok) {
-      const asesorNombre =
-        asesores.find((a) => a.id === asignarSel)?.nombre || "Asesor";
-      setProyectos((prev) =>
-        prev.map((p) =>
-          p.id === asignarTarget.id ? { ...p, asesor: asesorNombre } : p,
-        ),
-      );
-      showToast(`Asesor asignado: ${asesorNombre}`);
-      setAsignarTarget(null);
-    } else {
-      showToast(res.body?.mensaje || "Error al asignar", "error");
-    }
-    setAsignando(false);
-  };
-
-  // ── ProjectCard ────────────────────────────────────────────────────────────
-  const ProjectCard = React.memo(({
-  card,
-  index,
-  col,
-  active,
-  onPress,
-  onEdit,
-  onAprobarAvance,
-  onAsignar,
-}) => {
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const slideAnim = useRef(new Animated.Value(16)).current;
 
@@ -341,7 +99,7 @@ export default function GestionProyectos() {
       ]).start();
     }, []);
 
-    const ps = getPriorityStyle(card.priority || "Media");
+    const ps = getPriorityStyle(card.priority || "Media", C);
     const tags = card.tags
       ? card.tags
           .split(",")
@@ -568,8 +326,246 @@ export default function GestionProyectos() {
         </TouchableOpacity>
       </Animated.View>
     );
-  }
+  },
 );
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
+export default function GestionProyectos() {
+  const { colors: C } = useTheme();
+
+  const PHASE_COLUMNS = [
+    {
+      id: "desarrollo",
+      label: "En Desarrollo",
+      color: C.amber,
+      bg: C.amberLight,
+    },
+    {
+      id: "revision",
+      label: "En Revisión",
+      color: C.purple,
+      bg: C.purpleLight,
+    },
+    { id: "concluido", label: "Concluido", color: C.green, bg: C.greenLight },
+  ];
+
+  // Estado de datos
+  const [proyectos, setProyectos] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
+  const [asesores, setAsesores] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Estado de UI
+  const [active, setActive] = useState(null);
+  const [showFilter, setShowFilter] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState("Todas");
+  const [toast, setToast] = useState(null);
+
+  // Modal: editar
+  const [editingCard, setEditingCard] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    priority: "Media",
+    tags: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  // Modal: registrar
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerForm, setRegisterForm] = useState(EMPTY_REGISTER_FORM);
+  const [registering, setRegistering] = useState(false);
+  const [showEmpresaPick, setShowEmpresaPick] = useState(false);
+
+  // Modal: asignar asesor
+  const [asignarTarget, setAsignarTarget] = useState(null);
+  const [asignarSel, setAsignarSel] = useState(null);
+  const [asignando, setAsignando] = useState(false);
+  const [searchAsesor, setSearchAsesor] = useState("");
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  }, []);
+
+  const inputStyle = {
+    padding: 11,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    fontSize: 14,
+    color: C.text,
+    backgroundColor: C.bg,
+  };
+
+  // ── Carga de datos ─────────────────────────────────────────────────────────
+  const fetchProyectos = useCallback(() => {
+    setLoading(true);
+    apiClient.get("/api/jefe/proyectos").then((res) => {
+      if (res.ok && res.body?.ok) setProyectos(res.body.proyectos);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchProyectos();
+    apiClient.get("/api/jefe/empresas").then((res) => {
+      if (res.ok && res.body?.ok) setEmpresas(res.body.empresas);
+    });
+    apiClient.get("/api/jefe/asignacion/datos").then((res) => {
+      if (res.ok && res.body?.ok) setAsesores(res.body.asesores || []);
+    });
+  }, []);
+
+  // ── WebSocket: tiempo real ──────────────────────────────────────────────────
+  const { subscribe } = useWebSocket();
+
+  useEffect(() => {
+    const off1 = subscribe("proyecto_solicitud_avance", (data) => {
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.id === data.proyectoId ? { ...p, solicitud_avance: true } : p,
+        ),
+      );
+      showToast(`📬 "${data.titulo}" solicita avance de fase`, "info");
+    });
+    const off2 = subscribe("asesor_asignado", () => fetchProyectos());
+    return () => {
+      off1();
+      off2();
+    };
+  }, [subscribe, fetchProyectos, showToast]);
+
+  // ── Columnas del tablero ───────────────────────────────────────────────────
+  const columns = React.useMemo(
+    () =>
+      PHASE_COLUMNS.map((col) => ({
+        ...col,
+        cards: proyectos.filter(
+          (p) =>
+            p.phase === col.id &&
+            (priorityFilter === "Todas" || p.priority === priorityFilter),
+        ),
+      })),
+    [proyectos, priorityFilter],
+  );
+
+  // ── Acciones: Editar ───────────────────────────────────────────────────────
+  const openEdit = (card) => {
+    setEditingCard(card);
+    setEditForm({
+      title: card.title,
+      priority: card.priority || "Media",
+      tags: card.tags || "",
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editForm.title.trim()) return;
+    setSaving(true);
+    const res = await apiClient.put(`/api/jefe/proyectos/${editingCard.id}`, {
+      title: editForm.title.trim(),
+      priority: editForm.priority,
+      tags: editForm.tags.trim(),
+    });
+    if (res.ok) {
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.id === editingCard.id
+            ? {
+                ...p,
+                title: editForm.title.trim(),
+                priority: editForm.priority,
+                tags: editForm.tags.trim(),
+              }
+            : p,
+        ),
+      );
+      showToast("Proyecto actualizado");
+    } else {
+      showToast(res.body?.mensaje || "Error al guardar", "error");
+    }
+    setSaving(false);
+    setEditingCard(null);
+  };
+
+  // ── Acciones: Aprobar avance ───────────────────────────────────────────────
+  const handleAprobarAvance = async (card) => {
+    const res = await apiClient.put(
+      `/api/jefe/proyectos/${card.id}/aprobar-avance`,
+    );
+    if (res.ok && res.body?.ok) {
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.id === card.id
+            ? { ...p, phase: res.body.nuevoEstado, solicitud_avance: false }
+            : p,
+        ),
+      );
+      showToast("Avance aprobado correctamente");
+    } else {
+      showToast(res.body?.mensaje || "Error al aprobar", "error");
+    }
+  };
+
+  // ── Acciones: Registrar ────────────────────────────────────────────────────
+  const handleRegister = async () => {
+    if (!registerForm.titulo.trim()) {
+      showToast("El título es requerido", "error");
+      return;
+    }
+    setRegistering(true);
+    const res = await apiClient.post("/api/jefe/proyectos", {
+      titulo: registerForm.titulo.trim(),
+      empresa_id: registerForm.empresa_id || null,
+      prioridad: registerForm.prioridad,
+      estado: registerForm.estado,
+      tecnologias: registerForm.tecnologias.trim() || null,
+      descripcion: registerForm.descripcion.trim() || null,
+      periodo: registerForm.periodo.trim() || null,
+    });
+    if (res.ok) {
+      setShowRegister(false);
+      showToast("Proyecto registrado con éxito");
+      fetchProyectos();
+    } else {
+      showToast(res.body?.mensaje || "Error al registrar el proyecto", "error");
+    }
+    setRegistering(false);
+  };
+
+  // ── Acciones: Asignar asesor ───────────────────────────────────────────────
+  const openAsignar = (card) => {
+    setAsignarTarget(card);
+    setAsignarSel(null);
+    setSearchAsesor("");
+  };
+
+  const handleAsignar = async () => {
+    if (!asignarSel) {
+      showToast("Selecciona un asesor", "error");
+      return;
+    }
+    setAsignando(true);
+    const res = await apiClient.post(
+      `/api/jefe/proyectos/${asignarTarget.id}/asesores`,
+      { asesorId: asignarSel },
+    );
+    if (res.ok) {
+      const asesorNombre =
+        asesores.find((a) => a.id === asignarSel)?.nombre || "Asesor";
+      setProyectos((prev) =>
+        prev.map((p) =>
+          p.id === asignarTarget.id ? { ...p, asesor: asesorNombre } : p,
+        ),
+      );
+      showToast(`Asesor asignado: ${asesorNombre}`);
+      setAsignarTarget(null);
+    } else {
+      showToast(res.body?.mensaje || "Error al asignar", "error");
+    }
+    setAsignando(false);
+  };
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -897,7 +893,7 @@ export default function GestionProyectos() {
               </TouchableOpacity>
             </Row>
 
-            <Field label="Nombre del Proyecto"C={C}>
+            <Field label="Nombre del Proyecto" C={C}>
               <TextInput
                 value={editForm.title}
                 onChangeText={(v) => setEditForm({ ...editForm, title: v })}
@@ -907,11 +903,11 @@ export default function GestionProyectos() {
               />
             </Field>
 
-            <Field label="Prioridad"C={C}>
+            <Field label="Prioridad" C={C}>
               <Row style={{ gap: 8 }}>
                 {PRIORIDADES.map((p) => {
                   const sel = editForm.priority === p;
-                  const cm = getPriorityStyle(p);
+                  const cm = getPriorityStyle(p, C);
                   return (
                     <TouchableOpacity
                       key={p}
@@ -941,7 +937,7 @@ export default function GestionProyectos() {
               </Row>
             </Field>
 
-            <Field label="Tecnologías (separadas por coma)"C={C}>
+            <Field label="Tecnologías (separadas por coma)" C={C}>
               <TextInput
                 value={editForm.tags}
                 onChangeText={(v) => setEditForm({ ...editForm, tags: v })}
@@ -1022,7 +1018,6 @@ export default function GestionProyectos() {
             }}
             onPress={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <View
               style={{
                 padding: 22,
@@ -1057,8 +1052,6 @@ export default function GestionProyectos() {
                   <Feather name="x" size={18} color={C.textMuted} />
                 </TouchableOpacity>
               </Row>
-
-              {/* Búsqueda */}
               <Row
                 style={{
                   alignItems: "center",
@@ -1083,7 +1076,6 @@ export default function GestionProyectos() {
               </Row>
             </View>
 
-            {/* Lista de asesores */}
             <ScrollView style={{ maxHeight: 320 }}>
               {asesores
                 .filter(
@@ -1111,7 +1103,6 @@ export default function GestionProyectos() {
                         backgroundColor: sel ? C.tealLighter : "transparent",
                       }}
                     >
-                      {/* Avatar */}
                       <View
                         style={{
                           width: 38,
@@ -1139,7 +1130,6 @@ export default function GestionProyectos() {
                             .join("")}
                         </Text>
                       </View>
-
                       <View style={{ flex: 1 }}>
                         <Text
                           style={{
@@ -1162,8 +1152,6 @@ export default function GestionProyectos() {
                           </Text>
                         )}
                       </View>
-
-                      {/* Indicador de proyectos activos */}
                       <View
                         style={{
                           backgroundColor: a.activos > 0 ? C.amberLight : C.bg,
@@ -1182,7 +1170,6 @@ export default function GestionProyectos() {
                           {a.activos} activo{a.activos !== 1 ? "s" : ""}
                         </Text>
                       </View>
-
                       {sel && (
                         <Feather
                           name="check-circle"
@@ -1194,7 +1181,6 @@ export default function GestionProyectos() {
                     </TouchableOpacity>
                   );
                 })}
-
               {asesores.filter(
                 (a) =>
                   !searchAsesor ||
@@ -1211,7 +1197,6 @@ export default function GestionProyectos() {
               )}
             </ScrollView>
 
-            {/* Footer */}
             <View
               style={{
                 padding: 18,
@@ -1302,7 +1287,6 @@ export default function GestionProyectos() {
             }}
             onPress={(e) => e.stopPropagation()}
           >
-            {/* Header */}
             <View
               style={{
                 padding: 24,
@@ -1338,7 +1322,6 @@ export default function GestionProyectos() {
               </Row>
             </View>
 
-            {/* Body */}
             <ScrollView
               contentContainerStyle={{ padding: 24, paddingBottom: 8 }}
               showsVerticalScrollIndicator={false}
@@ -1355,7 +1338,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Empresa"C={C}>
+              <Field label="Empresa" C={C}>
                 <TouchableOpacity
                   onPress={() => setShowEmpresaPick(!showEmpresaPick)}
                   style={{
@@ -1382,7 +1365,6 @@ export default function GestionProyectos() {
                     color={C.textMuted}
                   />
                 </TouchableOpacity>
-
                 {showEmpresaPick && (
                   <View
                     style={{
@@ -1459,11 +1441,11 @@ export default function GestionProyectos() {
                 )}
               </Field>
 
-              <Field label="Prioridad"C={C}>
+              <Field label="Prioridad" C={C}>
                 <Row style={{ gap: 8 }}>
                   {PRIORIDADES.map((p) => {
                     const sel = registerForm.prioridad === p;
-                    const cm = getPriorityStyle(p);
+                    const cm = getPriorityStyle(p, C);
                     return (
                       <TouchableOpacity
                         key={p}
@@ -1495,7 +1477,7 @@ export default function GestionProyectos() {
                 </Row>
               </Field>
 
-              <Field label="Fase Inicial"C={C}>
+              <Field label="Fase Inicial" C={C}>
                 <Row style={{ gap: 8 }}>
                   {FASES.map((f) => {
                     const sel = registerForm.estado === f.id;
@@ -1538,7 +1520,7 @@ export default function GestionProyectos() {
                 </Row>
               </Field>
 
-              <Field label="Tecnologías (separadas por coma)"C={C}>
+              <Field label="Tecnologías (separadas por coma)" C={C}>
                 <TextInput
                   value={registerForm.tecnologias}
                   onChangeText={(v) =>
@@ -1550,7 +1532,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Período"C={C}>
+              <Field label="Período" C={C}>
                 <TextInput
                   value={registerForm.periodo}
                   onChangeText={(v) =>
@@ -1562,7 +1544,7 @@ export default function GestionProyectos() {
                 />
               </Field>
 
-              <Field label="Descripción"C={C}>
+              <Field label="Descripción" C={C}>
                 <TextInput
                   value={registerForm.descripcion}
                   onChangeText={(v) =>
@@ -1581,7 +1563,6 @@ export default function GestionProyectos() {
               </Field>
             </ScrollView>
 
-            {/* Footer */}
             <View
               style={{
                 padding: 20,
