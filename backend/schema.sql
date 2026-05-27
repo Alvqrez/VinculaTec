@@ -240,3 +240,57 @@ CREATE TABLE IF NOT EXISTS empresa_periodos (
   FOREIGN KEY (periodo_id) REFERENCES periodos(id)  ON DELETE CASCADE,
   FOREIGN KEY (empresa_id) REFERENCES empresas(id)  ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Auditoría de Proyectos ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS auditoria_proyectos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  proyecto_id INT NOT NULL,
+  asesor_id INT NOT NULL,
+  accion VARCHAR(50) NOT NULL,
+  fase_anterior VARCHAR(50) NULL,
+  fase_nueva VARCHAR(50) NULL,
+  comentarios TEXT NULL,
+  ip_address VARCHAR(45) NULL,
+  user_agent TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_proyecto_id (proyecto_id),
+  INDEX idx_asesor_id (asesor_id),
+  INDEX idx_accion (accion),
+  INDEX idx_created_at (created_at),
+  FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE CASCADE,
+  FOREIGN KEY (asesor_id) REFERENCES asesores(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Notificaciones ───────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS notificaciones (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT NOT NULL,
+  tipo_notificacion ENUM('REVISION', 'AVANCE', 'SISTEMA') NOT NULL,
+  titulo VARCHAR(255) NOT NULL,
+  mensaje TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  icon VARCHAR(50) DEFAULT 'bell',
+  icon_color VARCHAR(20) DEFAULT '#6B7280',
+  icon_bg VARCHAR(20) DEFAULT '#F3F4F6',
+  proyecto_id INT NULL,
+  fase VARCHAR(50) NULL,
+  action_screen VARCHAR(50) NULL,
+  action_label VARCHAR(100) NULL,
+  metadata JSON NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP NULL,
+  INDEX idx_usuario_id (usuario_id),
+  INDEX idx_tipo_notificacion (tipo_notificacion),
+  INDEX idx_is_read (is_read),
+  INDEX idx_created_at (created_at),
+  INDEX idx_deleted_at (deleted_at),
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
+  FOREIGN KEY (proyecto_id) REFERENCES proyectos(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE OR REPLACE VIEW notificaciones_activas AS
+SELECT id, usuario_id, tipo_notificacion, titulo, mensaje, is_read,
+  icon, icon_color, icon_bg, proyecto_id, fase, action_screen,
+  action_label, metadata, created_at, updated_at
+FROM notificaciones WHERE deleted_at IS NULL;
