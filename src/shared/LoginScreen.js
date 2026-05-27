@@ -9,7 +9,10 @@ import {
   Animated,
   Modal,
   ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
+
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import Row from "../components/Row";
@@ -20,6 +23,8 @@ const titleCase = (str) =>
 
 export default function LoginScreen({ onLogin, loginError = "", onClearError }) {
   const { colors: C } = useTheme();
+  const { width } = useWindowDimensions();
+const isMobile = width < 768;
   const [email, setEmail]         = useState("");
   const [password, setPassword]   = useState("");
   const [focusField, setFocus]    = useState(null);
@@ -123,24 +128,33 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
         .toUpperCase()
         .slice(0, 2)
     : "??";
-
-  return (
+return (
+  <SafeAreaView
+    style={{
+      flex: 1,
+      backgroundColor: C.bg,
+    }}
+  >
     <View
       style={{
         flex: 1,
-        flexDirection: "row",
-        height: Platform.OS === "web" ? "100vh" : "100%",
+        flexDirection: isMobile ? "column" : "row",
       }}
     >
+
+
       {/* ── Panel izquierdo ── */}
       <View
-        style={{
-          width: "40%",
-          backgroundColor: C.navy,
-          padding: 48,
-          justifyContent: "center",
-        }}
-      >
+    style={{
+      width: isMobile ? "100%" : "40%",
+      minHeight: isMobile ? 260 : "100%",
+      backgroundColor: C.navy,
+      padding: isMobile ? 24 : 48,
+      justifyContent: "center",
+    }}
+  >
+
+
         <Row style={{ alignItems: "center", gap: 10, marginBottom: 28 }}>
           <View
             style={{
@@ -163,9 +177,9 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
         <Text
           style={{
             color: "white",
-            fontSize: 28,
+            fontSize: isMobile ? 22 : 28,
             fontWeight: "800",
-            lineHeight: 36,
+            lineHeight: isMobile ? 30 : 36,
             marginBottom: 12,
           }}
         >
@@ -182,12 +196,14 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
           Plataforma institucional para la gestión y monitoreo integral del
           proceso de residencias.
         </Text>
-        {[
-          ["check-circle", "Seguimiento en tiempo real de residentes"],
-          ["file-text", "Reportes parciales y final digitalizados"],
-          ["briefcase", "Gestión de empresas colaboradoras"],
-          ["users", "Comunicación directa asesor-residente"],
-        ].map(([icon, text], i) => (
+        {!isMobile &&  [
+    ["check-circle", "Seguimiento en tiempo real de residentes"],
+    ["file-text", "Reportes parciales y final digitalizados"],
+    ["briefcase", "Gestión de empresas colaboradoras"],
+    ["users", "Comunicación directa asesor-residente"],
+  ].map(([icon, text], i) => (
+
+
           <Row
             key={i}
             style={{ alignItems: "center", gap: 10, marginBottom: 14 }}
@@ -213,17 +229,18 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
       <View
         style={{
           flex: 1,
-          height: Platform.OS === "web" ? "100vh" : "100%",
           backgroundColor: C.bg,
           alignItems: "center",
-          justifyContent: "center",
-          padding: 32,
+          justifyContent: isMobile ? "flex-start" : "center",
+          padding: isMobile ? 18 : 32,
+          paddingTop: isMobile ? 24 : 32,
         }}
       >
         <Animated.View
           style={{
             width: "100%",
             maxWidth: 420,
+            width: "100%",
             alignSelf: "center",
             opacity: fadeAnim,
             transform: [{ translateY: slideAnim }],
@@ -233,7 +250,7 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
             style={{
               backgroundColor: C.card,
               borderRadius: 18,
-              padding: 32,
+              padding: isMobile ? 20 : 32,
               borderWidth: 1,
               borderColor: C.border,
               shadowColor: "#000",
@@ -550,7 +567,7 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
         >
           <View
             style={{
-              width: 380,
+              width: isMobile ? "92%" : 380,
               backgroundColor: C.card,
               borderRadius: 18,
               padding: 28,
@@ -664,5 +681,6 @@ export default function LoginScreen({ onLogin, loginError = "", onClearError }) 
         </View>
       </Modal>
     </View>
-  );
+  </SafeAreaView>
+);
 }
