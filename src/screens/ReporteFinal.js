@@ -42,7 +42,6 @@ export default function ReporteFinal({ usuario }) {
   } = useReportes() || {};
   const [uploadHover, setUploadHover] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [submitted, setSubmitted] = useState(false);
   const [fileData, setFileData] = useState(null);
 
   // ── Datos reales del residente / asesor / proyecto ─────────────────────
@@ -60,6 +59,9 @@ export default function ReporteFinal({ usuario }) {
 
   // ── Datos del reporte final ────────────────────────────────────────────
   const finalReport = reports?.find((r) => r.id === "final");
+  const reporteYaEnviado =
+  finalReport?.status === "En Revisión" ||
+  finalReport?.status === "Aceptado";
   const fechaLimite = finalReport?.fecha_limite
     ? new Date(finalReport.fecha_limite).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })
     : null;
@@ -235,37 +237,53 @@ export default function ReporteFinal({ usuario }) {
   }
 
   const selectFile = () => {
-    if (!globalThis?.document?.createElement) {
-      Alert.alert(
-        "Seleccionar archivo",
-        "La seleccion de archivos esta disponible en la version web.",
-      );
-      return;
-    }
+  // Bloquear si ya fue enviado
+  if (reporteYaEnviado) {
+    Alert.alert(
+      "Reporte ya enviado",
+      "Ya entregaste tu Reporte Final y no puedes subir otro archivo."
+    );
+    return;
+  }
 
-    const input = globalThis.document.createElement("input");
-    input.type = "file";
-    input.accept =
-      ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    input.onchange = (event) => {
-      const file = event.target.files?.[0];
-      if (!file) return;
+  if (!globalThis?.document?.createElement) {
+    Alert.alert(
+      "Seleccionar archivo",
+      "La seleccion de archivos esta disponible en la version web.",
+    );
+    return;
+  }
 
-      setSelectedFile({
-        name: file.name,
-        size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
-        type: file.type || "Documento",
-      });
+  const input = globalThis.document.createElement("input");
 
-      // Convertir archivo a base64 para enviar al backend
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFileData(e.target.result);
-      };
-      reader.readAsDataURL(file);
+  input.type = "file";
+
+  input.accept =
+    ".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+  input.onchange = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    setSelectedFile({
+      name: file.name,
+      size: `${(file.size / (1024 * 1024)).toFixed(2)} MB`,
+      type: file.type || "Documento",
+    });
+
+    // Convertir archivo a base64
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      setFileData(e.target.result);
     };
-    input.click();
+
+    reader.readAsDataURL(file);
   };
+
+  input.click();
+};
 
   const uploadReport = async () => {
     if (!selectedFile) {
@@ -302,7 +320,6 @@ export default function ReporteFinal({ usuario }) {
         });
       }
 
-      setSubmitted(true);
       Alert.alert(
         "Reporte Final entregado",
         "Tu asesor recibirá una notificación para revisarlo."
@@ -591,114 +608,190 @@ export default function ReporteFinal({ usuario }) {
             </Row>
           </Card>
 
-          {/* File Upload */}
-          <Card>
-            <Text
-              style={{
-                fontSize: 14,
-                fontWeight: "800",
-                color: C.text,
-                marginBottom: 14,
-              }}
-            >
-              Subir Documento
-            </Text>
-            <TouchableOpacity
-              onPress={selectFile}
-              onPressIn={() => setUploadHover(true)}
-              onPressOut={() => setUploadHover(false)}
-              activeOpacity={0.8}
-              style={{
-                borderWidth: 2,
-                borderStyle: "dashed",
-                borderColor: uploadHover ? C.teal : C.border,
-                borderRadius: 12,
-                padding: 28,
-                alignItems: "center",
-                backgroundColor: uploadHover ? C.tealLighter : C.bg,
-                marginBottom: 14,
-              }}
-            >
-              <View
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 13,
-                  backgroundColor: C.tealLight,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  marginBottom: 12,
-                }}
-              >
-                <Feather name="upload-cloud" size={22} color={C.teal} />
-              </View>
+         {/* File Upload */}
+<Card>
+  <Text
+    style={{
+      fontSize: 14,
+      fontWeight: "800",
+      color: C.text,
+      marginBottom: 14,
+    }}
+  >
+    Subir Documento
+  </Text>
+
+  {!reporteYaEnviado ? (
+    <>
+      <TouchableOpacity
+        onPress={selectFile}
+        onPressIn={() => setUploadHover(true)}
+        onPressOut={() => setUploadHover(false)}
+        activeOpacity={0.8}
+        style={{
+          borderWidth: 2,
+          borderStyle: "dashed",
+          borderColor: uploadHover ? C.teal : C.border,
+          borderRadius: 12,
+          padding: 28,
+          alignItems: "center",
+          backgroundColor: uploadHover ? C.tealLighter : C.bg,
+          marginBottom: 14,
+        }}
+      >
+        <View
+          style={{
+            width: 50,
+            height: 50,
+            borderRadius: 13,
+            backgroundColor: C.tealLight,
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 12,
+          }}
+        >
+          <Feather name="upload-cloud" size={22} color={C.teal} />
+        </View>
+
+        <Text
+          style={{
+            fontSize: 14,
+            fontWeight: "700",
+            color: C.text,
+            marginBottom: 4,
+          }}
+        >
+          Arrastra tu archivo aquí
+        </Text>
+
+        <Text
+          style={{
+            fontSize: 12,
+            color: C.textMuted,
+            marginBottom: 10,
+          }}
+        >
+          o haz clic para seleccionar
+        </Text>
+
+        <TouchableOpacity
+          onPress={selectFile}
+          style={{
+            backgroundColor: C.teal,
+            borderRadius: 8,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 12,
+              color: "white",
+              fontWeight: "700",
+            }}
+          >
+            Seleccionar archivo
+          </Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+
+      {selectedFile && (
+        <View
+          style={{
+            borderWidth: 1,
+            borderColor: C.tealLight,
+            borderRadius: 10,
+            backgroundColor: C.tealLighter,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <Row style={{ alignItems: "center", gap: 8 }}>
+            <Feather name="file-text" size={16} color={C.teal} />
+
+            <View style={{ flex: 1 }}>
               <Text
                 style={{
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: "700",
                   color: C.text,
-                  marginBottom: 4,
                 }}
               >
-                Arrastra tu archivo aquí
+                {selectedFile.name}
               </Text>
-              <Text
-                style={{ fontSize: 12, color: C.textMuted, marginBottom: 10 }}
-              >
-                o haz clic para seleccionar
-              </Text>
-              <TouchableOpacity
-                onPress={selectFile}
-                style={{
-                  backgroundColor: C.teal,
-                  borderRadius: 8,
-                  paddingHorizontal: 16,
-                  paddingVertical: 8,
-                }}
-              >
-                <Text
-                  style={{ fontSize: 12, color: "white", fontWeight: "700" }}
-                >
-                  Seleccionar archivo
-                </Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-            {selectedFile && (
-              <View
-                style={{
-                  borderWidth: 1,
-                  borderColor: C.tealLight,
-                  borderRadius: 10,
-                  backgroundColor: C.tealLighter,
-                  padding: 12,
-                  marginBottom: 12,
-                }}
-              >
-                <Row style={{ alignItems: "center", gap: 8 }}>
-                  <Feather name="file-text" size={16} color={C.teal} />
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{ fontSize: 12, fontWeight: "700", color: C.text }}
-                    >
-                      {selectedFile.name}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: C.textMuted }}>
-                      {selectedFile.size}
-                    </Text>
-                  </View>
-                  <Badge text="Listo" color={C.green} bg={C.greenLight} />
-                </Row>
-              </View>
-            )}
-            <Text
-              style={{ fontSize: 11, color: C.textLight, textAlign: "center" }}
-            >
-              Formatos aceptados: PDF, DOCX · Tamaño máximo: 25 MB
-            </Text>
-          </Card>
 
+              <Text
+                style={{
+                  fontSize: 11,
+                  color: C.textMuted,
+                }}
+              >
+                {selectedFile.size}
+              </Text>
+            </View>
+
+            <Badge
+              text="Listo"
+              color={C.green}
+              bg={C.greenLight}
+            />
+          </Row>
+        </View>
+      )}
+
+      <Text
+        style={{
+          fontSize: 11,
+          color: C.textLight,
+          textAlign: "center",
+        }}
+      >
+        Formatos aceptados: PDF, DOCX · Tamaño máximo: 25 MB
+      </Text>
+    </>
+  ) : (
+    <View
+      style={{
+        backgroundColor: C.greenLight,
+        borderRadius: 12,
+        padding: 18,
+        alignItems: "center",
+      }}
+    >
+      <Feather
+        name="check-circle"
+        size={28}
+        color={C.green}
+        style={{ marginBottom: 10 }}
+      />
+
+      <Text
+        style={{
+          fontSize: 14,
+          fontWeight: "800",
+          color: C.green,
+          marginBottom: 4,
+        }}
+      >
+        Archivo ya enviado
+      </Text>
+
+      <Text
+        style={{
+          fontSize: 12,
+          color: C.textMuted,
+          textAlign: "center",
+        }}
+      >
+        Tu Reporte Final ya fue entregado y está en proceso de revisión.
+      </Text>
+    </View>
+  )}
+</Card>
           {/* Submit button */}
-          {!submitted ? (
+          
+          {finalReport?.status !== "En Revisión" &&
+            finalReport?.status !== "Aceptado" ? (
             <TouchableOpacity
               onPress={uploadReport}
               style={{
