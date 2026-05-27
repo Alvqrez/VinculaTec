@@ -130,46 +130,6 @@ CREATE TABLE IF NOT EXISTS reportes (
   INDEX idx_residente  (residente_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Notificaciones ──────────────────────────────────────────
--- FIX: id cambiado a INT AUTO_INCREMENT porque los INSERTs usan result.insertId
---      (antes era VARCHAR(50) sin DEFAULT, lo que causaba error al insertar sin proveer id)
-CREATE TABLE IF NOT EXISTS notificaciones (
-  id          INT AUTO_INCREMENT PRIMARY KEY,
-  usuario_id  VARCHAR(50) NOT NULL,
-  tipo        ENUM('Reporte','Aprobación','Cita','Alerta','Mensaje','Logro') NOT NULL,
-  titulo      VARCHAR(200) NOT NULL,
-  cuerpo      TEXT,
-  leida       BOOLEAN     DEFAULT FALSE,
-  icono       VARCHAR(50) DEFAULT 'bell',
-  url_accion  VARCHAR(300),
-  created_at  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE,
-  INDEX idx_usuario_leida (usuario_id, leida)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Notificaciones Activas (Tiempo Real) ─────────────────────
--- Tabla extendida para notificaciones con metadata adicional
--- usada por el sistema de notificaciones en tiempo real
-CREATE TABLE IF NOT EXISTS notificaciones_activas (
-  id VARCHAR(50) PRIMARY KEY,
-  usuario_id VARCHAR(50) NOT NULL,
-  tipo_notificacion VARCHAR(100),
-  titulo VARCHAR(255),
-  mensaje TEXT,
-  is_read TINYINT(1) DEFAULT 0,
-  icon VARCHAR(50),
-  icon_color VARCHAR(20),
-  icon_bg VARCHAR(20),
-  proyecto_id VARCHAR(50),
-  fase VARCHAR(50),
-  action_screen VARCHAR(100),
-  action_label VARCHAR(100),
-  metadata JSON,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  INDEX idx_usuario (usuario_id),
-  INDEX idx_proyecto (proyecto_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- ── Citas / Calendario ──────────────────────────────────────
 -- FIX: id cambiado a INT AUTO_INCREMENT porque los INSERTs usan result.insertId
 --      (antes era VARCHAR(50) sin DEFAULT, lo que causaba error al insertar sin proveer id)
@@ -244,8 +204,8 @@ CREATE TABLE IF NOT EXISTS empresa_periodos (
 -- ── Auditoría de Proyectos ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS auditoria_proyectos (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  proyecto_id INT NOT NULL,
-  asesor_id INT NOT NULL,
+  proyecto_id VARCHAR(50) NOT NULL,
+  asesor_id VARCHAR(50) NOT NULL,
   accion VARCHAR(50) NOT NULL,
   fase_anterior VARCHAR(50) NULL,
   fase_nueva VARCHAR(50) NULL,
@@ -264,7 +224,7 @@ CREATE TABLE IF NOT EXISTS auditoria_proyectos (
 -- ── Notificaciones ───────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notificaciones (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  usuario_id INT NOT NULL,
+  usuario_id VARCHAR(50) NOT NULL,
   tipo_notificacion ENUM('REVISION', 'AVANCE', 'SISTEMA') NOT NULL,
   titulo VARCHAR(255) NOT NULL,
   mensaje TEXT NOT NULL,
@@ -272,7 +232,7 @@ CREATE TABLE IF NOT EXISTS notificaciones (
   icon VARCHAR(50) DEFAULT 'bell',
   icon_color VARCHAR(20) DEFAULT '#6B7280',
   icon_bg VARCHAR(20) DEFAULT '#F3F4F6',
-  proyecto_id INT NULL,
+  proyecto_id VARCHAR(50) NULL,
   fase VARCHAR(50) NULL,
   action_screen VARCHAR(50) NULL,
   action_label VARCHAR(100) NULL,
