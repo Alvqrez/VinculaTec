@@ -1,6 +1,7 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import apiClient from "../utils/apiClient";
+import { useWebSocket } from "./WebSocketContext";
 
 const Ctx = createContext(null);
 
@@ -38,16 +39,26 @@ export function NotificacionesProvider({ children }) {
 
   const reload = fetchNotifications;
 
+  // ── WebSocket: recibir notificaciones en tiempo real ─────────────────────────
+  const { subscribe } = useWebSocket();
+  useEffect(() => {
+    const off = subscribe("notificacion_nueva", (data) => {
+      console.log("[NotificacionesContext] Nueva notificación recibida:", data);
+      fetchNotifications(); // recarga desde la BD para tener el objeto completo
+    });
+    return off;
+  }, [subscribe]);
+
   // Marcar una como leída (optimista + BD)
   const markAsRead = async (id) => {
     // Actualización optimista del UI
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, unread: false } : n)),
     );
-    
+
     // Llamada al nuevo endpoint con validación completa
     const res = await apiClient.put(`/api/notificaciones/${id}/read`);
-    
+
     if (!res.ok) {
       console.error(
         "Error al marcar notificación como leída:",
