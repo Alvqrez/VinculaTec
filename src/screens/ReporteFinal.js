@@ -57,6 +57,38 @@ export default function ReporteFinal({ usuario }) {
     });
   }, []);
 
+  // ── Cargar estado del reporte final desde el backend al montar ─────────────
+  useEffect(() => {
+    const loadFinalReportStatus = async () => {
+      try {
+        const res = await apiClient.get("/api/residente/reportes");
+        if (res.ok && res.body?.ok) {
+          const reportes = res.body.reportes || [];
+          const finalReportFromBackend = reportes.find((r) => r.id === "final");
+          
+          // Si el reporte final existe en el backend y tiene estado "En Revisión" o "Aceptado",
+          // actualizar el contexto para reflejar la realidad
+          if (finalReportFromBackend && 
+              (finalReportFromBackend.status === "En Revisión" || 
+               finalReportFromBackend.status === "Aceptado")) {
+            if (updateReport) {
+              updateReport("final", {
+                status: finalReportFromBackend.status,
+                submitted: finalReportFromBackend.submitted,
+                feedback: finalReportFromBackend.feedback,
+                archivo: finalReportFromBackend.archivo_url,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error al cargar estado del reporte final:", error);
+      }
+    };
+
+    loadFinalReportStatus();
+  }, [updateReport]);
+
   // ── Datos del reporte final ────────────────────────────────────────────
   const finalReport = reports?.find((r) => r.id === "final");
   const reporteYaEnviado =
