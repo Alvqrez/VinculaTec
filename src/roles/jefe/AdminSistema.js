@@ -87,6 +87,545 @@ function SectionHeader({ C, title, subtitle, action }) {
   );
 }
 
+// ─── Constantes reutilizadas desde RegistrarUsuario ───────────────────────────
+const CARRERAS = [
+  "Ingeniería en Sistemas Computacionales",
+  "Ingeniería Industrial",
+  "Ingeniería Electrónica",
+  "Ingeniería Mecatrónica",
+  "Ingeniería Civil",
+  "Licenciatura en Administración",
+  "Otra",
+];
+
+const DEPARTAMENTOS = [
+  "Ciencias Básicas",
+  "Sistemas y Computación",
+  "Industrial",
+  "Eléctrica y Electrónica",
+  "Mecatrónica",
+  "Económico-Administrativa",
+  "Otro",
+];
+
+const EMPTY_USUARIO_FORM = {
+  nombre: "",
+  apellidos: "",
+  correo: "",
+  password: "",
+  confirmPassword: "",
+  numControl: "",
+  carrera: "",
+  semestre: "",
+  departamento: "",
+  numEmpleado: "",
+};
+
+// ─── Modal: Registrar Usuario (Residente o Asesor) ────────────────────────────
+function RegistrarUsuarioModal({
+  visible,
+  onClose,
+  onSuccess,
+  rolDefault = "residente",
+}) {
+  const { colors: C } = useTheme();
+  const [rol, setRol] = useState(rolDefault);
+  const [form, setForm] = useState(EMPTY_USUARIO_FORM);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setRol(rolDefault);
+      setForm(EMPTY_USUARIO_FORM);
+    }
+  }, [visible, rolDefault]);
+
+  const set = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
+
+  const validar = () => {
+    if (!form.nombre.trim()) {
+      Alert.alert("Falta información", "Ingresa el nombre.");
+      return false;
+    }
+    if (!form.apellidos.trim()) {
+      Alert.alert("Falta información", "Ingresa los apellidos.");
+      return false;
+    }
+    if (!form.correo.trim() || !form.correo.includes("@")) {
+      Alert.alert("Falta información", "Ingresa un correo válido.");
+      return false;
+    }
+    if (form.password.length < 8) {
+      Alert.alert(
+        "Contraseña inválida",
+        "La contraseña debe tener al menos 8 caracteres.",
+      );
+      return false;
+    }
+    if (form.password !== form.confirmPassword) {
+      Alert.alert(
+        "Contraseñas no coinciden",
+        "Verifica la contraseña de confirmación.",
+      );
+      return false;
+    }
+    if (rol === "residente" && !form.numControl.trim()) {
+      Alert.alert("Falta información", "Ingresa el número de control.");
+      return false;
+    }
+    if (rol === "asesor" && !form.departamento) {
+      Alert.alert("Falta información", "Selecciona el departamento.");
+      return false;
+    }
+    return true;
+  };
+
+  const guardar = async () => {
+    if (!validar()) return;
+    setSaving(true);
+    const payload = {
+      rol,
+      nombre: form.nombre.trim(),
+      apellidos: form.apellidos.trim(),
+      correo: form.correo.trim().toLowerCase(),
+      password: form.password,
+      numControl: form.numControl.trim() || null,
+      carrera: form.carrera || null,
+      semestre: form.semestre ? Number(form.semestre) : null,
+      departamento: form.departamento || null,
+      numEmpleado: form.numEmpleado.trim() || null,
+    };
+    const res = await apiClient.post("/api/jefe/registrar-usuario", payload);
+    setSaving(false);
+    if (!res.ok) {
+      Alert.alert(
+        "Error al registrar",
+        res.body?.mensaje || "No se pudo crear el usuario.",
+      );
+      return;
+    }
+    onSuccess?.(`${form.nombre} ${form.apellidos}`, rol);
+    onClose();
+  };
+
+  const ROL_OPTS = [
+    {
+      id: "residente",
+      label: "Residente",
+      icon: "user",
+      color: C.blue,
+      bg: C.blueLight,
+    },
+    {
+      id: "asesor",
+      label: "Asesor",
+      icon: "user-check",
+      color: C.teal,
+      bg: C.tealLight,
+    },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <Pressable
+        style={{
+          flex: 1,
+          backgroundColor: "rgba(0,0,0,0.45)",
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+        onPress={onClose}
+      >
+        <Pressable
+          style={{
+            width: 520,
+            maxHeight: "85%",
+            backgroundColor: C.card,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: C.border,
+            overflow: "hidden",
+          }}
+          onPress={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <View
+            style={{
+              padding: 24,
+              paddingBottom: 16,
+              borderBottomWidth: 1,
+              borderBottomColor: C.border,
+            }}
+          >
+            <Row
+              style={{ justifyContent: "space-between", alignItems: "center" }}
+            >
+              <Row style={{ alignItems: "center", gap: 10 }}>
+                <View
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: 10,
+                    backgroundColor: C.blueLight,
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Feather name="user-plus" size={18} color={C.blue} />
+                </View>
+                <Text
+                  style={{ fontSize: 18, fontWeight: "800", color: C.text }}
+                >
+                  Registrar {rolDefault === "asesor" ? "Asesor" : "Residente"}
+                </Text>
+              </Row>
+              <TouchableOpacity onPress={onClose}>
+                <Feather name="x" size={20} color={C.textMuted} />
+              </TouchableOpacity>
+            </Row>
+
+            {/* Selector de rol */}
+            <Row style={{ gap: 10, marginTop: 16 }}>
+              {ROL_OPTS.map((opt) => {
+                const active = rol === opt.id;
+                return (
+                  <TouchableOpacity
+                    key={opt.id}
+                    onPress={() => setRol(opt.id)}
+                    style={{
+                      flex: 1,
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: 12,
+                      borderRadius: 10,
+                      borderWidth: 2,
+                      borderColor: active ? opt.color : C.border,
+                      backgroundColor: active ? opt.bg : C.card,
+                    }}
+                  >
+                    <Feather
+                      name={opt.icon}
+                      size={15}
+                      color={active ? opt.color : C.textMuted}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: active ? opt.color : C.text,
+                      }}
+                    >
+                      {opt.label}
+                    </Text>
+                    {active && (
+                      <View
+                        style={{
+                          marginLeft: "auto",
+                          width: 18,
+                          height: 18,
+                          borderRadius: 9,
+                          backgroundColor: opt.color,
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Feather name="check" size={11} color="white" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </Row>
+          </View>
+
+          <ScrollView
+            style={{ padding: 24 }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Datos personales */}
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: "700",
+                color: C.textMuted,
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
+                marginBottom: 12,
+              }}
+            >
+              Datos personales
+            </Text>
+            <Row style={{ gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <LabelInput
+                  C={C}
+                  label="Nombre(s)"
+                  value={form.nombre}
+                  onChange={(v) => set("nombre", v)}
+                  placeholder="Ej. Carlos"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <LabelInput
+                  C={C}
+                  label="Apellidos"
+                  value={form.apellidos}
+                  onChange={(v) => set("apellidos", v)}
+                  placeholder="Ej. Ramírez López"
+                />
+              </View>
+            </Row>
+            <LabelInput
+              C={C}
+              label="Correo electrónico"
+              value={form.correo}
+              onChange={(v) => set("correo", v)}
+              placeholder="correo@ejemplo.com"
+              keyboardType="email-address"
+            />
+            <Row style={{ gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <LabelInput
+                  C={C}
+                  label="Contraseña"
+                  value={form.password}
+                  onChange={(v) => set("password", v)}
+                  placeholder="Mínimo 8 caracteres"
+                  secure
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <LabelInput
+                  C={C}
+                  label="Confirmar contraseña"
+                  value={form.confirmPassword}
+                  onChange={(v) => set("confirmPassword", v)}
+                  placeholder="Repite la contraseña"
+                  secure
+                />
+              </View>
+            </Row>
+
+            {/* Datos según rol */}
+            {rol === "residente" && (
+              <>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: C.textMuted,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    marginBottom: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  Datos académicos
+                </Text>
+                <Row style={{ gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <LabelInput
+                      C={C}
+                      label="Número de control"
+                      value={form.numControl}
+                      onChange={(v) => set("numControl", v)}
+                      placeholder="Ej. 20XXXXXX"
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <LabelInput
+                      C={C}
+                      label="Semestre"
+                      value={form.semestre}
+                      onChange={(v) => set("semestre", v)}
+                      placeholder="Ej. 9"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                </Row>
+                <View style={{ marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: C.textMuted,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Carrera
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                  >
+                    {CARRERAS.map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        onPress={() => set("carrera", c)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 20,
+                          borderWidth: 1,
+                          borderColor: form.carrera === c ? C.blue : C.border,
+                          backgroundColor:
+                            form.carrera === c ? C.blueLight : C.card,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "600",
+                            color: form.carrera === c ? C.blue : C.textMuted,
+                          }}
+                        >
+                          {c}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
+            {rol === "asesor" && (
+              <>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: "700",
+                    color: C.textMuted,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                    marginBottom: 12,
+                    marginTop: 4,
+                  }}
+                >
+                  Datos laborales
+                </Text>
+                <LabelInput
+                  C={C}
+                  label="Número de empleado"
+                  value={form.numEmpleado}
+                  onChange={(v) => set("numEmpleado", v)}
+                  placeholder="Ej. EMP-001"
+                />
+                <View style={{ marginBottom: 14 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: "700",
+                      color: C.textMuted,
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      marginBottom: 8,
+                    }}
+                  >
+                    Departamento
+                  </Text>
+                  <View
+                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
+                  >
+                    {DEPARTAMENTOS.map((d) => (
+                      <TouchableOpacity
+                        key={d}
+                        onPress={() => set("departamento", d)}
+                        style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 20,
+                          borderWidth: 1,
+                          borderColor:
+                            form.departamento === d ? C.teal : C.border,
+                          backgroundColor:
+                            form.departamento === d ? C.tealLight : C.card,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "600",
+                            color:
+                              form.departamento === d ? C.teal : C.textMuted,
+                          }}
+                        >
+                          {d}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
+            {/* Botones */}
+            <Row style={{ gap: 10, marginBottom: 8 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{
+                  flex: 1,
+                  paddingVertical: 11,
+                  borderRadius: 9,
+                  borderWidth: 1,
+                  borderColor: C.border,
+                  alignItems: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: C.textMuted,
+                  }}
+                >
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={guardar}
+                disabled={saving}
+                style={{
+                  flex: 2,
+                  paddingVertical: 11,
+                  borderRadius: 9,
+                  backgroundColor: saving
+                    ? C.textLight
+                    : rol === "asesor"
+                      ? C.teal
+                      : C.blue,
+                  alignItems: "center",
+                  flexDirection: "row",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                {saving ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <>
+                    <Feather name="user-plus" size={15} color="white" />
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: "700",
+                        color: "white",
+                      }}
+                    >
+                      Registrar {rol === "asesor" ? "Asesor" : "Residente"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </Row>
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ─── Tab: Residentes ──────────────────────────────────────────────────────────
 function ResidentesTab() {
   const { colors: C } = useTheme();
@@ -98,6 +637,7 @@ function ResidentesTab() {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showRegistrar, setShowRegistrar] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -165,6 +705,25 @@ function ResidentesTab() {
         C={C}
         title="Residentes"
         subtitle={`${residentes.length} registros`}
+        action={
+          <TouchableOpacity
+            onPress={() => setShowRegistrar(true)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              backgroundColor: C.blue,
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 9,
+            }}
+          >
+            <Feather name="user-plus" size={14} color="white" />
+            <Text style={{ fontSize: 13, color: "white", fontWeight: "700" }}>
+              Agregar Residente
+            </Text>
+          </TouchableOpacity>
+        }
       />
 
       {/* Filtros */}
@@ -222,7 +781,6 @@ function ResidentesTab() {
         <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} />
       ) : (
         <Card style={{ padding: 0, overflow: "hidden" }}>
-          {/* Cabecera */}
           <View
             style={{
               paddingHorizontal: 16,
@@ -386,7 +944,18 @@ function ResidentesTab() {
         </View>
       )}
 
-      {/* Modal editar */}
+      {/* Modal registrar residente */}
+      <RegistrarUsuarioModal
+        visible={showRegistrar}
+        rolDefault="residente"
+        onClose={() => setShowRegistrar(false)}
+        onSuccess={(nombre) => {
+          showToast(`${nombre} registrado`);
+          load();
+        }}
+      />
+
+      {/* Modal editar residente */}
       <Modal visible={!!editTarget} transparent animationType="fade">
         <Pressable
           style={{
@@ -552,6 +1121,7 @@ function AsesoresTab() {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showRegistrar, setShowRegistrar] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -622,6 +1192,25 @@ function AsesoresTab() {
         C={C}
         title="Asesores"
         subtitle={`${asesores.length} registros`}
+        action={
+          <TouchableOpacity
+            onPress={() => setShowRegistrar(true)}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 6,
+              backgroundColor: C.teal,
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+              borderRadius: 9,
+            }}
+          >
+            <Feather name="user-plus" size={14} color="white" />
+            <Text style={{ fontSize: 13, color: "white", fontWeight: "700" }}>
+              Agregar Asesor
+            </Text>
+          </TouchableOpacity>
+        }
       />
 
       <Row
@@ -811,6 +1400,18 @@ function AsesoresTab() {
         </View>
       )}
 
+      {/* Modal registrar asesor */}
+      <RegistrarUsuarioModal
+        visible={showRegistrar}
+        rolDefault="asesor"
+        onClose={() => setShowRegistrar(false)}
+        onSuccess={(nombre) => {
+          showToast(`${nombre} registrado`);
+          load();
+        }}
+      />
+
+      {/* Modal editar asesor */}
       <Modal visible={!!editTarget} transparent animationType="fade">
         <Pressable
           style={{
@@ -1385,6 +1986,35 @@ function PeriodosTab({ onPeriodoChange }) {
   );
 }
 
+// ─── Constantes para empresas ──────────────────────────────────────────────────
+const SECTOR_OPTS = [
+  "Tecnología",
+  "Manufactura",
+  "Software",
+  "Construcción",
+  "Farmacéutica",
+  "Automotriz",
+  "Educación",
+];
+const ESTADO_EMP_OPTS = ["Nueva", "Activa", "Por Vencer", "Inactiva"];
+const EMPTY_EMPRESA_FORM = {
+  name: "",
+  sector: "Tecnología",
+  ciudad: "",
+  convenio: "",
+  contactoNombre: "",
+  contactoEmail: "",
+  contactoTel: "",
+  status: "Nueva",
+};
+
+const STATUS_COLOR = {
+  Activa: { color: "#16A34A", bg: "#DCFCE7" },
+  "Por Vencer": { color: "#D97706", bg: "#FEF3C7" },
+  Nueva: { color: "#2563EB", bg: "#DBEAFE" },
+  Inactiva: { color: "#DC2626", bg: "#FEE2E2" },
+};
+
 // ─── Tab: Empresas por Período ─────────────────────────────────────────────────
 function EmpresasPeriodoTab() {
   const { colors: C } = useTheme();
@@ -1394,22 +2024,29 @@ function EmpresasPeriodoTab() {
   const [periodoEmpresas, setPeriodoEmpresas] = useState([]);
   const [loadingPeriodo, setLoadingPeriodo] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showCrearModal, setShowCrearModal] = useState(false);
   const [searchAdd, setSearchAdd] = useState("");
   const [adding, setAdding] = useState(null);
   const [toast, setToast] = useState(null);
+  const [empresaForm, setEmpresaForm] = useState(EMPTY_EMPRESA_FORM);
+  const [savingEmpresa, setSavingEmpresa] = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   };
 
+  const reloadEmpresas = useCallback(() => {
+    apiClient.get("/api/jefe/empresas").then((res) => {
+      if (res.ok && res.body?.ok) setEmpresas(res.body.empresas);
+    });
+  }, []);
+
   useEffect(() => {
     apiClient.get("/api/jefe/periodos").then((res) => {
       if (res.ok && res.body?.ok) setPeriodos(res.body.periodos);
     });
-    apiClient.get("/api/jefe/empresas").then((res) => {
-      if (res.ok && res.body?.ok) setEmpresas(res.body.empresas);
-    });
+    reloadEmpresas();
   }, []);
 
   const loadPeriodoEmpresas = useCallback((periodoId) => {
@@ -1448,6 +2085,41 @@ function EmpresasPeriodoTab() {
       showToast("Empresa removida del período");
       loadPeriodoEmpresas(selectedPeriodo.id);
     } else showToast("Error al remover", "error");
+  };
+
+  // Crear nueva empresa y opcionalmente agregarla al período actual
+  const crearEmpresa = async () => {
+    if (!empresaForm.name.trim()) {
+      showToast("El nombre de la empresa es requerido", "error");
+      return;
+    }
+    setSavingEmpresa(true);
+    const payload = {
+      ...empresaForm,
+      convenio: empresaForm.convenio
+        ? new Date(empresaForm.convenio).toISOString().split("T")[0]
+        : null,
+    };
+    const res = await apiClient.post("/api/jefe/empresas", payload);
+    if (res.ok) {
+      const nuevaId = res.body?.empresa?.id || res.body?.id;
+      showToast("Empresa creada exitosamente");
+      reloadEmpresas();
+      setShowCrearModal(false);
+      setEmpresaForm(EMPTY_EMPRESA_FORM);
+      // Si hay un período seleccionado, agregar automáticamente la nueva empresa
+      if (selectedPeriodo && nuevaId) {
+        await apiClient.post(
+          `/api/jefe/periodos/${selectedPeriodo.id}/empresas`,
+          { empresa_id: nuevaId },
+        );
+        loadPeriodoEmpresas(selectedPeriodo.id);
+        showToast(`Empresa creada y agregada a ${selectedPeriodo.nombre}`);
+      }
+    } else {
+      showToast(res.body?.mensaje || "Error al crear empresa", "error");
+    }
+    setSavingEmpresa(false);
   };
 
   const assignedIds = new Set(periodoEmpresas.map((e) => e.id));
@@ -1589,28 +2261,55 @@ function EmpresasPeriodoTab() {
                   {periodoEmpresas.length !== 1 ? "s" : ""}
                 </Text>
               </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchAdd("");
-                  setShowAddModal(true);
-                }}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 6,
-                  backgroundColor: C.teal,
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
-                  borderRadius: 8,
-                }}
-              >
-                <Feather name="plus" size={13} color="white" />
-                <Text
-                  style={{ fontSize: 12, color: "white", fontWeight: "700" }}
+              {/* Botones de acción */}
+              <Row style={{ gap: 8 }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSearchAdd("");
+                    setShowAddModal(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    borderWidth: 1,
+                    borderColor: C.teal,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    backgroundColor: C.tealLight,
+                  }}
                 >
-                  Agregar empresa
-                </Text>
-              </TouchableOpacity>
+                  <Feather name="link" size={13} color={C.teal} />
+                  <Text
+                    style={{ fontSize: 12, color: C.teal, fontWeight: "700" }}
+                  >
+                    Vincular existente
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setEmpresaForm(EMPTY_EMPRESA_FORM);
+                    setShowCrearModal(true);
+                  }}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 6,
+                    backgroundColor: C.teal,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                  }}
+                >
+                  <Feather name="plus" size={13} color="white" />
+                  <Text
+                    style={{ fontSize: 12, color: "white", fontWeight: "700" }}
+                  >
+                    Crear empresa
+                  </Text>
+                </TouchableOpacity>
+              </Row>
             </Row>
           </View>
 
@@ -1714,7 +2413,7 @@ function EmpresasPeriodoTab() {
         </View>
       )}
 
-      {/* Modal: Agregar empresa al período */}
+      {/* Modal: Vincular empresa existente al período */}
       <Modal visible={showAddModal} transparent animationType="fade">
         <Pressable
           style={{
@@ -1753,7 +2452,7 @@ function EmpresasPeriodoTab() {
                 <Text
                   style={{ fontSize: 16, fontWeight: "800", color: C.text }}
                 >
-                  Agregar empresa — {selectedPeriodo?.nombre}
+                  Vincular empresa — {selectedPeriodo?.nombre}
                 </Text>
                 <TouchableOpacity onPress={() => setShowAddModal(false)}>
                   <Feather name="x" size={18} color={C.textMuted} />
@@ -1856,6 +2555,328 @@ function EmpresasPeriodoTab() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Modal: Crear nueva empresa */}
+      <Modal visible={showCrearModal} transparent animationType="fade">
+        <Pressable
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+          onPress={() => setShowCrearModal(false)}
+        >
+          <Pressable
+            style={{
+              width: 520,
+              backgroundColor: C.card,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderColor: C.border,
+              overflow: "hidden",
+            }}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <View
+              style={{
+                padding: 24,
+                paddingBottom: 16,
+                borderBottomWidth: 1,
+                borderBottomColor: C.border,
+              }}
+            >
+              <Row
+                style={{
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Row style={{ alignItems: "center", gap: 10 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 10,
+                      backgroundColor: C.tealLight,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Feather name="briefcase" size={18} color={C.teal} />
+                  </View>
+                  <View>
+                    <Text
+                      style={{ fontSize: 18, fontWeight: "800", color: C.text }}
+                    >
+                      Nueva Empresa
+                    </Text>
+                    {selectedPeriodo && (
+                      <Text
+                        style={{ fontSize: 11, color: C.teal, marginTop: 2 }}
+                      >
+                        Se agregará al período: {selectedPeriodo.nombre}
+                      </Text>
+                    )}
+                  </View>
+                </Row>
+                <TouchableOpacity onPress={() => setShowCrearModal(false)}>
+                  <Feather name="x" size={20} color={C.textMuted} />
+                </TouchableOpacity>
+              </Row>
+            </View>
+
+            <ScrollView
+              style={{ padding: 24, maxHeight: 460 }}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Nombre */}
+              <LabelInput
+                C={C}
+                label="Nombre *"
+                value={empresaForm.name}
+                onChange={(v) => setEmpresaForm({ ...empresaForm, name: v })}
+                placeholder="Ej: Telmex S.A. de C.V."
+              />
+
+              {/* Sector */}
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: C.textMuted,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  marginBottom: 8,
+                }}
+              >
+                Sector
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 14,
+                }}
+              >
+                {SECTOR_OPTS.map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() =>
+                      setEmpresaForm({ ...empresaForm, sector: s })
+                    }
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: empresaForm.sector === s ? C.teal : C.border,
+                      backgroundColor:
+                        empresaForm.sector === s ? C.tealLight : C.card,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: "600",
+                        color: empresaForm.sector === s ? C.teal : C.textMuted,
+                      }}
+                    >
+                      {s}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Estado */}
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: "700",
+                  color: C.textMuted,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  marginBottom: 8,
+                }}
+              >
+                Estado del convenio
+              </Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginBottom: 14,
+                }}
+              >
+                {ESTADO_EMP_OPTS.map((s) => {
+                  const st = STATUS_COLOR[s] || STATUS_COLOR.Nueva;
+                  const sel = empresaForm.status === s;
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      onPress={() =>
+                        setEmpresaForm({ ...empresaForm, status: s })
+                      }
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: sel ? st.color : C.border,
+                        backgroundColor: C.card,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: "600",
+                          color: sel ? st.color : C.textMuted,
+                        }}
+                      >
+                        {s}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Ciudad y Convenio */}
+              <Row style={{ gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <LabelInput
+                    C={C}
+                    label="Ciudad"
+                    value={empresaForm.ciudad}
+                    onChange={(v) =>
+                      setEmpresaForm({ ...empresaForm, ciudad: v })
+                    }
+                    placeholder="Ej: Minatitlán"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <LabelInput
+                    C={C}
+                    label="Vencimiento convenio"
+                    value={empresaForm.convenio}
+                    onChange={(v) =>
+                      setEmpresaForm({ ...empresaForm, convenio: v })
+                    }
+                    placeholder="AAAA-MM-DD"
+                  />
+                </View>
+              </Row>
+
+              {/* Contacto */}
+              <Text
+                style={{
+                  fontSize: 13,
+                  fontWeight: "700",
+                  color: C.text,
+                  marginBottom: 12,
+                }}
+              >
+                Contacto principal
+              </Text>
+              <Row style={{ gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <LabelInput
+                    C={C}
+                    label="Nombre"
+                    value={empresaForm.contactoNombre}
+                    onChange={(v) =>
+                      setEmpresaForm({ ...empresaForm, contactoNombre: v })
+                    }
+                    placeholder="Ing. Juan Pérez"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <LabelInput
+                    C={C}
+                    label="Teléfono"
+                    value={empresaForm.contactoTel}
+                    onChange={(v) =>
+                      setEmpresaForm({ ...empresaForm, contactoTel: v })
+                    }
+                    placeholder="+52 (921) 0000-0000"
+                    keyboardType="phone-pad"
+                  />
+                </View>
+              </Row>
+              <LabelInput
+                C={C}
+                label="Correo"
+                value={empresaForm.contactoEmail}
+                onChange={(v) =>
+                  setEmpresaForm({ ...empresaForm, contactoEmail: v })
+                }
+                placeholder="contacto@empresa.com"
+                keyboardType="email-address"
+              />
+
+              {/* Botones */}
+              <Row style={{ gap: 10, marginBottom: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setShowCrearModal(false)}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 9,
+                    borderWidth: 1,
+                    borderColor: C.border,
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: "600",
+                      color: C.textMuted,
+                    }}
+                  >
+                    Cancelar
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={crearEmpresa}
+                  disabled={savingEmpresa}
+                  style={{
+                    flex: 2,
+                    paddingVertical: 11,
+                    borderRadius: 9,
+                    backgroundColor: savingEmpresa ? C.textLight : C.teal,
+                    alignItems: "center",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    gap: 8,
+                  }}
+                >
+                  {savingEmpresa ? (
+                    <ActivityIndicator size="small" color="white" />
+                  ) : (
+                    <>
+                      <Feather name="plus-circle" size={15} color="white" />
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: "700",
+                          color: "white",
+                        }}
+                      >
+                        {selectedPeriodo
+                          ? "Crear y agregar al período"
+                          : "Crear Empresa"}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </Row>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -1890,24 +2911,11 @@ export default function AdminSistema() {
           >
             <Feather name="settings" size={19} color={C.teal} />
           </View>
-
           <View>
-            <Text
-              style={{
-                fontSize: 22,
-                fontWeight: "800",
-                color: C.text,
-              }}
-            >
+            <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>
               Administración del Sistema
             </Text>
-
-            <Text
-              style={{
-                fontSize: 13,
-                color: C.textMuted,
-              }}
-            >
+            <Text style={{ fontSize: 13, color: C.textMuted }}>
               Gestión centralizada de datos
             </Text>
           </View>
@@ -1932,7 +2940,6 @@ export default function AdminSistema() {
         >
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
-
             return (
               <TouchableOpacity
                 key={tab.id}
@@ -1952,7 +2959,6 @@ export default function AdminSistema() {
                   size={14}
                   color={active ? "white" : C.textMuted}
                 />
-
                 <Text
                   style={{
                     fontSize: 13,

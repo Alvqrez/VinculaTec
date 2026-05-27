@@ -9,7 +9,6 @@ import GestionEmpresas from "../../screens/GestionEmpresas";
 import GestionProyectos from "../../screens/GestionProyectos";
 import SeguimientoJefe from "../../screens/SeguimientoJefe";
 import AsignacionJefe from "../../screens/AsignacionJefe";
-import RegistrarUsuario from "../../screens/RegistrarUsuario";
 import Utilerias from "../../screens/Utilerias";
 import Notificaciones from "../../screens/Notificaciones";
 import CalendarioCitas from "../../screens/CalendarioCitas";
@@ -21,7 +20,6 @@ const NAV = [
   { id: "empresas", label: "Empresas", icon: "briefcase" },
   { id: "proyectos", label: "Proyectos", icon: "folder" },
   { id: "asignacion", label: "Asignación", icon: "user-plus" },
-  { id: "registrar", label: "Registrar", icon: "user-plus" },
   { id: "seguimiento", label: "Seguimiento", icon: "file-text" },
   { id: "estadisticas", label: "Estadísticas", icon: "bar-chart" },
   { id: "notificaciones", label: "Notificaciones", icon: "bell" },
@@ -65,7 +63,6 @@ export default function JefeApp({ usuario, onLogout }) {
     empresas: <GestionEmpresas />,
     proyectos: <GestionProyectos />,
     asignacion: <AsignacionJefe />,
-    registrar: <RegistrarUsuario />,
     seguimiento: <SeguimientoJefe />,
     estadisticas: <EstadisticasPeriodo />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
