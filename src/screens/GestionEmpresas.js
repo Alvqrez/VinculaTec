@@ -240,7 +240,7 @@ export default function GestionEmpresas() {
                 position:"absolute", top: filterPos.top, left: filterPos.left,
                 width:284, backgroundColor:C.card, borderRadius:12, borderWidth:1,
                 borderColor:C.border, padding:16,
-                shadowColor:"#000", shadowOpacity:0.14, shadowRadius:14, shadowOffset:{width:0,height:4}, elevation:24,
+                shadowColor:"#000", shadowOpacity:0.14, shadowRadius:14, shadowOffset:{width:0,height:4}, elevation:5, zIndex:999,
               }}
               onPress={(e)=>e.stopPropagation()}
             >

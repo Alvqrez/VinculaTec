@@ -1878,8 +1878,21 @@ export default function AdminSistema({ section = "residentes" }) {
   }, [section]);
 
   return (
+    <View style={{ flex: 1, backgroundColor: "#F3F4F6", justifyContent: "center", alignItems: "center" }}>
+      <Text style={{ fontSize: 28, fontWeight: "800", color: "#374151", marginBottom: 12 }}>
+        ⚠️ Sección en Mantenimiento
+      </Text>
+      <Text style={{ fontSize: 16, color: "#6B7280" }}>
+        Esta pantalla estará disponible próximamente
+      </Text>
+    </View>
+  );
+
+  /*
+  // ─── CÓDIGO ORIGINAL COMENTADO ───────────────────────────────────────────────────────────────────────────────
+  return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* Header */}
+      {/* Header *\/}
       <View style={{ marginBottom: 20 }}>
         <Row style={{ alignItems: "center", gap: 12, marginBottom: 4 }}>
           <View
@@ -1905,7 +1918,7 @@ export default function AdminSistema({ section = "residentes" }) {
         </Row>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs *\/}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -1957,7 +1970,7 @@ export default function AdminSistema({ section = "residentes" }) {
         </Row>
       </ScrollView>
 
-      {/* Contenido del tab activo */}
+      {/* Contenido del tab activo *\/}
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
         {activeTab === "residentes" && <ResidentesTab />}
         {activeTab === "asesores" && <AsesoresTab />}
@@ -1966,4 +1979,5 @@ export default function AdminSistema({ section = "residentes" }) {
       </ScrollView>
     </View>
   );
+  */
 }

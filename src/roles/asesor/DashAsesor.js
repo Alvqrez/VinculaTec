@@ -118,18 +118,13 @@ export default function DashAsesor({ onNavigate }) {
     return reuniones;
   }, [proyectos]);
 
-  // GRÁFICA: Usar datos reales del Context (que viene de /api/asesor/proyectos)
+  // GRÁFICA: Datos de ESTADO DE REPORTES (no fases de proyectos)
   // Formato para react-native-chart-kit PieChart
   const datosGraficaReal = useMemo(() => {
-    const enDesarrollo = proyectos.filter(
-      (p) => p.phase === "desarrollo",
-    ).length;
-    const enRevision = proyectos.filter((p) => p.phase === "revision").length;
-    const concluidos = proyectos.filter((p) => p.phase === "concluido").length;
-
-    // Filtrar segmentos con valor 0 para evitar errores en la librería
+    // Usar los datos filtrados por período (coherente con las barras inferiores)
     const data = [
       {
+<<<<<<< Updated upstream
         name: "Desarrollo",
         population: enDesarrollo,
         color: "#F59E0B",
@@ -148,6 +143,26 @@ export default function DashAsesor({ onNavigate }) {
         population: concluidos,
         color: "#10B981",
         legendFontColor: C.text,
+=======
+        name: "Aceptados",
+        population: filteredAceptados,
+        color: C.green,
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Pendientes",
+        population: filteredPendientes,
+        color: C.amber,
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Por corregir",
+        population: filteredPorCorregir,
+        color: C.red,
+        legendFontColor: "#6B7280",
+>>>>>>> Stashed changes
         legendFontSize: 12,
       },
     ].filter((d) => d.population > 0);
@@ -156,7 +171,7 @@ export default function DashAsesor({ onNavigate }) {
     if (data.length === 0) {
       return [
         {
-          name: "Sin proyectos",
+          name: "Sin reportes",
           population: 1,
           color: "#E5E7EB",
           legendFontColor: C.text,
@@ -166,7 +181,7 @@ export default function DashAsesor({ onNavigate }) {
     }
 
     return data;
-  }, [proyectos]);
+  }, [filteredAceptados, filteredPendientes, filteredPorCorregir, C.green, C.amber, C.red]);
 
   // Convertir citas del backend al formato de reuniones
   const proximasReuniones = useMemo(() => {
@@ -586,8 +601,8 @@ export default function DashAsesor({ onNavigate }) {
                   backgroundColor: C.green,
                 }}
               />
-              <Text style={{ fontSize: 11, color: C.textMuted, width: 20 }}>
-                {filteredAceptados}
+              <Text style={{ fontSize: 11, color: C.textMuted, minWidth: 80 }}>
+                Aceptados: {filteredAceptados}
               </Text>
             </Row>
             <Row style={{ alignItems: "center", gap: 8 }}>
@@ -599,8 +614,8 @@ export default function DashAsesor({ onNavigate }) {
                   backgroundColor: C.amber,
                 }}
               />
-              <Text style={{ fontSize: 11, color: C.textMuted, width: 20 }}>
-                {filteredPendientes}
+              <Text style={{ fontSize: 11, color: C.textMuted, minWidth: 80 }}>
+                Pendientes: {filteredPendientes}
               </Text>
             </Row>
             <Row style={{ alignItems: "center", gap: 8 }}>
@@ -612,8 +627,8 @@ export default function DashAsesor({ onNavigate }) {
                   backgroundColor: C.red,
                 }}
               />
-              <Text style={{ fontSize: 11, color: C.textMuted, width: 20 }}>
-                {filteredPorCorregir}
+              <Text style={{ fontSize: 11, color: C.textMuted, minWidth: 80 }}>
+                Por corregir: {filteredPorCorregir}
               </Text>
             </Row>
           </View>
