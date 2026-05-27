@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Text, TextInput, Platform } from "react-native";
 import {
   useFonts,
@@ -111,6 +112,7 @@ export default function App() {
 
   // ── 3. Árbol de providers ─────────────────────────────────────────────────
   return (
+  <SafeAreaProvider>
     <WebSocketProvider usuario={usuario}>
       <ThemeProvider>
         <FotosProvider>
@@ -140,7 +142,8 @@ export default function App() {
             </ReportesProvider>
           </ProyectosProvider>
         </FotosProvider>
-      </ThemeProvider>
+        </ThemeProvider>
     </WebSocketProvider>
-  );
+  </SafeAreaProvider>
+);
 }

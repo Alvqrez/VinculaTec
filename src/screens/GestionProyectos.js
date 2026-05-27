@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 import {
   View,
   Text,
@@ -15,6 +16,7 @@ import { useTheme } from "../context/ThemeContext";
 import { Row, Badge } from "../components";
 import apiClient from "../utils/apiClient";
 import { useWebSocket } from "../context/WebSocketContext";
+import { useResponsive } from "../hooks/useResponsive";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 const PRIORIDADES = ["Alta", "Media", "Baja"];
@@ -330,7 +332,13 @@ const ProjectCard = React.memo(
 );
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
-export default function GestionProyectos() {
+export default function GestionProyectos() 
+{const {
+  isMobile,
+  modalWidth,
+  spacing,
+  width,
+} = useResponsive();
   const { colors: C } = useTheme();
 
   const PHASE_COLUMNS = [
@@ -569,13 +577,25 @@ export default function GestionProyectos() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 24 }}>
+    <SafeAreaView
+    style={{
+      flex: 1,
+      backgroundColor: C.bg,
+    }}
+  >
+            <ScrollView
+        contentContainerStyle={{
+          padding: isMobile ? 12 : 24,
+          paddingBottom: isMobile ? 120 : 24,
+        }}
+      >
         {/* ── Header ── */}
         <Row
           style={{
+            flexDirection: isMobile ? "column" : "row",
             justifyContent: "space-between",
-            alignItems: "center",
+            alignItems: isMobile ? "stretch" : "center",
+            gap: 14,
             marginBottom: 22,
           }}
         >
@@ -712,13 +732,22 @@ export default function GestionProyectos() {
             </Text>
           </View>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <Row style={{ gap: 14, alignItems: "flex-start" }}>
+            <ScrollView
+              horizontal={!isMobile}
+              showsHorizontalScrollIndicator={false}
+            >
+              <Row
+              style={{
+                flexDirection: isMobile ? "column" : "row",
+                gap: 14,
+                alignItems: "flex-start",
+              }}
+            >
               {columns.map((col) => (
                 <View
                   key={col.id}
                   style={{
-                    width: 270,
+                    width: isMobile ? width - 40 : 270,
                     backgroundColor: C.card,
                     borderRadius: 14,
                     borderWidth: 1,
@@ -869,7 +898,7 @@ export default function GestionProyectos() {
         >
           <Pressable
             style={{
-              width: 420,
+              width: modalWidth,
               backgroundColor: C.card,
               borderRadius: 16,
               padding: 28,
@@ -899,7 +928,10 @@ export default function GestionProyectos() {
                 onChangeText={(v) => setEditForm({ ...editForm, title: v })}
                 placeholder="Nombre del proyecto"
                 placeholderTextColor={C.textLight}
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  fontSize: isMobile ? 16 : 14,
+                }}
               />
             </Field>
 
@@ -943,7 +975,10 @@ export default function GestionProyectos() {
                 onChangeText={(v) => setEditForm({ ...editForm, tags: v })}
                 placeholder="React, Node.js, MySQL…"
                 placeholderTextColor={C.textLight}
-                style={inputStyle}
+                style={{
+                  ...inputStyle,
+                  fontSize: isMobile ? 16 : 14,
+                }}
               />
             </Field>
 
@@ -1008,7 +1043,7 @@ export default function GestionProyectos() {
         >
           <Pressable
             style={{
-              width: 460,
+              width: modalWidth,
               maxHeight: "70%",
               backgroundColor: C.card,
               borderRadius: 16,
@@ -1277,7 +1312,7 @@ export default function GestionProyectos() {
         >
           <Pressable
             style={{
-              width: 480,
+              width: modalWidth,
               maxHeight: "85%",
               backgroundColor: C.card,
               borderRadius: 16,
@@ -1334,7 +1369,10 @@ export default function GestionProyectos() {
                   }
                   placeholder="Nombre del proyecto"
                   placeholderTextColor={C.textLight}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    fontSize: isMobile ? 16 : 14,
+                  }}
                 />
               </Field>
 
@@ -1528,7 +1566,10 @@ export default function GestionProyectos() {
                   }
                   placeholder="React, Node.js, MySQL…"
                   placeholderTextColor={C.textLight}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    fontSize: isMobile ? 16 : 14,
+                  }}
                 />
               </Field>
 
@@ -1540,7 +1581,10 @@ export default function GestionProyectos() {
                   }
                   placeholder="Ej: 2025-1, 2025-2…"
                   placeholderTextColor={C.textLight}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    fontSize: isMobile ? 16 : 14,
+                  }}
                 />
               </Field>
 
@@ -1571,7 +1615,12 @@ export default function GestionProyectos() {
                 borderTopColor: C.border,
               }}
             >
-              <Row style={{ gap: 10 }}>
+              <Row
+                style={{
+                  flexDirection: isMobile ? "column" : "row",
+                  gap: 10,
+                }}
+              >
                 <TouchableOpacity
                   onPress={() => setShowRegister(false)}
                   style={{
@@ -1632,6 +1681,6 @@ export default function GestionProyectos() {
           </Pressable>
         </Pressable>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }

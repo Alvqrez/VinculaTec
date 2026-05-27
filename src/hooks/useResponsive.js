@@ -1,21 +1,26 @@
-import { useWindowDimensions } from 'react-native';
-
-const BREAKPOINTS = {
-  mobile: 768,
-  tablet: 1024,
-};
+import { useWindowDimensions } from "react-native";
 
 export const useResponsive = () => {
   const { width, height } = useWindowDimensions();
 
+  const isMobile = width < 768;
+  const isTablet = width >= 768 && width < 1024;
+  const isDesktop = width >= 1024;
+
   return {
     width,
     height,
-    isMobile: width < BREAKPOINTS.mobile,
-    isTablet: width >= BREAKPOINTS.mobile && width < BREAKPOINTS.tablet,
-    isDesktop: width >= BREAKPOINTS.tablet,
-    isLandscape: width > height,
+
+    isMobile,
+    isTablet,
+    isDesktop,
+
+    spacing: isMobile ? 12 : 24,
+
+    modalWidth: isMobile
+      ? width * 0.95
+      : isTablet
+      ? width * 0.75
+      : 650,
   };
 };
-
-export default useResponsive;
