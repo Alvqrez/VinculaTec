@@ -212,10 +212,17 @@ export default function SeguimientoAsesor() {
   const createNotificationData = (statusFinal) => {
     const esPreliminar = reviewingReport.fase === "Preliminar";
     const isAceptado = statusFinal === "Aceptado";
+    const nombreReporte = reviewingReport.titulo || reviewingReport.fase;
+
+    const titulo = isAceptado
+      ? `El reporte "${nombreReporte}" fue aceptado ✓`
+      : esPreliminar
+        ? `El reporte "${nombreReporte}" no fue aceptado`
+        : `El reporte "${nombreReporte}" requiere correcciones`;
 
     return {
       tipo: "REVISION",
-      titulo: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : isAceptado ? "Aceptado ✓" : "Requiere correcciones"}`,
+      titulo,
       mensaje: feedback.trim(),
       icon: isAceptado ? "check-circle" : "x-circle",
       iconColor: isAceptado ? C.green : C.red,

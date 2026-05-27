@@ -182,8 +182,6 @@ export function ReportesProvider({ children }) {
         );
 
         // Devolver el residenteUsuarioId del backend para que el front cree la notificación al residente correcto
-        return data.residenteUsuarioId || true;
-
         // Desbloquear siguiente parcial cuando se acepta
         if (status === "Aceptado" && typeof id === "number") {
           setParcialesDesbloqueados((prev) => new Set([...prev, id + 1]));
@@ -192,7 +190,7 @@ export function ReportesProvider({ children }) {
           setParcialesDesbloqueados((prev) => new Set([...prev, 1]));
         }
 
-        return true; // Éxito completo
+        return data.residenteUsuarioId || true;
       } catch (err) {
         console.error("[reviewReport] Error de conexión:", err);
         return false; // Falló la conexión
