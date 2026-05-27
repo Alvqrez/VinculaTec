@@ -97,12 +97,18 @@ export default function ReporteFinal({ usuario }) {
   const fechaLimite = finalReport?.fecha_limite
     ? new Date(finalReport.fecha_limite).toLocaleDateString("es-MX", { day: "2-digit", month: "long", year: "numeric" })
     : null;
+// ── CHECKLIST: marcar completo cuando ya fue enviado o aceptado ───
+    const finalCompletado =
+      finalReport?.status === "En Revisión" ||
+      finalReport?.status === "Aceptado";
 
-  // ── CHECKLIST: todas las secciones "done" si el reporte fue aceptado ───
-  const finalAceptado = finalReport?.status === "Aceptado";
-  const CHECKLIST = CHECKLIST_LABELS.map((label) => ({ label, done: finalAceptado }));
-  const doneCount = CHECKLIST.filter((i) => i.done).length;
-  const pct = Math.round((doneCount / CHECKLIST.length) * 100);
+    const CHECKLIST = CHECKLIST_LABELS.map((label) => ({
+      label,
+      done: finalCompletado,
+    }));
+
+    const doneCount = CHECKLIST.filter((i) => i.done).length;
+    const pct = Math.round((doneCount / CHECKLIST.length) * 100);
 
   // ── TIMELINE: derivado de las fechas reales de los reportes ────────────
   const parciales = reports?.filter((r) => typeof r.id === "number") ?? [];
@@ -131,9 +137,16 @@ export default function ReporteFinal({ usuario }) {
   const RUBRIC = RUBRIC_TEMPLATE.map((r) => ({
     label: r.label,
     max: Math.round(r.pct * 100),
-    earned: calificacion !== null ? Math.round(r.pct * calificacion) : 0,
+    earned:
+  finalCompletado && calificacion !== null
+    ? Math.round(r.pct * calificacion)
+    : finalCompletado
+      ? Math.round(r.pct * 100)
+      : 0,
   }));
-  const totalEarned = calificacion ?? 0;
+  const totalEarned =
+  calificacion ??
+  (finalCompletado ? 100 : 0);
   const totalMax    = 100;
 
   // ── Nombre del residente e iniciales ──────────────────────────────────
@@ -516,11 +529,19 @@ export default function ReporteFinal({ usuario }) {
                   borderRadius: 45,
                   borderWidth: 8,
                   borderColor: C.teal,
-                  borderRightColor: "transparent",
-                  borderBottomColor: "transparent",
-                  transform: [{ rotate: "-45deg" }],
+                  borderRightColor: pct >= 25 ? C.teal : "transparent",
+                  borderBottomColor: pct >= 50 ? C.teal : "transparent",
+                  borderLeftColor: pct >= 75 ? C.teal : "transparent",
+                  borderTopColor: C.teal,
+                  transform: [
+                    {
+                      rotate: `${(pct / 100) * 360 - 90}deg`,
+                    },
+                  ],
                 }}
               />
+
+
               <Text style={{ fontSize: 20, fontWeight: "800", color: "white" }}>
                 {pct}%
               </Text>
