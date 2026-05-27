@@ -1868,14 +1868,9 @@ const TABS = [
   { id: "empresas_periodo", label: "Empresas / Período", icon: "briefcase" },
 ];
 
-export default function AdminSistema({ section = "residentes" }) {
+export default function AdminSistema() {
   const { colors: C } = useTheme();
-  const [activeTab, setActiveTab] = useState(section);
-
-  // Sincronizar tab cuando cambia la prop (al navegar desde sidebar)
-  useEffect(() => {
-    setActiveTab(section);
-  }, [section]);
+  const [activeTab, setActiveTab] = useState("residentes");
 
   return (
     <View style={{ backgroundColor: C.bg }}>

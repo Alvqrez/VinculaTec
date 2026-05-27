@@ -16,7 +16,6 @@ import CalendarioCitas from "../../screens/CalendarioCitas";
 import EstadisticasPeriodo from "../../screens/EstadisticasPeriodo";
 import AdminSistema from "../jefe/AdminSistema";
 
-// Sección de administración como grupo colapsable en el sidebar
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: "grid" },
   { id: "empresas", label: "Empresas", icon: "briefcase" },
@@ -27,32 +26,9 @@ const NAV = [
   { id: "estadisticas", label: "Estadísticas", icon: "bar-chart" },
   { id: "notificaciones", label: "Notificaciones", icon: "bell" },
   { id: "calendario", label: "Calendario", icon: "calendar" },
-  {
-    id: "admin",
-    label: "Administración",
-    icon: "settings",
-    group: true,
-    children: [
-      { id: "admin_residentes", label: "Residentes", icon: "users" },
-      { id: "admin_asesores", label: "Asesores", icon: "user-check" },
-      { id: "admin_periodos", label: "Períodos", icon: "calendar" },
-      {
-        id: "admin_empresas_periodo",
-        label: "Empresas / Período",
-        icon: "briefcase",
-      },
-    ],
-  },
+  { id: "admin", label: "Administración", icon: "settings" },
   { id: "utilerias", label: "Utilerías", icon: "tool" },
 ];
-
-// Mapea IDs de subnav a la sección (tab) que mostrará AdminSistema
-const ADMIN_SECTION_MAP = {
-  admin_residentes: "residentes",
-  admin_asesores: "asesores",
-  admin_periodos: "periodos",
-  admin_empresas_periodo: "empresas_periodo",
-};
 
 export default function JefeApp({ usuario, onLogout }) {
   const [activeNav, setActiveNav] = useState("dashboard");
@@ -84,8 +60,6 @@ export default function JefeApp({ usuario, onLogout }) {
   const fotoPerfil = getFoto(usuario?.id);
   const setFotoPerfil = (foto) => setFoto(usuario?.id, foto);
 
-  const adminSection = ADMIN_SECTION_MAP[activeNav];
-
   const views = {
     dashboard: <DashJefe onNavigate={navigateTo} />,
     empresas: <GestionEmpresas />,
@@ -96,6 +70,7 @@ export default function JefeApp({ usuario, onLogout }) {
     estadisticas: <EstadisticasPeriodo />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
     calendario: <CalendarioCitas />,
+    admin: <AdminSistema />,
     utilerias: (
       <Utilerias
         fotoPerfil={fotoPerfil}
@@ -117,11 +92,7 @@ export default function JefeApp({ usuario, onLogout }) {
       fotoPerfil={fotoPerfil}
       fadeAnim={fadeAnim}
     >
-      {adminSection ? (
-        <AdminSistema section={adminSection} />
-      ) : (
-        views[activeNav] || views.dashboard
-      )}
+      {views[activeNav] || views.dashboard}
     </AdaptiveLayout>
   );
 }
