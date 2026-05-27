@@ -118,50 +118,6 @@ export default function DashAsesor({ onNavigate }) {
     return reuniones;
   }, [proyectos]);
 
-  // GRÁFICA: Datos de ESTADO DE REPORTES (no fases de proyectos)
-  // Formato para react-native-chart-kit PieChart
-  const datosGraficaReal = useMemo(() => {
-    // Usar los datos filtrados por período (coherente con las barras inferiores)
-    const data = [
-      {
-        name: "Aceptados",
-        population: filteredAceptados,
-        color: C.green,
-        legendFontColor: "#6B7280",
-        legendFontSize: 12,
-      },
-      {
-        name: "Pendientes",
-        population: filteredPendientes,
-        color: C.amber,
-        legendFontColor: "#6B7280",
-        legendFontSize: 12,
-      },
-      {
-        name: "Por corregir",
-        population: filteredPorCorregir,
-        color: C.red,
-        legendFontColor: "#6B7280",
-        legendFontSize: 12,
-      },
-    ].filter((d) => d.population > 0);
-
-    // Si no hay datos, devolver un placeholder para que la gráfica no crashee
-    if (data.length === 0) {
-      return [
-        {
-          name: "Sin reportes",
-          population: 1,
-          color: "#E5E7EB",
-          legendFontColor: C.text,
-          legendFontSize: 12,
-        },
-      ];
-    }
-
-    return data;
-  }, [filteredAceptados, filteredPendientes, filteredPorCorregir, C.green, C.amber, C.red]);
-
   // Convertir citas del backend al formato de reuniones
   const proximasReuniones = useMemo(() => {
     return backendData.proximasCitas.map((cita) => ({
@@ -280,6 +236,50 @@ export default function DashAsesor({ onNavigate }) {
   const filteredPendientes = filteredReportes.filter(
     (r) => r.status === "Pendiente",
   ).length;
+
+  // GRÁFICA: Datos de ESTADO DE REPORTES (no fases de proyectos)
+  // Formato para react-native-chart-kit PieChart
+  const datosGraficaReal = useMemo(() => {
+    // Usar los datos filtrados por período (coherente con las barras inferiores)
+    const data = [
+      {
+        name: "Aceptados",
+        population: filteredAceptados,
+        color: C.green,
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Pendientes",
+        population: filteredPendientes,
+        color: C.amber,
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+      {
+        name: "Por corregir",
+        population: filteredPorCorregir,
+        color: C.red,
+        legendFontColor: "#6B7280",
+        legendFontSize: 12,
+      },
+    ].filter((d) => d.population > 0);
+
+    // Si no hay datos, devolver un placeholder para que la gráfica no crashee
+    if (data.length === 0) {
+      return [
+        {
+          name: "Sin reportes",
+          population: 1,
+          color: "#E5E7EB",
+          legendFontColor: C.text,
+          legendFontSize: 12,
+        },
+      ];
+    }
+
+    return data;
+  }, [filteredAceptados, filteredPendientes, filteredPorCorregir, C.green, C.amber, C.red]);
 
   if (loadingBackend) {
     return (
