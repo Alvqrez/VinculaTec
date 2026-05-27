@@ -257,11 +257,12 @@ router.post("/",
 
     const metadataJson = metadata ? JSON.stringify(metadata) : null;
 
+    // BUG FIX: el INSERT tenía 14 '?' pero solo 13 columnas/valores → error SQL.
     const [result] = await db.execute(
       `INSERT INTO notificaciones 
        (usuario_id, tipo_notificacion, titulo, mensaje, icon, icon_color, icon_bg,
         proyecto_id, fase, action_screen, action_label, metadata, is_read)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
       [usuario_id, tipo_notificacion, titulo, mensaje, icon, icon_color, icon_bg,
        proyecto_id, fase, action_screen, action_label, metadataJson, false],
     );

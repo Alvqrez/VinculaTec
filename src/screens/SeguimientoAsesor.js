@@ -222,23 +222,6 @@ export default function SeguimientoAsesor() {
     };
   };
 
-  const saveReviewToBackend = async (statusFinal) => {
-    const reportesId = FASE_TO_REPORTES_ID[reviewingReport.fase];
-    if (reportesId === undefined || !reviewReport) return true;
-
-    const reviewResult = await reviewReport(reportesId, {
-      status: statusFinal,
-      feedback: feedback.trim(),
-      reviewer: "Asesor",
-      dbReporteId: reviewingReport.id,
-    });
-
-    if (!reviewResult) {
-      throw new Error("No se pudo guardar la revisión en la base de datos");
-    }
-    return true;
-  };
-
   const updateLocalState = (statusFinal, historialEntry) => {
     updateReporte(activeProject.id, reviewingReport.id, {
       status: statusFinal,
@@ -251,39 +234,32 @@ export default function SeguimientoAsesor() {
     });
   };
 
-  const sendNotification = async (datosNotificacion) => {
-    const residenteData = activeProject.residentes?.find(r => r.nombre === selectedResidente);
-    if (!residenteData?.usuarioId) return;
+  const saveReviewToBackend = async (statusFinal) => {
+    const reportesId = FASE_TO_REPORTES_ID[reviewingReport.fase];
+    if (reportesId === undefined || !reviewReport) return { skipped: true };
 
-    const notificacionResult = await crearNotificacionPersistente(residenteData.usuarioId, datosNotificacion);
-    if (!notificacionResult) {
-      console.warn("Advertencia: No se pudo crear la notificación, pero la revisión se guardó");
+    const reviewResult = await reviewReport(reportesId, {
+      status: statusFinal,
+      feedback: feedback.trim(),
+      reviewer: "Asesor",
+      dbReporteId: reviewingReport.id,
+    });
+
+    if (!reviewResult) {
+      throw new Error("No se pudo guardar la revisión en la base de datos");
     }
+    // reviewReport devuelve true o el objeto con residenteUsuarioId (si el backend lo envía)
+    return reviewResult;
   };
 
-  const updateLocalNotifications = (datosNotificacion) => {
-    if (!setNotifications) return;
-
-    setNotifications((prev) => [
-      {
-        id: Date.now(),
-        icon: datosNotificacion.icon,
-        iconBg: datosNotificacion.iconBg,
-        iconColor: datosNotificacion.iconColor,
-        title: datosNotificacion.titulo,
-        body: datosNotificacion.mensaje,
-        time: "Ahora",
-        unread: true,
-        type: datosNotificacion.tipo,
-        typeBg: datosNotificacion.iconBg,
-        typeColor: datosNotificacion.iconColor,
-        proyecto: activeProject.title,
-        fase: reviewingReport.fase,
-        actionScreen: datosNotificacion.actionScreen,
-        actionLabel: datosNotificacion.actionLabel,
-      },
-      ...(prev || []),
-    ]);
+  const sendNotification = async (datosNotificacion, residenteUsuarioId) => {
+    // BUG FIX #1: usar residenteUsuarioId devuelto por el backend (garantizado),
+    // o como fallback buscarlo en activeProject.residentes
+    const targetId =
+      residenteUsuarioId ||
+      activeProject.residentes?.find((r) => r.nombre === selectedResidente)?.usuarioId;
+    if (!targetId) return;
+    await crearNotificacionPersistente(targetId, datosNotificacion);
   };
 
   // ── Guardar revisión ──────────────────────────────────────────────────────
@@ -303,12 +279,11 @@ export default function SeguimientoAsesor() {
       // 2. Actualizar estado local
       updateLocalState(statusFinal, historialEntry);
 
-      // 3. Enviar notificación
+      // 3. Enviar notificación AL RESIDENTE (no al asesor)
+      // BUG FIX #1: se eliminó updateLocalNotifications para que la notif
+      // NO aparezca en el panel del asesor. La notif queda solo en la BD del residente.
       const datosNotificacion = createNotificationData(statusFinal);
       await sendNotification(datosNotificacion);
-
-      // 4. Actualizar notificaciones locales
-      updateLocalNotifications(datosNotificacion);
 
       // Éxito: limpiar formulario
       setReviewingReport(null);
