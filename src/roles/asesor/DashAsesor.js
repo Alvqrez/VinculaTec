@@ -118,35 +118,50 @@ export default function DashAsesor({ onNavigate }) {
     return reuniones;
   }, [proyectos]);
 
-  // GRÁFICA: Datos de ESTADO DE REPORTES (no fases de proyectos)
-  // Formato para react-native-chart-kit PieChart
+  const filteredReportes = useMemo(() => {
+    if (periodoFilter === "todo") return allReportes;
+    const now = new Date();
+    if (periodoFilter === "mes") {
+      const mesAnterior = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      return allReportes.filter((r) => new Date(r.fecha) >= mesAnterior);
+    }
+    if (periodoFilter === "semestre") {
+      const semestreAnterior = new Date(now.getFullYear(), now.getMonth() - 6, now.getDate());
+      return allReportes.filter((r) => new Date(r.fecha) >= semestreAnterior);
+    }
+    return allReportes;
+  }, [periodoFilter, allReportes]);
+
+  const filteredAceptados = filteredReportes.filter((r) => r.status === "Aceptado").length;
+  const filteredPorCorregir = filteredReportes.filter((r) => r.status === "Por corregir").length;
+  const filteredPendientes = filteredReportes.filter((r) => r.status === "Pendiente").length;
+
+  // GRÁFICA: Datos de ESTADO DE REPORTES
   const datosGraficaReal = useMemo(() => {
-    // Usar los datos filtrados por período (coherente con las barras inferiores)
     const data = [
       {
-        name: "Desarrollo",
-        population: enDesarrollo,
-        color: "#F59E0B",
+        name: "Aceptados",
+        population: filteredAceptados,
+        color: C.green,
         legendFontColor: "#6B7280",
         legendFontSize: 12,
       },
       {
-        name: "Revisión",
-        population: enRevision,
-        color: "#8B5CF6",
+        name: "Pendientes",
+        population: filteredPendientes,
+        color: C.amber,
         legendFontColor: "#6B7280",
         legendFontSize: 12,
       },
       {
-        name: "Concluidos",
-        population: concluidos,
-        color: "#10B981",
+        name: "Por corregir",
+        population: filteredPorCorregir,
+        color: C.red,
         legendFontColor: "#6B7280",
         legendFontSize: 12,
       },
     ].filter((d) => d.population > 0);
 
-    // Si no hay datos, devolver un placeholder para que la gráfica no crashee
     if (data.length === 0) {
       return [
         {
@@ -158,7 +173,6 @@ export default function DashAsesor({ onNavigate }) {
         },
       ];
     }
-
     return data;
   }, [filteredAceptados, filteredPendientes, filteredPorCorregir, C.green, C.amber, C.red]);
 
@@ -218,83 +232,24 @@ export default function DashAsesor({ onNavigate }) {
     const results = [];
     allResidentes.forEach((r) => {
       if (r.nombre.toLowerCase().includes(q))
-        results.push({
-          tipo: "Residente",
-          nombre: r.nombre,
-          sub: r.proyecto,
-          icon: "user",
-        });
+        results.push({ tipo: "Residente", nombre: r.nombre, sub: r.proyecto, icon: "user" });
     });
     proyectos.forEach((p) => {
       if (p.title.toLowerCase().includes(q))
-        results.push({
-          tipo: "Proyecto",
-          nombre: p.title,
-          sub: p.company,
-          icon: "folder",
-        });
+        results.push({ tipo: "Proyecto", nombre: p.title, sub: p.company, icon: "folder" });
     });
     allReuniones.forEach((r) => {
       if (r.titulo && r.titulo.toLowerCase().includes(q))
-        results.push({
-          tipo: "Reunión",
-          nombre: r.titulo,
-          sub:
-            r.fecha ||
-            new Date(r.fecha_hora).toLocaleDateString() ||
-            "Sin fecha",
-          icon: "calendar",
-        });
+        results.push({ tipo: "Reunión", nombre: r.titulo, sub: r.fecha || new Date(r.fecha_hora).toLocaleDateString() || "Sin fecha", icon: "calendar" });
     });
     return results.slice(0, 8);
   }, [searchQuery, allResidentes, proyectos, allReuniones]);
 
-  const filteredReportes = useMemo(() => {
-    if (periodoFilter === "todo") return allReportes;
-    const now = new Date();
-    if (periodoFilter === "mes") {
-      const mesAnterior = new Date(
-        now.getFullYear(),
-        now.getMonth() - 1,
-        now.getDate(),
-      );
-      return allReportes.filter((r) => new Date(r.fecha) >= mesAnterior);
-    }
-    if (periodoFilter === "semestre") {
-      const semestreAnterior = new Date(
-        now.getFullYear(),
-        now.getMonth() - 6,
-        now.getDate(),
-      );
-      return allReportes.filter((r) => new Date(r.fecha) >= semestreAnterior);
-    }
-    return allReportes;
-  }, [periodoFilter, allReportes]);
-
-  const filteredAceptados = filteredReportes.filter(
-    (r) => r.status === "Aceptado",
-  ).length;
-  const filteredPorCorregir = filteredReportes.filter(
-    (r) => r.status === "Por corregir",
-  ).length;
-  const filteredPendientes = filteredReportes.filter(
-    (r) => r.status === "Pendiente",
-  ).length;
-
   if (loadingBackend) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: C.bg,
-        }}
-      >
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.bg }}>
         <ActivityIndicator size="large" color={C.teal} />
-        <Text style={{ marginTop: 12, color: C.textMuted }}>
-          Cargando datos del servidor...
-        </Text>
+        <Text style={{ marginTop: 12, color: C.textMuted }}>Cargando datos del servidor...</Text>
       </View>
     );
   }

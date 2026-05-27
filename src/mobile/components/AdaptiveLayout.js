@@ -94,7 +94,7 @@ export default function AdaptiveLayout({
         />
         <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <ScrollView
-            style={{ flex: 1 }}
+            style={{ flex: 1, backgroundColor: C.bg }}
             contentContainerStyle={{ padding: 24 }}
           >
             {children}

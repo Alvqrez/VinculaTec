@@ -1878,23 +1878,10 @@ export default function AdminSistema({ section = "residentes" }) {
   }, [section]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F3F4F6", justifyContent: "center", alignItems: "center" }}>
-      <Text style={{ fontSize: 28, fontWeight: "800", color: "#374151", marginBottom: 12 }}>
-        ⚠️ Sección en Mantenimiento
-      </Text>
-      <Text style={{ fontSize: 16, color: "#6B7280" }}>
-        Esta pantalla estará disponible próximamente
-      </Text>
-    </View>
-  );
-
-  /*
-  // ─── CÓDIGO ORIGINAL COMENTADO ───────────────────────────────────────────────────────────────────────────────
-  return (
-    <View style={{ flex: 1, backgroundColor: C.bg }}>
-      {/* Header *\/}
+    <View style={{ backgroundColor: C.bg }}>
+      {/* Header */}
       <View style={{ marginBottom: 20 }}>
-        <Row style={{ alignItems: "center", gap: 12, marginBottom: 4 }}>
+        <Row style={{ alignItems: "center", marginBottom: 4 }}>
           <View
             style={{
               width: 40,
@@ -1903,30 +1890,44 @@ export default function AdminSistema({ section = "residentes" }) {
               backgroundColor: C.tealLight,
               alignItems: "center",
               justifyContent: "center",
+              marginRight: 12,
             }}
           >
             <Feather name="settings" size={19} color={C.teal} />
           </View>
+
           <View>
-            <Text style={{ fontSize: 22, fontWeight: "800", color: C.text }}>
+            <Text
+              style={{
+                fontSize: 22,
+                fontWeight: "800",
+                color: C.text,
+              }}
+            >
               Administración del Sistema
             </Text>
-            <Text style={{ fontSize: 13, color: C.textMuted }}>
+
+            <Text
+              style={{
+                fontSize: 13,
+                color: C.textMuted,
+              }}
+            >
               Gestión centralizada de datos
             </Text>
           </View>
         </Row>
       </View>
 
-      {/* Tabs *\/}
+      {/* Tabs */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={{ marginBottom: 24 }}
       >
-        <Row
+        <View
           style={{
-            gap: 6,
+            flexDirection: "row",
             backgroundColor: C.card,
             borderRadius: 12,
             padding: 4,
@@ -1936,6 +1937,7 @@ export default function AdminSistema({ section = "residentes" }) {
         >
           {TABS.map((tab) => {
             const active = activeTab === tab.id;
+
             return (
               <TouchableOpacity
                 key={tab.id}
@@ -1943,11 +1945,11 @@ export default function AdminSistema({ section = "residentes" }) {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
-                  gap: 7,
                   paddingHorizontal: 16,
                   paddingVertical: 9,
                   borderRadius: 9,
                   backgroundColor: active ? C.teal : "transparent",
+                  marginRight: 6,
                 }}
               >
                 <Feather
@@ -1955,11 +1957,13 @@ export default function AdminSistema({ section = "residentes" }) {
                   size={14}
                   color={active ? "white" : C.textMuted}
                 />
+
                 <Text
                   style={{
                     fontSize: 13,
                     fontWeight: active ? "700" : "500",
                     color: active ? "white" : C.textMuted,
+                    marginLeft: 7,
                   }}
                 >
                   {tab.label}
@@ -1967,17 +1971,16 @@ export default function AdminSistema({ section = "residentes" }) {
               </TouchableOpacity>
             );
           })}
-        </Row>
+        </View>
       </ScrollView>
 
-      {/* Contenido del tab activo *\/}
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      {/* Contenido */}
+      <View>
         {activeTab === "residentes" && <ResidentesTab />}
         {activeTab === "asesores" && <AsesoresTab />}
         {activeTab === "periodos" && <PeriodosTab />}
         {activeTab === "empresas_periodo" && <EmpresasPeriodoTab />}
-      </ScrollView>
+      </View>
     </View>
   );
-  */
 }
