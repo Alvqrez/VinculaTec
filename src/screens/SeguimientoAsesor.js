@@ -273,17 +273,18 @@ export default function SeguimientoAsesor() {
       const statusFinal = getFinalStatus(newStatus);
       const historialEntry = createHistorialEntry(statusFinal);
 
-      // 1. Guardar en backend
-      await saveReviewToBackend(statusFinal);
+      // 1. Guardar en backend y obtener residenteUsuarioId
+      const reviewResult = await saveReviewToBackend(statusFinal);
+      const residenteUsuarioId = reviewResult?.residenteUsuarioId || reviewResult;
 
       // 2. Actualizar estado local
       updateLocalState(statusFinal, historialEntry);
 
       // 3. Enviar notificación AL RESIDENTE (no al asesor)
-      // BUG FIX #1: se eliminó updateLocalNotifications para que la notif
-      // NO aparezca en el panel del asesor. La notif queda solo en la BD del residente.
+      // BUG FIX: pasar residenteUsuarioId explícitamente para asegurar que la notif
+      // llegue al residente correcto, no al asesor que hizo la acción.
       const datosNotificacion = createNotificationData(statusFinal);
-      await sendNotification(datosNotificacion);
+      await sendNotification(datosNotificacion, residenteUsuarioId);
 
       // Éxito: limpiar formulario
       setReviewingReport(null);
