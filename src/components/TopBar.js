@@ -142,8 +142,7 @@ const SECTION_META = {
 };
 
 export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
-  
-  const { isDark, colors: C} = useTheme();
+  const { isDark, colors: C } = useTheme();
   const [query, setQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [results, setResults] = useState([]);
@@ -245,6 +244,9 @@ export default function TopBar({ activeNav, navItems = [], setActiveNav }) {
           }}
         >
           {pageTitle}
+        </Text>
+        <Text style={{ fontSize: 11, color: C.textMuted, marginTop: 1 }}>
+          Departamento de Sistemas
         </Text>
       </View>
 
