@@ -712,7 +712,7 @@ function ResidentesTab() {
               flexDirection: "row",
               alignItems: "center",
               gap: 6,
-              backgroundColor: C.blue,
+              backgroundColor: C.teal,
               paddingHorizontal: 14,
               paddingVertical: 9,
               borderRadius: 9,

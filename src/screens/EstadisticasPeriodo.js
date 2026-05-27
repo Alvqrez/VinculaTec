@@ -70,7 +70,7 @@ export default function EstadisticasPeriodo() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#3B82F6" />
+        <ActivityIndicator size="large" color={C.teal} />
       </View>
     );
   }
@@ -234,7 +234,7 @@ const getStyles = (C) =>
       borderWidth: 1,
       borderColor: C.border,
     },
-    periodButtonActive: { backgroundColor: C.blue, borderColor: C.blue },
+    periodButtonActive: { backgroundColor: C.teal, borderColor: C.teal },
     periodButtonText: { fontSize: 14, color: C.textMuted },
     periodButtonTextActive: { color: "white" },
     statsContainer: {
@@ -252,7 +252,7 @@ const getStyles = (C) =>
       borderWidth: 1,
       borderColor: C.border,
     },
-    statValue: { fontSize: 24, fontWeight: "bold", color: C.blue },
+    statValue: { fontSize: 24, fontWeight: "bold", color: C.teal },
     statLabel: { fontSize: 12, color: C.textMuted, marginTop: 4 },
     section: { marginBottom: 20 },
     sectionTitle: {
@@ -272,9 +272,9 @@ const getStyles = (C) =>
       borderColor: C.border,
     },
     itemName: { fontSize: 14, color: C.text, flex: 1 },
-    itemValue: { fontSize: 14, fontWeight: "600", color: C.blue },
+    itemValue: { fontSize: 14, fontWeight: "600", color: C.teal },
     button: {
-      backgroundColor: C.blue,
+      backgroundColor: C.teal,
       paddingVertical: 14,
       paddingHorizontal: 24,
       borderRadius: 10,
@@ -296,11 +296,11 @@ const getStyles = (C) =>
       overflow: "hidden",
       marginBottom: 6,
     },
-    progressBar: { height: "100%", backgroundColor: C.blue, borderRadius: 6 },
+    progressBar: { height: "100%", backgroundColor: C.teal, borderRadius: 6 },
     cumplimientoValue: {
       fontSize: 14,
       fontWeight: "700",
-      color: C.blue,
+      color: C.teal,
       textAlign: "right",
     },
     noData: {
