@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from "react-native";
-import { getAuthToken } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
+import apiClient from "../utils/apiClient";
 
 export default function EstadisticasPeriodo() {
   const { colors: C } = useTheme();
@@ -29,24 +29,17 @@ export default function EstadisticasPeriodo() {
   const cargarEstadisticas = async (periodo = null) => {
     try {
       setLoading(true);
-      const token = getAuthToken();
-      if (!token) return;
+      const endpoint = periodo
+        ? `/api/jefe/estadisticas-por-periodo?periodo=${encodeURIComponent(periodo)}`
+        : "/api/jefe/estadisticas-por-periodo";
 
-      const url = periodo
-        ? `https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/estadisticas-por-periodo?periodo=${periodo}`
-        : "https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/estadisticas-por-periodo";
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        setPeriodos(data.periodos);
-        setPeriodoSeleccionado(data.periodoSeleccionado);
-        setEstadisticas(data.estadisticas);
-        setEmpresasPeriodo(data.empresasPeriodo);
-        setAlumnosPorProyecto(data.alumnosPorProyecto);
+      const res = await apiClient.get(endpoint);
+      if (res.ok && res.body?.ok) {
+        setPeriodos(res.body.periodos);
+        setPeriodoSeleccionado(res.body.periodoSeleccionado);
+        setEstadisticas(res.body.estadisticas);
+        setEmpresasPeriodo(res.body.empresasPeriodo);
+        setAlumnosPorProyecto(res.body.alumnosPorProyecto);
       }
     } catch (err) {
       console.error("Error al cargar estadísticas:", err);
@@ -58,20 +51,13 @@ export default function EstadisticasPeriodo() {
   const cargarCumplimiento = async () => {
     try {
       setLoading(true);
-      const token = getAuthToken();
-      if (!token) return;
+      const endpoint = periodoSeleccionado
+        ? `/api/jefe/porcentaje-cumplimiento?periodo=${encodeURIComponent(periodoSeleccionado)}`
+        : "/api/jefe/porcentaje-cumplimiento";
 
-      const url = periodoSeleccionado
-        ? `https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/porcentaje-cumplimiento?periodo=${periodoSeleccionado}`
-        : "https://flock-gratuity-dancing.ngrok-free.dev/api/jefe/porcentaje-cumplimiento";
-
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const data = await res.json();
-      if (data.ok) {
-        setCumplimiento(data.cumplimiento);
+      const res = await apiClient.get(endpoint);
+      if (res.ok && res.body?.ok) {
+        setCumplimiento(res.body.cumplimiento);
         setMostrarCumplimiento(true);
       }
     } catch (err) {
@@ -109,7 +95,8 @@ export default function EstadisticasPeriodo() {
               <Text
                 style={[
                   styles.periodButtonText,
-                  periodoSeleccionado === p.periodo && styles.periodButtonTextActive,
+                  periodoSeleccionado === p.periodo &&
+                    styles.periodButtonTextActive,
                 ]}
               >
                 {p.periodo}
@@ -124,7 +111,9 @@ export default function EstadisticasPeriodo() {
           {/* Estadísticas generales */}
           <View style={styles.statsContainer}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{estadisticas.totalResidentes}</Text>
+              <Text style={styles.statValue}>
+                {estadisticas.totalResidentes}
+              </Text>
               <Text style={styles.statLabel}>Residentes</Text>
             </View>
             <View style={styles.statCard}>
@@ -132,7 +121,9 @@ export default function EstadisticasPeriodo() {
               <Text style={styles.statLabel}>Empresas</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>{estadisticas.proyectosActivos}</Text>
+              <Text style={styles.statValue}>
+                {estadisticas.proyectosActivos}
+              </Text>
               <Text style={styles.statLabel}>Proyectos Activos</Text>
             </View>
           </View>
@@ -140,37 +131,52 @@ export default function EstadisticasPeriodo() {
           {/* Empresas por periodo */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Empresas en este periodo</Text>
-            {empresasPeriodo.map((empresa) => (
-              <View key={empresa.id} style={styles.item}>
-                <Text style={styles.itemName}>{empresa.nombre}</Text>
-                <Text style={styles.itemValue}>{empresa.residentes} residentes</Text>
-              </View>
-            ))}
+            {empresasPeriodo.length === 0 ? (
+              <Text style={styles.noData}>Sin empresas para este periodo.</Text>
+            ) : (
+              empresasPeriodo.map((empresa) => (
+                <View key={empresa.id} style={styles.item}>
+                  <Text style={styles.itemName}>{empresa.nombre}</Text>
+                  <Text style={styles.itemValue}>
+                    {empresa.residentes} residentes
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
 
           {/* Alumnos por proyecto */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Alumnos por proyecto</Text>
-            {alumnosPorProyecto.map((proyecto) => (
-              <View key={proyecto.id} style={styles.item}>
-                <Text style={styles.itemName}>{proyecto.titulo}</Text>
-                <Text style={styles.itemValue}>{proyecto.alumnos} alumnos</Text>
-              </View>
-            ))}
+            {alumnosPorProyecto.length === 0 ? (
+              <Text style={styles.noData}>
+                Sin proyectos para este periodo.
+              </Text>
+            ) : (
+              alumnosPorProyecto.map((proyecto) => (
+                <View key={proyecto.id} style={styles.item}>
+                  <Text style={styles.itemName}>{proyecto.titulo}</Text>
+                  <Text style={styles.itemValue}>
+                    {proyecto.alumnos} alumnos
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
 
           {/* Botón para ver cumplimiento */}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={cargarCumplimiento}
-          >
-            <Text style={styles.buttonText}>Ver Porcentaje de Cumplimiento</Text>
+          <TouchableOpacity style={styles.button} onPress={cargarCumplimiento}>
+            <Text style={styles.buttonText}>
+              Ver Porcentaje de Cumplimiento
+            </Text>
           </TouchableOpacity>
 
           {/* Gráfico de cumplimiento */}
           {mostrarCumplimiento && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Porcentaje de Cumplimiento por Empresa</Text>
+              <Text style={styles.sectionTitle}>
+                Porcentaje de Cumplimiento por Empresa
+              </Text>
               {cumplimiento.map((empresa) => (
                 <View key={empresa.id} style={styles.cumplimientoItem}>
                   <Text style={styles.cumplimientoName}>{empresa.nombre}</Text>
@@ -194,45 +200,31 @@ export default function EstadisticasPeriodo() {
 
       {!periodos.length && (
         <Text style={styles.noData}>
-          No hay periodos registrados. Asigna proyectos con periodos para ver estadísticas.
+          No hay periodos registrados. Crea periodos en Administración para ver
+          estadísticas.
         </Text>
       )}
     </ScrollView>
   );
 }
+
 const getStyles = (C) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: 20,
-      backgroundColor: C.bg,
-    },
-
+    container: { flex: 1, padding: 20, backgroundColor: C.bg },
     center: {
       flex: 1,
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: C.bg,
     },
-
     title: {
       fontSize: 24,
       fontWeight: "bold",
       marginBottom: 20,
       color: C.text,
     },
-
-    periodSelector: {
-      marginBottom: 20,
-    },
-
-    label: {
-      fontSize: 16,
-      fontWeight: "600",
-      marginBottom: 10,
-      color: C.text,
-    },
-
+    periodSelector: { marginBottom: 20 },
+    label: { fontSize: 16, fontWeight: "600", marginBottom: 10, color: C.text },
     periodButton: {
       paddingHorizontal: 16,
       paddingVertical: 8,
@@ -242,27 +234,14 @@ const getStyles = (C) =>
       borderWidth: 1,
       borderColor: C.border,
     },
-
-    periodButtonActive: {
-      backgroundColor: C.blue,
-      borderColor: C.blue,
-    },
-
-    periodButtonText: {
-      fontSize: 14,
-      color: C.textMuted,
-    },
-
-    periodButtonTextActive: {
-      color: "white",
-    },
-
+    periodButtonActive: { backgroundColor: C.blue, borderColor: C.blue },
+    periodButtonText: { fontSize: 14, color: C.textMuted },
+    periodButtonTextActive: { color: "white" },
     statsContainer: {
       flexDirection: "row",
       justifyContent: "space-between",
       marginBottom: 20,
     },
-
     statCard: {
       flex: 1,
       backgroundColor: C.card,
@@ -273,30 +252,15 @@ const getStyles = (C) =>
       borderWidth: 1,
       borderColor: C.border,
     },
-
-    statValue: {
-      fontSize: 24,
-      fontWeight: "bold",
-      color: C.blue,
-    },
-
-    statLabel: {
-      fontSize: 12,
-      color: C.textMuted,
-      marginTop: 4,
-    },
-
-    section: {
-      marginBottom: 20,
-    },
-
+    statValue: { fontSize: 24, fontWeight: "bold", color: C.blue },
+    statLabel: { fontSize: 12, color: C.textMuted, marginTop: 4 },
+    section: { marginBottom: 20 },
     sectionTitle: {
       fontSize: 18,
       fontWeight: "600",
       marginBottom: 12,
       color: C.text,
     },
-
     item: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -307,19 +271,8 @@ const getStyles = (C) =>
       borderWidth: 1,
       borderColor: C.border,
     },
-
-    itemName: {
-      fontSize: 14,
-      color: C.text,
-      flex: 1,
-    },
-
-    itemValue: {
-      fontSize: 14,
-      fontWeight: "600",
-      color: C.blue,
-    },
-
+    itemName: { fontSize: 14, color: C.text, flex: 1 },
+    itemValue: { fontSize: 14, fontWeight: "600", color: C.blue },
     button: {
       backgroundColor: C.blue,
       paddingVertical: 14,
@@ -328,24 +281,14 @@ const getStyles = (C) =>
       alignItems: "center",
       marginBottom: 20,
     },
-
-    buttonText: {
-      fontSize: 16,
-      fontWeight: "700",
-      color: "white",
-    },
-
-    cumplimientoItem: {
-      marginBottom: 16,
-    },
-
+    buttonText: { fontSize: 16, fontWeight: "700", color: "white" },
+    cumplimientoItem: { marginBottom: 16 },
     cumplimientoName: {
       fontSize: 14,
       fontWeight: "600",
       color: C.text,
       marginBottom: 8,
     },
-
     progressBarContainer: {
       height: 12,
       backgroundColor: C.border,
@@ -353,24 +296,17 @@ const getStyles = (C) =>
       overflow: "hidden",
       marginBottom: 6,
     },
-
-    progressBar: {
-      height: "100%",
-      backgroundColor: C.blue,
-      borderRadius: 6,
-    },
-
+    progressBar: { height: "100%", backgroundColor: C.blue, borderRadius: 6 },
     cumplimientoValue: {
       fontSize: 14,
       fontWeight: "700",
       color: C.blue,
       textAlign: "right",
     },
-
     noData: {
-      fontSize: 16,
+      fontSize: 14,
       color: C.textMuted,
       textAlign: "center",
-      marginTop: 40,
+      marginTop: 20,
     },
   });

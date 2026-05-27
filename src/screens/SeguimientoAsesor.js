@@ -146,7 +146,10 @@ export default function SeguimientoAsesor() {
   }, [reportesFiltrados, selectedResidente]);
 
   // ── Función para crear notificación persistente ─────────────────────────────
-  const crearNotificacionPersistente = async (residenteId, datosNotificacion) => {
+  const crearNotificacionPersistente = async (
+    residenteId,
+    datosNotificacion,
+  ) => {
     try {
       const response = await apiClient.post("/api/notificaciones", {
         usuario_id: residenteId,
@@ -164,7 +167,10 @@ export default function SeguimientoAsesor() {
       });
 
       if (!response.ok) {
-        console.warn("Error al crear notificación persistente:", response.body?.mensaje);
+        console.warn(
+          "Error al crear notificación persistente:",
+          response.body?.mensaje,
+        );
         return false;
       }
       return true;
@@ -187,7 +193,11 @@ export default function SeguimientoAsesor() {
 
   const getFinalStatus = (newStatus) => {
     const esPreliminar = reviewingReport.fase === "Preliminar";
-    return newStatus === "Aceptado" ? "Aceptado" : (esPreliminar ? "No aceptado" : "Por corregir");
+    return newStatus === "Aceptado"
+      ? "Aceptado"
+      : esPreliminar
+        ? "No aceptado"
+        : "Por corregir";
   };
 
   const createHistorialEntry = (statusFinal) => {
@@ -202,10 +212,10 @@ export default function SeguimientoAsesor() {
   const createNotificationData = (statusFinal) => {
     const esPreliminar = reviewingReport.fase === "Preliminar";
     const isAceptado = statusFinal === "Aceptado";
-    
+
     return {
       tipo: "REVISION",
-      titulo: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : (isAceptado ? "Aceptado ✓" : "Requiere correcciones")}`,
+      titulo: `${reviewingReport.titulo} — ${esPreliminar ? (isAceptado ? "Aceptado ✓" : "No aceptado") : isAceptado ? "Aceptado ✓" : "Requiere correcciones"}`,
       mensaje: feedback.trim(),
       icon: isAceptado ? "check-circle" : "x-circle",
       iconColor: isAceptado ? C.green : C.red,
@@ -257,7 +267,8 @@ export default function SeguimientoAsesor() {
     // o como fallback buscarlo en activeProject.residentes
     const targetId =
       residenteUsuarioId ||
-      activeProject.residentes?.find((r) => r.nombre === selectedResidente)?.usuarioId;
+      activeProject.residentes?.find((r) => r.nombre === selectedResidente)
+        ?.usuarioId;
     if (!targetId) return;
     await crearNotificacionPersistente(targetId, datosNotificacion);
   };
@@ -275,7 +286,8 @@ export default function SeguimientoAsesor() {
 
       // 1. Guardar en backend y obtener residenteUsuarioId
       const reviewResult = await saveReviewToBackend(statusFinal);
-      const residenteUsuarioId = reviewResult?.residenteUsuarioId || reviewResult;
+      const residenteUsuarioId =
+        reviewResult?.residenteUsuarioId || reviewResult;
 
       // 2. Actualizar estado local
       updateLocalState(statusFinal, historialEntry);
@@ -289,10 +301,12 @@ export default function SeguimientoAsesor() {
       // Éxito: limpiar formulario
       setReviewingReport(null);
       setFeedback("");
-      
     } catch (error) {
       console.error("Error al guardar revisión:", error);
-      setSubmitError(error.message || "No se pudo guardar la revisión. Verifica tu conexión.");
+      setSubmitError(
+        error.message ||
+          "No se pudo guardar la revisión. Verifica tu conexión.",
+      );
     } finally {
       setIsSubmittingReview(false);
     }
@@ -848,13 +862,19 @@ export default function SeguimientoAsesor() {
                           onPress={async () => {
                             // Llamar al backend para persistir el desbloqueo
                             try {
-                              await apiClient.post("/api/asesor/desbloquear-reporte", {
-                                residenteNombre: selectedResidente,
-                                fase: report.fase,
-                                proyectoId: activeProject?.id,
-                              });
+                              await apiClient.post(
+                                "/api/asesor/desbloquear-reporte",
+                                {
+                                  residenteNombre: selectedResidente,
+                                  fase: report.fase,
+                                  proyectoId: activeProject?.id,
+                                },
+                              );
                             } catch (err) {
-                              console.error("Error al persistir desbloqueo:", err);
+                              console.error(
+                                "Error al persistir desbloqueo:",
+                                err,
+                              );
                             }
                             // Actualizar ProyectosContext (vista del asesor)
                             desbloquearReporteResidente?.(
@@ -1061,8 +1081,12 @@ export default function SeguimientoAsesor() {
                                 // Modificado: Descargar el archivo desde el servidor
                                 // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
                                 // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
-                                const url = `http://0.0.0.0:3001${report.archivo}`;
-                                window.open(url, '_blank');
+                                const { API_BASE } = require("../config/api");
+                                const base = API_BASE
+                                  ? API_BASE.replace("/api", "")
+                                  : "";
+                                const url = `${base}${report.archivo}`;
+                                window.open(url, "_blank");
                               }}
                               style={{
                                 flexDirection: "row",
@@ -1094,15 +1118,21 @@ export default function SeguimientoAsesor() {
                           {canReview && (
                             <TouchableOpacity
                               onPress={() => {
-                                  setReviewingReport(report);
+                                setReviewingReport(report);
 
-                                  setFeedback(report.feedback || "");
-                                  setFeedbackError(false);
+                                setFeedback(report.feedback || "");
+                                setFeedbackError(false);
 
-                                  setCumpleObjetivos(report.cumpleObjetivos || false);
-                                  setCumpleDiagnostico(report.cumpleDiagnostico || false);
-                                  setCumplePlanTrabajo(report.cumplePlanTrabajo || false);
-                                }}
+                                setCumpleObjetivos(
+                                  report.cumpleObjetivos || false,
+                                );
+                                setCumpleDiagnostico(
+                                  report.cumpleDiagnostico || false,
+                                );
+                                setCumplePlanTrabajo(
+                                  report.cumplePlanTrabajo || false,
+                                );
+                              }}
                               style={{
                                 flexDirection: "row",
                                 alignItems: "center",
@@ -1173,13 +1203,19 @@ export default function SeguimientoAsesor() {
                                   onPress={async () => {
                                     // Llamar al backend para persistir el desbloqueo
                                     try {
-                                      await apiClient.post("/api/asesor/desbloquear-reporte", {
-                                        residenteNombre: selectedResidente,
-                                        fase: faseSig,
-                                        proyectoId: activeProject?.id,
-                                      });
+                                      await apiClient.post(
+                                        "/api/asesor/desbloquear-reporte",
+                                        {
+                                          residenteNombre: selectedResidente,
+                                          fase: faseSig,
+                                          proyectoId: activeProject?.id,
+                                        },
+                                      );
                                     } catch (err) {
-                                      console.error("Error al persistir desbloqueo:", err);
+                                      console.error(
+                                        "Error al persistir desbloqueo:",
+                                        err,
+                                      );
                                     }
                                     desbloquearReporteResidente?.(
                                       selectedResidente,
@@ -1368,8 +1404,10 @@ export default function SeguimientoAsesor() {
                       // Modificado: Descargar el archivo desde el servidor
                       // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
                       // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
-                      const url = `http://0.0.0.0:3001${reviewingReport.archivo}`;
-                      window.open(url, '_blank');
+                      const { API_BASE } = require("../config/api");
+                      const base = API_BASE ? API_BASE.replace("/api", "") : "";
+                      const url = `${base}${reviewingReport.archivo}`;
+                      window.open(url, "_blank");
                     }}
                     style={{
                       flexDirection: "row",
@@ -1410,7 +1448,7 @@ export default function SeguimientoAsesor() {
                 >
                   Verificar Requerimientos
                 </Text>
-                
+
                 <View
                   style={{
                     gap: 10,
@@ -1422,9 +1460,7 @@ export default function SeguimientoAsesor() {
                 >
                   {/* Objetivos */}
                   <TouchableOpacity
-                    onPress={() =>
-                      setCumpleObjetivos(!cumpleObjetivos)
-                    }
+                    onPress={() => setCumpleObjetivos(!cumpleObjetivos)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -1432,17 +1468,9 @@ export default function SeguimientoAsesor() {
                     }}
                   >
                     <Feather
-                      name={
-                        cumpleObjetivos
-                          ? "check-square"
-                          : "square"
-                      }
+                      name={cumpleObjetivos ? "check-square" : "square"}
                       size={18}
-                      color={
-                        cumpleObjetivos
-                          ? C.green
-                          : C.textMuted
-                      }
+                      color={cumpleObjetivos ? C.green : C.textMuted}
                     />
 
                     <Text
@@ -1457,9 +1485,7 @@ export default function SeguimientoAsesor() {
 
                   {/* Diagnóstico */}
                   <TouchableOpacity
-                    onPress={() =>
-                      setCumpleDiagnostico(!cumpleDiagnostico)
-                    }
+                    onPress={() => setCumpleDiagnostico(!cumpleDiagnostico)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -1467,17 +1493,9 @@ export default function SeguimientoAsesor() {
                     }}
                   >
                     <Feather
-                      name={
-                        cumpleDiagnostico
-                          ? "check-square"
-                          : "square"
-                      }
+                      name={cumpleDiagnostico ? "check-square" : "square"}
                       size={18}
-                      color={
-                        cumpleDiagnostico
-                          ? C.green
-                          : C.textMuted
-                      }
+                      color={cumpleDiagnostico ? C.green : C.textMuted}
                     />
 
                     <Text
@@ -1492,9 +1510,7 @@ export default function SeguimientoAsesor() {
 
                   {/* Plan de trabajo */}
                   <TouchableOpacity
-                    onPress={() =>
-                      setCumplePlanTrabajo(!cumplePlanTrabajo)
-                    }
+                    onPress={() => setCumplePlanTrabajo(!cumplePlanTrabajo)}
                     style={{
                       flexDirection: "row",
                       alignItems: "center",
@@ -1502,17 +1518,9 @@ export default function SeguimientoAsesor() {
                     }}
                   >
                     <Feather
-                      name={
-                        cumplePlanTrabajo
-                          ? "check-square"
-                          : "square"
-                      }
+                      name={cumplePlanTrabajo ? "check-square" : "square"}
                       size={18}
-                      color={
-                        cumplePlanTrabajo
-                          ? C.green
-                          : C.textMuted
-                      }
+                      color={cumplePlanTrabajo ? C.green : C.textMuted}
                     />
 
                     <Text
@@ -1676,7 +1684,9 @@ export default function SeguimientoAsesor() {
                           color: "white",
                         }}
                       >
-                        {isSubmittingReview ? "Guardando..." : "Aceptar Reporte"}
+                        {isSubmittingReview
+                          ? "Guardando..."
+                          : "Aceptar Reporte"}
                       </Text>
                     </Row>
                   </TouchableOpacity>

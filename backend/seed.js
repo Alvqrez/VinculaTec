@@ -5,10 +5,11 @@
  * Uso:
  *   cd backend && node seed.js
  *
- * Estados de reportes (alineados con el frontend):
- *   "Aceptado"    — revisado y aprobado por el asesor
- *   "Pendiente"   — enviado, esperando revisión
- *   "Por corregir"— rechazado, requiere reenvío
+ * Incluye:
+ *   - 2 períodos escolares (cerrado + activo)
+ *   - Empresas asignadas a cada período (tabla empresa_periodos)
+ *   - Proyectos que referencian el id real del período
+ *   - Residentes, asesores, reportes, citas y notificaciones
  */
 
 require("dotenv").config();
@@ -28,6 +29,8 @@ async function getConnection() {
 }
 
 const PASSWORD_PLAIN = "vinculatec123";
+
+// ─── Catálogos ────────────────────────────────────────────────────────────────
 
 const USUARIOS = [
   {
@@ -178,18 +181,45 @@ const EMPRESAS = [
   },
 ];
 
-// [usuarioId, asesorId, empresaId, carrera, horasCompletadas]
-const RESIDENTES_CONFIG = [
-  ["1", "ASE-5", "EMP-1", "Ing. en Sistemas de Información", 360],
-  ["3", "ASE-5", "EMP-2", "Ing. en Sistemas de Información", 240],
-  ["8", "ASE-5", "EMP-5", "Ing. en Sistemas de Información", 120],
-  ["10", "ASE-5", "EMP-6", "Ing. Electrónica", 60],
-  ["2", "ASE-6", "EMP-2", "Ing. Industrial", 480],
-  ["4", "ASE-6", "EMP-3", "Ing. Industrial", 180],
-  ["9", "ASE-6", "EMP-4", "Ing. en Gestión Empresarial", 300],
-  ["11", "ASE-6", "EMP-1", "Ing. Electrónica", 90],
+// ─── Períodos escolares ───────────────────────────────────────────────────────
+// id también se usará como valor en proyectos.periodo (ej: "PER-2025-2")
+const PERIODOS = [
+  {
+    id: "PER-2025-2",
+    nombre: "Ago-Dic 2025",
+    fecha_inicio: "2025-08-18",
+    fecha_fin: "2025-12-20",
+    descripcion: "Segundo periodo escolar 2025",
+    estado: "cerrado",
+    // Empresas que participaron en este período
+    empresas: ["EMP-1", "EMP-2", "EMP-3"],
+  },
+  {
+    id: "PER-2026-1",
+    nombre: "Ene-Jun 2026",
+    fecha_inicio: "2026-01-20",
+    fecha_fin: "2026-06-30",
+    descripcion: "Primer periodo escolar 2026 — en curso",
+    estado: "activo",
+    // Todas las empresas participan en el período activo
+    empresas: ["EMP-1", "EMP-2", "EMP-3", "EMP-4", "EMP-5", "EMP-6"],
+  },
 ];
 
+// ─── Residentes ───────────────────────────────────────────────────────────────
+// [usuarioId, asesorId, empresaId, carrera, horasCompletadas, periodoId]
+const RESIDENTES_CONFIG = [
+  ["1", "ASE-5", "EMP-1", "Ing. en Sistemas de Información", 360, "PER-2026-1"],
+  ["3", "ASE-5", "EMP-2", "Ing. en Sistemas de Información", 240, "PER-2026-1"],
+  ["8", "ASE-5", "EMP-5", "Ing. en Sistemas de Información", 120, "PER-2026-1"],
+  ["10", "ASE-5", "EMP-6", "Ing. Electrónica", 60, "PER-2026-1"],
+  ["2", "ASE-6", "EMP-2", "Ing. Industrial", 480, "PER-2026-1"],
+  ["4", "ASE-6", "EMP-3", "Ing. Industrial", 180, "PER-2026-1"],
+  ["9", "ASE-6", "EMP-4", "Ing. en Gestión Empresarial", 300, "PER-2026-1"],
+  ["11", "ASE-6", "EMP-1", "Ing. Electrónica", 90, "PER-2026-1"],
+];
+
+// ─── Proyectos ────────────────────────────────────────────────────────────────
 const PROYECTOS = [
   {
     id: "PROY-1",
@@ -216,14 +246,6 @@ const PROYECTOS = [
     tech: "Node.js, Express, MySQL",
   },
   {
-    id: "PROY-4",
-    titulo: "Mobile App para Logística",
-    desc: "Aplicación móvil de rastreo en tiempo real.",
-    estado: "propuesto",
-    prioridad: "Media",
-    tech: "React Native, Firebase",
-  },
-  {
     id: "PROY-5",
     titulo: "Sistema de Recomendaciones con IA",
     desc: "Motor de recomendaciones basado en ML.",
@@ -240,14 +262,6 @@ const PROYECTOS = [
     tech: "Vue.js, Laravel, PostgreSQL",
   },
   {
-    id: "PROY-7",
-    titulo: "Integración SAP",
-    desc: "Conectividad con ERP empresarial.",
-    estado: "propuesto",
-    prioridad: "Baja",
-    tech: "Java, SAP SDK",
-  },
-  {
     id: "PROY-8",
     titulo: "App de E-Commerce",
     desc: "Plataforma de compra-venta de productos.",
@@ -257,13 +271,14 @@ const PROYECTOS = [
   },
 ];
 
+// ─── Función principal ────────────────────────────────────────────────────────
 async function seed() {
   let conn;
   try {
     conn = await getConnection();
     console.log("✅ Conexión a BD establecida\n");
 
-    // ─────── USUARIOS ───────────────────────────────────────────────────────
+    // ── USUARIOS ─────────────────────────────────────────────────────────────
     console.log("👤 Creando usuarios...");
     const hashedPassword = await bcrypt.hash(PASSWORD_PLAIN, 10);
     for (const u of USUARIOS) {
@@ -274,7 +289,7 @@ async function seed() {
     }
     console.log(`✅ ${USUARIOS.length} usuarios creados.\n`);
 
-    // ─────── EMPRESAS ───────────────────────────────────────────────────────
+    // ── EMPRESAS ──────────────────────────────────────────────────────────────
     console.log("🏢 Creando empresas...");
     for (const e of EMPRESAS) {
       await conn.execute(
@@ -294,7 +309,28 @@ async function seed() {
     }
     console.log(`✅ ${EMPRESAS.length} empresas creadas.\n`);
 
-    // ─────── ASESORES ──────────────────────────────────────────────────────
+    // ── PERÍODOS + EMPRESA_PERIODOS ───────────────────────────────────────────
+    console.log("📅 Creando períodos escolares...");
+    let totalEmpresaPeriodos = 0;
+    for (const p of PERIODOS) {
+      await conn.execute(
+        "INSERT IGNORE INTO periodos (id, nombre, fecha_inicio, fecha_fin, descripcion, estado) VALUES (?,?,?,?,?,?)",
+        [p.id, p.nombre, p.fecha_inicio, p.fecha_fin, p.descripcion, p.estado],
+      );
+      // Asignar empresas al período
+      for (const empId of p.empresas) {
+        await conn.execute(
+          "INSERT IGNORE INTO empresa_periodos (periodo_id, empresa_id) VALUES (?,?)",
+          [p.id, empId],
+        );
+        totalEmpresaPeriodos++;
+      }
+    }
+    console.log(
+      `✅ ${PERIODOS.length} períodos creados con ${totalEmpresaPeriodos} asignaciones empresa-período.\n`,
+    );
+
+    // ── ASESORES ──────────────────────────────────────────────────────────────
     console.log("👨‍🏫 Creando asesores...");
     await conn.execute(
       "INSERT IGNORE INTO asesores (id, usuario_id, departamento, num_empleado, max_residentes) VALUES (?,?,?,?,?)",
@@ -306,7 +342,7 @@ async function seed() {
     );
     console.log("✅ 2 asesores creados.\n");
 
-    // ─────── JEFE DE VINCULACIÓN ────────────────────────────────────────────
+    // ── JEFE DE VINCULACIÓN ───────────────────────────────────────────────────
     console.log("👑 Creando jefe de vinculación...");
     await conn.execute(
       "INSERT IGNORE INTO jefes_vinculacion (id, usuario_id, departamento) VALUES (?,?,?)",
@@ -314,11 +350,19 @@ async function seed() {
     );
     console.log("✅ 1 jefe creado.\n");
 
-    // ─────── RESIDENTES ────────────────────────────────────────────────────
+    // ── RESIDENTES ────────────────────────────────────────────────────────────
     console.log("🎓 Creando residentes...");
     let totalResidentes = 0;
-    for (const [uid, aid, eid, carrera, horas] of RESIDENTES_CONFIG) {
-      const numControl = `EMP${2026}${String(uid).padStart(3, "0")}`;
+    for (const [
+      uid,
+      aid,
+      eid,
+      carrera,
+      horas,
+      periodoId,
+    ] of RESIDENTES_CONFIG) {
+      const numControl = `EMP2026${String(uid).padStart(3, "0")}`;
+      const periodo = PERIODOS.find((p) => p.id === periodoId);
       await conn.execute(
         "INSERT IGNORE INTO residentes (id, usuario_id, num_control, carrera, semestre, empresa_id, asesor_id, horas_completadas, horas_requeridas, fecha_inicio, fecha_fin, estado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
         [
@@ -331,8 +375,8 @@ async function seed() {
           aid,
           horas,
           480,
-          "2026-01-20",
-          "2026-08-31",
+          periodo.fecha_inicio,
+          periodo.fecha_fin,
           "activo",
         ],
       );
@@ -340,23 +384,17 @@ async function seed() {
     }
     console.log(`✅ ${totalResidentes} residentes creados.\n`);
 
-    // ─────── PROYECTOS ────────────────────────────────────────────────────
+    // ── PROYECTOS (con periodo_id real) ───────────────────────────────────────
     console.log("📋 Creando proyectos...");
-    const proyectosUsados = [
-      "PROY-1",
-      "PROY-2",
-      "PROY-3",
-      "PROY-5",
-      "PROY-6",
-      "PROY-8",
-    ];
+    const proyectoIds = PROYECTOS.map((p) => p.id);
+    let totalProyectos = 0;
     for (
       let i = 0;
-      i < proyectosUsados.length && i < RESIDENTES_CONFIG.length;
+      i < proyectoIds.length && i < RESIDENTES_CONFIG.length;
       i++
     ) {
-      const p = PROYECTOS.find((x) => x.id === proyectosUsados[i]);
-      const [uid, aid, eid] = RESIDENTES_CONFIG[i];
+      const p = PROYECTOS[i];
+      const [uid, aid, eid, , , periodoId] = RESIDENTES_CONFIG[i];
       await conn.execute(
         "INSERT IGNORE INTO proyectos (id, titulo, descripcion, empresa_id, residente_id, asesor_id, periodo, estado, prioridad, tecnologias, progreso) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
         [
@@ -366,32 +404,33 @@ async function seed() {
           eid,
           `RES-${uid}`,
           aid,
-          "2026-1",
+          periodoId, // ← id real del período (ej: "PER-2026-1")
           p.estado,
           p.prioridad,
           p.tech,
-          Math.floor(Math.random() * 100),
+          Math.floor(Math.random() * 60) + 20,
         ],
       );
+      totalProyectos++;
     }
-    console.log(`✅ ${proyectosUsados.length} proyectos creados.\n`);
+    console.log(`✅ ${totalProyectos} proyectos creados.\n`);
 
-    // ─────── PROYECTO-ASESORES ─────────────────────────────────────────────
+    // ── PROYECTO-ASESORES ─────────────────────────────────────────────────────
     console.log("🔗 Vinculando asesores a proyectos...");
     for (
       let i = 0;
-      i < proyectosUsados.length && i < RESIDENTES_CONFIG.length;
+      i < proyectoIds.length && i < RESIDENTES_CONFIG.length;
       i++
     ) {
       const [, aid] = RESIDENTES_CONFIG[i];
       await conn.execute(
         "INSERT IGNORE INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?,?)",
-        [proyectosUsados[i], aid],
+        [proyectoIds[i], aid],
       );
     }
     console.log("✅ Asesores vinculados.\n");
 
-    // ─────── REPORTES ──────────────────────────────────────────────────────
+    // ── REPORTES ──────────────────────────────────────────────────────────────
     console.log("📄 Creando reportes...");
     const TIPOS = ["preliminar", "parcial1", "parcial2", "parcial3", "final"];
     const LIMITES = [
@@ -420,21 +459,15 @@ async function seed() {
           nombreArchivo;
 
         if (t < 3) {
-          // Primeros 3 reportes: entregados y revisados
           estado = "Aprobado";
-          fechaEntrega = new Date(LIMITES[t]);
-          fechaEntrega.setDate(
-            fechaEntrega.getDate() - Math.floor(Math.random() * 5),
-          );
-          fechaEntrega = fechaEntrega.toISOString().split("T")[0];
+          const d = new Date(LIMITES[t]);
+          d.setDate(d.getDate() - Math.floor(Math.random() * 5));
+          fechaEntrega = d.toISOString().split("T")[0];
           calificacion = 85 + Math.floor(Math.random() * 15);
           feedback = FEEDBACK[t];
-          // FIX: En lugar de data URI con base64, usamos una ruta simple que simula
-          // un archivo subido al servidor. En producción, esto sería una URL real.
           archivoUrl = `/uploads/reporte_${TIPOS[t]}_${uid}.pdf`;
           nombreArchivo = `reporte_${TIPOS[t]}_${uid}.pdf`;
         } else if (t < 4) {
-          // Reporte 4: pendiente de revisión
           estado = "Entregado";
           fechaEntrega = LIMITES[t];
           calificacion = null;
@@ -442,7 +475,6 @@ async function seed() {
           archivoUrl = `/uploads/reporte_${TIPOS[t]}_${uid}.pdf`;
           nombreArchivo = `reporte_${TIPOS[t]}_${uid}.pdf`;
         } else {
-          // Reporte final: pendiente
           estado = "Pendiente";
           fechaEntrega = null;
           calificacion = null;
@@ -453,7 +485,7 @@ async function seed() {
 
         await conn.execute(
           `INSERT INTO reportes
-             (id,residente_id,tipo,fecha_limite,fecha_entrega,estado,calificacion,feedback,archivo_url,nombre_archivo)
+             (id, residente_id, tipo, fecha_limite, fecha_entrega, estado, calificacion, feedback, archivo_url, nombre_archivo)
            VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [
             `REP-${uid}-${t + 1}`,
@@ -473,9 +505,9 @@ async function seed() {
     }
     console.log(`✅ ${totalReportes} reportes creados.\n`);
 
-    // ─────── CITAS ──────────────────────────────────────────────────────────
+    // ── CITAS ─────────────────────────────────────────────────────────────────
     console.log("📅 Creando citas...");
-    const citas = [
+    const CITAS = [
       {
         sol: "1",
         par: "5",
@@ -515,11 +547,10 @@ async function seed() {
     ];
 
     let citasInsertadas = 0;
-    for (const c of citas) {
+    for (const c of CITAS) {
       const fecha = new Date("2026-06-15");
       fecha.setDate(fecha.getDate() + Math.floor(Math.random() * 30));
       fecha.setHours(9 + Math.floor(Math.random() * 8));
-
       await conn.execute(
         "INSERT IGNORE INTO citas (id, solicitante_id, participante_id, tipo, motivo, fecha_hora, lugar, estado) VALUES (?,?,?,?,?,?,?,?)",
         [
@@ -537,9 +568,9 @@ async function seed() {
     }
     console.log(`✅ ${citasInsertadas} citas creadas.\n`);
 
-    // ─────── NOTIFICACIONES ────────────────────────────────────────────────
+    // ── NOTIFICACIONES ────────────────────────────────────────────────────────
     console.log("🔔 Creando notificaciones...");
-    const notificaciones = [
+    const NOTIFICACIONES = [
       {
         userId: "1",
         tipo: "Reporte",
@@ -564,17 +595,22 @@ async function seed() {
         titulo: "Nuevo estudiante asignado",
         cuerpo: "Diana Flores se unió a tu grupo.",
       },
+      {
+        userId: "7",
+        tipo: "Alerta",
+        titulo: "Período activo",
+        cuerpo: "El período Ene-Jun 2026 está en curso.",
+      },
     ];
-
-    for (const n of notificaciones) {
+    for (const n of NOTIFICACIONES) {
       await conn.execute(
         "INSERT INTO notificaciones (usuario_id, tipo, titulo, cuerpo, leida, icono, created_at) VALUES (?,?,?,?,?,?,NOW())",
         [n.userId, n.tipo, n.titulo, n.cuerpo, false, "bell"],
       );
     }
-    console.log(`✅ ${notificaciones.length} notificaciones creadas.\n`);
+    console.log(`✅ ${NOTIFICACIONES.length} notificaciones creadas.\n`);
 
-    // ─────── FOTOS DE PERFIL ────────────────────────────────────────────────
+    // ── FOTOS DE PERFIL ───────────────────────────────────────────────────────
     console.log("🖼️  Reservando tabla de fotos...");
     for (const u of USUARIOS) {
       await conn.execute(
@@ -584,18 +620,27 @@ async function seed() {
     }
     console.log("✅ Tabla de fotos lista.\n");
 
+    // ── RESUMEN ───────────────────────────────────────────────────────────────
     console.log("═══════════════════════════════════════════════════");
     console.log("✨ SEED COMPLETADO EXITOSAMENTE");
     console.log("═══════════════════════════════════════════════════");
     console.log(`\n📊 Resumen:`);
     console.log(`   • ${USUARIOS.length} usuarios`);
     console.log(`   • ${EMPRESAS.length} empresas`);
+    console.log(
+      `   • ${PERIODOS.length} períodos (${PERIODOS.map((p) => p.nombre).join(", ")})`,
+    );
+    console.log(`   • ${totalEmpresaPeriodos} asignaciones empresa-período`);
     console.log(`   • 2 asesores + 1 jefe`);
     console.log(`   • ${totalResidentes} residentes`);
-    console.log(`   • ${proyectosUsados.length} proyectos`);
+    console.log(`   • ${totalProyectos} proyectos`);
     console.log(`   • ${totalReportes} reportes`);
     console.log(`   • ${citasInsertadas} citas`);
-    console.log(`   • ${notificaciones.length} notificaciones\n`);
+    console.log(`   • ${NOTIFICACIONES.length} notificaciones\n`);
+    console.log("🔑 Contraseña de todos los usuarios: vinculatec123");
+    console.log("   Jefe:    director@itm.edu.mx");
+    console.log("   Asesor:  marco.reyes@itm.edu.mx  /  laura.vega@itm.edu.mx");
+    console.log("   Residente: ana.garcia@itm.edu.mx  (y otros)\n");
 
     await conn.end();
   } catch (err) {
