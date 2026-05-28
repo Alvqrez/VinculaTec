@@ -12,8 +12,8 @@
  *   node seedVacia.js
  *
  * Credenciales:
- *   jefe@test.mx      / test123
- *   asesor@test.mx    / test123
+ *   jefe@test.mx       / test123
+ *   asesor@test.mx     / test123
  *   residente1@test.mx / test123
  *   residente2@test.mx / test123
  */
@@ -38,13 +38,14 @@ async function seed() {
   console.log("✅  Conectado a MySQL.");
 
   try {
-    // Limpiar tablas
+    // Limpiar tablas (orden: hijos antes que padres)
     await conn.execute("SET FOREIGN_KEY_CHECKS = 0");
     for (const t of [
       "fuentes_informacion",
       "notificaciones",
       "citas",
       "reportes",
+      "proyecto_asesores",
       "proyectos",
       "residentes",
       "asesores",
@@ -172,7 +173,6 @@ async function seed() {
     console.log("🎒  2 residentes insertados.");
 
     // ── Proyecto compartido (2 residentes, mismo asesor) ──────────────────────
-    // RES-1 es el residente "principal" del proyecto en la tabla proyectos
     await conn.execute(
       `INSERT INTO proyectos (id, titulo, descripcion, empresa_id, residente_id, asesor_id, estado, prioridad, tecnologias, progreso)
        VALUES (?,?,?,?,?,?,?,?,?,?)`,
@@ -189,11 +189,17 @@ async function seed() {
         30,
       ],
     );
+
+    // Registrar también la relación en proyecto_asesores
+    await conn.execute(
+      "INSERT INTO proyecto_asesores (proyecto_id, asesor_id) VALUES (?,?)",
+      ["PROY-1", "ASE-3"],
+    );
     console.log("🗂️   1 proyecto insertado (con 2 residentes).");
 
-    // ── Reportes (uno preliminar por residente, el de RES-1 ya aceptado) ─────
+    // ── Reportes (5 por residente) ────────────────────────────────────────────
     const reportes = [
-      // Residente 1 — tiene el preliminar aceptado para poder probar parciales
+      // Residente 1 — preliminar aprobado, puede entregar parciales
       {
         id: "REP-RES1-1",
         rid: "RES-1",
@@ -234,7 +240,7 @@ async function seed() {
         entrega: null,
         estado: "Pendiente",
       },
-      // Residente 2 — pendiente de entregar todo
+      // Residente 2 — todo pendiente
       {
         id: "REP-RES2-1",
         rid: "RES-2",
@@ -302,43 +308,49 @@ async function seed() {
     );
     console.log("📚  1 fuente insertada.");
 
-    // ── Notificaciones de bienvenida ───────────────────────────────────────────
+    // ── Notificaciones de bienvenida ──────────────────────────────────────────
+    // Columnas correctas según schema:
+    //   tipo_notificacion  ENUM('REVISION','AVANCE','SISTEMA')
+    //   mensaje            TEXT
+    //   icon               VARCHAR(50)
+    //   is_read            BOOLEAN
+    //   id                 INT AUTO_INCREMENT  → no se inserta manualmente
     const notifs = [
       {
         uid: "1",
-        tipo: "Bienvenida",
+        tipo: "SISTEMA",
         titulo: "¡Bienvenido al sistema!",
-        cuerpo:
+        mensaje:
           "Tu reporte preliminar fue aceptado. Ya puedes entregar tus reportes parciales.",
-        icono: "check-circle",
+        icon: "check-circle",
       },
       {
         uid: "2",
-        tipo: "Bienvenida",
+        tipo: "SISTEMA",
         titulo: "¡Bienvenida al sistema!",
-        cuerpo: "Entrega tu reporte preliminar para iniciar el seguimiento.",
-        icono: "info",
+        mensaje: "Entrega tu reporte preliminar para iniciar el seguimiento.",
+        icon: "info",
       },
       {
         uid: "3",
-        tipo: "Alerta",
+        tipo: "SISTEMA",
         titulo: "Tienes residentes pendientes",
-        cuerpo: "Revisa los reportes de tus residentes.",
-        icono: "bell",
+        mensaje: "Revisa los reportes de tus residentes.",
+        icon: "bell",
       },
       {
         uid: "4",
-        tipo: "Alerta",
+        tipo: "SISTEMA",
         titulo: "Residentes activos",
-        cuerpo: "Tienes 2 residentes activos este semestre.",
-        icono: "users",
+        mensaje: "Tienes 2 residentes activos este semestre.",
+        icon: "users",
       },
     ];
-    for (let i = 0; i < notifs.length; i++) {
-      const n = notifs[i];
+
+    for (const n of notifs) {
       await conn.execute(
-        "INSERT INTO notificaciones (id, usuario_id, tipo, titulo, cuerpo, icono, leida) VALUES (?,?,?,?,?,?,?)",
-        [`NOT-${i + 1}`, n.uid, n.tipo, n.titulo, n.cuerpo, n.icono, false],
+        "INSERT INTO notificaciones (usuario_id, tipo_notificacion, titulo, mensaje, icon, is_read) VALUES (?,?,?,?,?,?)",
+        [n.uid, n.tipo, n.titulo, n.mensaje, n.icon, false],
       );
     }
     console.log("🔔  4 notificaciones insertadas.");
