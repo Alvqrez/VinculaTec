@@ -122,6 +122,20 @@ export function ProyectosProvider({ children }) {
       prev.map((p) => (p.id === id ? { ...p, ...changes } : p)),
     );
 
+  /** Actualiza un reporte dentro de un proyecto en el estado local */
+  const updateReporte = (proyectoId, reporteId, changes) =>
+    setProyectos((prev) =>
+      prev.map((p) => {
+        if (p.id !== proyectoId) return p;
+        return {
+          ...p,
+          reportes: p.reportes.map((r) =>
+            r.id === reporteId ? { ...r, ...changes } : r,
+          ),
+        };
+      }),
+    );
+
   // ── Propuestas ─────────────────────────────────────────────────────────────
   const addPropuesta = (propuesta) =>
     setPropuestas((prev) => [...prev, { ...propuesta, id: Date.now() }]);
@@ -162,6 +176,7 @@ export function ProyectosProvider({ children }) {
         error,
         reload,
         updateProyecto,
+        updateReporte,
         addPropuesta,
         updatePropuesta,
         deletePropuesta,
