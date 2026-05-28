@@ -283,60 +283,6 @@ function RegistrarUsuarioModal({
                 <Feather name="x" size={20} color={C.textMuted} />
               </TouchableOpacity>
             </Row>
-
-            {/* Selector de rol */}
-            <Row style={{ gap: 10, marginTop: 16 }}>
-              {ROL_OPTS.map((opt) => {
-                const active = rol === opt.id;
-                return (
-                  <TouchableOpacity
-                    key={opt.id}
-                    onPress={() => setRol(opt.id)}
-                    style={{
-                      flex: 1,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: 12,
-                      borderRadius: 10,
-                      borderWidth: 2,
-                      borderColor: active ? opt.color : C.border,
-                      backgroundColor: active ? opt.bg : C.card,
-                    }}
-                  >
-                    <Feather
-                      name={opt.icon}
-                      size={15}
-                      color={active ? opt.color : C.textMuted}
-                    />
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        fontWeight: "700",
-                        color: active ? opt.color : C.text,
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                    {active && (
-                      <View
-                        style={{
-                          marginLeft: "auto",
-                          width: 18,
-                          height: 18,
-                          borderRadius: 9,
-                          backgroundColor: opt.color,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Feather name="check" size={11} color="white" />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </Row>
           </View>
 
           <ScrollView

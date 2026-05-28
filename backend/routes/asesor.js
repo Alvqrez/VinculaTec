@@ -199,7 +199,7 @@ router.get("/proyectos", ...soloAsesor, async (req, res) => {
           solicitudAvance: Boolean(project.solicitud_avance),
           residentes: residentes.map((r) => ({
             id: r.id,
-            usuarioId: r.usuario_id,   // BUG FIX #1: necesario para enviar notif al residente
+            usuarioId: r.usuario_id, // BUG FIX #1: necesario para enviar notif al residente
             nombre: `${r.nombre} ${r.apellidos}`,
             iniciales: `${r.nombre.charAt(0)}${r.apellidos.charAt(0)}`,
             rol: "Residente",
@@ -628,7 +628,7 @@ router.post(
       if (existingReport.length > 0) {
         // Si el reporte ya existe, actualizar su estado a "Pendiente" para permitir reenvío
         await db.execute(
-          "UPDATE reportes SET estado = 'Pendiente' WHERE id = ?",
+          "UPDATE reportes SET estado = 'Pendiente', fecha_entrega = CURDATE() WHERE id = ?",
           [existingReport[0].id],
         );
       } else {
@@ -636,9 +636,9 @@ router.post(
         const tsShort = Date.now().toString().slice(-8);
         const newId = `r_${residenteId}_${tipo}_${tsShort}`;
         await db.execute(
-          `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega)
-         VALUES (?, ?, ?, 'Pendiente', NULL)`,
-          [newId, residenteId, tipo],
+          `INSERT INTO reportes (id, residente_id, tipo, estado, fecha_entrega) VALUES (?, ?, ?, 'Pendiente', CURDATE())`[
+            (newId, residenteId, tipo)
+          ],
         );
       }
 

@@ -275,20 +275,22 @@ export function ReportesProvider({ children }) {
    * Envía un reporte al backend y actualiza el estado local.
    * Usa el endpoint existente PUT /api/residente/reportes/:tipo
    */
-  const submitReporte = async (tipoId, archivo = null) => {
+  const submitReporte = async (
+    tipoId,
+    archivo = null,
+    archivoBase64 = null,
+  ) => {
     const today = new Date().toLocaleDateString("es-MX", {
       day: "2-digit",
       month: "short",
       year: "numeric",
     });
-    // Optimistic update
     updateReport(tipoId, { status: "Pendiente", submitted: today, archivo });
 
     try {
       const token = getAuthToken();
       if (!token) return { ok: true, offline: true };
 
-      // Determinar el tipo enum a partir del id
       const tipoMap = {
         preliminar: "preliminar",
         1: "parcial1",
@@ -304,7 +306,10 @@ export function ReportesProvider({ children }) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ nombre_archivo: archivo }),
+        body: JSON.stringify({
+          nombre_archivo: archivo,
+          archivo: archivoBase64 || null, // ← base64 real del archivo
+        }),
       });
       return await res.json();
     } catch (err) {
