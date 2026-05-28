@@ -46,9 +46,17 @@ export default function AsignacionJefe() {
   };
 
   const toggleResidente = (id) => {
-    setResidentesIds((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
-    );
+    setResidentesIds((prev) => {
+      if (prev.includes(id)) return prev.filter((r) => r !== id);
+      if (prev.length >= 2) {
+        Alert.alert(
+          "Límite alcanzado",
+          "Un proyecto puede tener máximo 2 residentes.",
+        );
+        return prev;
+      }
+      return [...prev, id];
+    });
   };
 
   const validarPaso = () => {

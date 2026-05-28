@@ -296,10 +296,17 @@ router.get("/asignacion/datos", ...soloJefe, async (req, res) => {
     );
     const [residentes] = await db.execute(
       `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre,
-              r.num_control AS matricula, r.carrera, r.asesor_id
-       FROM residentes r
-       JOIN usuarios u ON r.usuario_id = u.id
-       WHERE r.estado = 'activo' ORDER BY u.nombre ASC`,
+          r.num_control AS matricula, r.carrera
+   FROM residentes r
+   JOIN usuarios u ON r.usuario_id = u.id
+   WHERE r.estado = 'activo'
+     AND r.asesor_id IS NULL
+     AND NOT EXISTS (
+       SELECT 1 FROM proyectos p
+       WHERE p.residente_id = r.id
+         AND p.estado NOT IN ('concluido','cancelado')
+     )
+   ORDER BY u.nombre ASC`,
     );
     // Proyectos disponibles para asignar (sin asesor o sin residente aún)
     const [proyectos] = await db.execute(

@@ -2001,9 +2001,7 @@ const EMPTY_EMPRESA_FORM = {
   name: "",
   sector: "Tecnología",
   ciudad: "",
-  convenio: "",
   contactoNombre: "",
-  contactoEmail: "",
   contactoTel: "",
   status: "Nueva",
 };
@@ -2093,12 +2091,21 @@ function EmpresasPeriodoTab() {
       showToast("El nombre de la empresa es requerido", "error");
       return;
     }
+    if (
+      empresaForm.contactoTel &&
+      empresaForm.contactoTel.replace(/\D/g, "").length !== 10
+    ) {
+      showToast("El teléfono debe tener exactamente 10 dígitos", "error");
+      return;
+    }
     setSavingEmpresa(true);
     const payload = {
-      ...empresaForm,
-      convenio: empresaForm.convenio
-        ? new Date(empresaForm.convenio).toISOString().split("T")[0]
-        : null,
+      name: empresaForm.name.trim(),
+      sector: empresaForm.sector,
+      ciudad: empresaForm.ciudad.trim() || null,
+      contactoNombre: empresaForm.contactoNombre.trim() || null,
+      contactoTel: empresaForm.contactoTel.replace(/\D/g, "") || null,
+      status: empresaForm.status,
     };
     const res = await apiClient.post("/api/jefe/empresas", payload);
     if (res.ok) {
@@ -2107,7 +2114,6 @@ function EmpresasPeriodoTab() {
       reloadEmpresas();
       setShowCrearModal(false);
       setEmpresaForm(EMPTY_EMPRESA_FORM);
-      // Si hay un período seleccionado, agregar automáticamente la nueva empresa
       if (selectedPeriodo && nuevaId) {
         await apiClient.post(
           `/api/jefe/periodos/${selectedPeriodo.id}/empresas`,
@@ -2743,31 +2749,14 @@ function EmpresasPeriodoTab() {
                 })}
               </View>
 
-              {/* Ciudad y Convenio */}
-              <Row style={{ gap: 12 }}>
-                <View style={{ flex: 1 }}>
-                  <LabelInput
-                    C={C}
-                    label="Ciudad"
-                    value={empresaForm.ciudad}
-                    onChange={(v) =>
-                      setEmpresaForm({ ...empresaForm, ciudad: v })
-                    }
-                    placeholder="Ej: Minatitlán"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <LabelInput
-                    C={C}
-                    label="Vencimiento convenio"
-                    value={empresaForm.convenio}
-                    onChange={(v) =>
-                      setEmpresaForm({ ...empresaForm, convenio: v })
-                    }
-                    placeholder="AAAA-MM-DD"
-                  />
-                </View>
-              </Row>
+              {/* Ciudad */}
+              <LabelInput
+                C={C}
+                label="Ciudad"
+                value={empresaForm.ciudad}
+                onChange={(v) => setEmpresaForm({ ...empresaForm, ciudad: v })}
+                placeholder="Ej: Minatitlán"
+              />
 
               {/* Contacto */}
               <Text
@@ -2795,26 +2784,32 @@ function EmpresasPeriodoTab() {
                 <View style={{ flex: 1 }}>
                   <LabelInput
                     C={C}
-                    label="Teléfono"
+                    label="Teléfono (10 dígitos)"
                     value={empresaForm.contactoTel}
                     onChange={(v) =>
-                      setEmpresaForm({ ...empresaForm, contactoTel: v })
+                      setEmpresaForm({
+                        ...empresaForm,
+                        contactoTel: v.replace(/\D/g, "").slice(0, 10),
+                      })
                     }
-                    placeholder="+52 (921) 0000-0000"
-                    keyboardType="phone-pad"
+                    placeholder="8121234567"
+                    keyboardType="numeric"
                   />
+                  {empresaForm.contactoTel.length > 0 &&
+                    empresaForm.contactoTel.length !== 10 && (
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          color: "#DC2626",
+                          marginTop: -10,
+                          marginBottom: 12,
+                        }}
+                      >
+                        {empresaForm.contactoTel.length}/10 dígitos
+                      </Text>
+                    )}
                 </View>
               </Row>
-              <LabelInput
-                C={C}
-                label="Correo"
-                value={empresaForm.contactoEmail}
-                onChange={(v) =>
-                  setEmpresaForm({ ...empresaForm, contactoEmail: v })
-                }
-                placeholder="contacto@empresa.com"
-                keyboardType="email-address"
-              />
 
               {/* Botones */}
               <Row style={{ gap: 10, marginBottom: 8 }}>

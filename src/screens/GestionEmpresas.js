@@ -264,23 +264,6 @@ export default function GestionEmpresas() {
               Directorio y convenios vigentes
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={openNew}
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 7,
-              backgroundColor: periodoActivo ? C.teal : C.border,
-              paddingHorizontal: 16,
-              paddingVertical: 9,
-              borderRadius: 10,
-            }}
-          >
-            <Feather name="plus" size={15} color="white" />
-            <Text style={{ fontSize: 13, fontWeight: "700", color: "white" }}>
-              Crear empresa
-            </Text>
-          </TouchableOpacity>
         </Row>
 
         {/* Aviso sin período activo */}
