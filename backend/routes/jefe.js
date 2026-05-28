@@ -294,9 +294,6 @@ router.get("/asignacion/datos", ...soloJefe, async (req, res) => {
        LEFT JOIN proyectos p ON p.asesor_id = a.id AND p.estado IN ('desarrollo','revision')
        GROUP BY a.id ORDER BY u.nombre ASC`,
     );
-    const [empresas] = await db.execute(
-      "SELECT id, nombre FROM empresas WHERE estado != 'Inactiva' ORDER BY nombre ASC",
-    );
     const [residentes] = await db.execute(
       `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre,
               r.num_control AS matricula, r.carrera, r.asesor_id
@@ -304,7 +301,15 @@ router.get("/asignacion/datos", ...soloJefe, async (req, res) => {
        JOIN usuarios u ON r.usuario_id = u.id
        WHERE r.estado = 'activo' ORDER BY u.nombre ASC`,
     );
-    return res.json({ ok: true, asesores, empresas, residentes });
+    // Proyectos disponibles para asignar (sin asesor o sin residente aún)
+    const [proyectos] = await db.execute(
+      `SELECT p.id, p.titulo AS nombre, p.empresa_id,
+              e.nombre AS empresa_nombre, p.periodo
+       FROM proyectos p
+       LEFT JOIN empresas e ON p.empresa_id = e.id
+       ORDER BY p.titulo ASC`,
+    );
+    return res.json({ ok: true, asesores, residentes, proyectos });
   } catch (err) {
     console.error("Error en GET /jefe/asignacion/datos:", err);
     return res.status(500).json({ ok: false, mensaje: "Error interno." });
@@ -421,8 +426,35 @@ router.post("/asignacion", ...soloJefe, async (req, res) => {
       body: req.body,
     });
 
-    const { asesorIds, asesorIdPrimario } = validateAsignacionData(req.body);
-    const proyectoId = await createProyecto({ ...req.body, asesorIdPrimario });
+    let asesorIds = req.body.asesorIds || [];
+    if (!asesorIds.length && req.body.asesorId) asesorIds = [req.body.asesorId];
+    const asesorIdPrimario = asesorIds[0];
+
+    if (!asesorIdPrimario || !req.body.residentesIds?.length) {
+      return res
+        .status(400)
+        .json({ ok: false, mensaje: "Faltan asesor o residentes." });
+    }
+
+    let proyectoId;
+
+    if (req.body.proyectoId) {
+      // ── Usar proyecto EXISTENTE: solo actualizar asesor y residente ──
+      proyectoId = req.body.proyectoId;
+      await db.execute(
+        `UPDATE proyectos SET asesor_id = ?, residente_id = ? WHERE id = ?`,
+        [asesorIdPrimario, req.body.residentesIds[0], proyectoId],
+      );
+    } else {
+      // ── Flujo original: crear proyecto nuevo ──
+      const { asesorIds: aIds, asesorIdPrimario: aIdP } =
+        validateAsignacionData(req.body);
+      asesorIds = aIds;
+      proyectoId = await createProyecto({
+        ...req.body,
+        asesorIdPrimario: aIdP,
+      });
+    }
 
     await assignResidentesToAsesor(req.body.residentesIds, asesorIdPrimario);
     await assignAsesoresToProyecto(proyectoId, asesorIds);
@@ -431,7 +463,6 @@ router.post("/asignacion", ...soloJefe, async (req, res) => {
     logger.logAudit("ASIGNACION_PROYECTO", req.user.id, proyectoId, {
       asesorIdPrimario,
       residentesCount: req.body.residentesIds.length,
-      empresaId: req.body.empresaId,
     });
 
     return res.json({ ok: true, id: proyectoId });
@@ -503,12 +534,10 @@ router.put("/proyectos/:id/aprobar-avance", ...soloJefe, async (req, res) => {
         .json({ ok: false, mensaje: "Proyecto no encontrado." });
     const { estado, solicitud_avance, titulo } = rows[0];
     if (!solicitud_avance)
-      return res
-        .status(400)
-        .json({
-          ok: false,
-          mensaje: "El proyecto no tiene solicitud de avance pendiente.",
-        });
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El proyecto no tiene solicitud de avance pendiente.",
+      });
     const idx = phases.indexOf(estado);
     if (idx < 0 || idx >= phases.length - 1)
       return res
@@ -612,28 +641,22 @@ router.post("/registrar-usuario", ...soloJefe, async (req, res) => {
   } = req.body;
 
   if (!["residente", "asesor"].includes(rol))
-    return res
-      .status(400)
-      .json({
-        ok: false,
-        mensaje: "Rol inválido. Debe ser 'residente' o 'asesor'.",
-      });
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Rol inválido. Debe ser 'residente' o 'asesor'.",
+    });
   if (!nombre?.trim() || !apellidos?.trim() || !correo?.trim() || !password)
-    return res
-      .status(400)
-      .json({
-        ok: false,
-        mensaje: "Nombre, apellidos, correo y contraseña son requeridos.",
-      });
+    return res.status(400).json({
+      ok: false,
+      mensaje: "Nombre, apellidos, correo y contraseña son requeridos.",
+    });
 
   // SEGURIDAD FIX #10: Aumentado mínimo de contraseña de 6 a 8 caracteres
   if (password.length < 8)
-    return res
-      .status(400)
-      .json({
-        ok: false,
-        mensaje: "La contraseña debe tener al menos 8 caracteres.",
-      });
+    return res.status(400).json({
+      ok: false,
+      mensaje: "La contraseña debe tener al menos 8 caracteres.",
+    });
 
   // Validación básica de formato de correo
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -813,7 +836,6 @@ router.get("/grafica-reportes", ...soloJefe, async (_, res) => {
   }
 });
 
-
 // ══════════════════════════════════════════════════════════════════════════════
 // ── ADMIN: Residentes ────────────────────────────────────────────────────────
 // ══════════════════════════════════════════════════════════════════════════════
@@ -881,7 +903,12 @@ router.put("/admin/asesores/:id", ...soloJefe, async (req, res) => {
   try {
     await db.execute(
       "UPDATE asesores SET departamento=?, num_empleado=?, max_residentes=? WHERE id=?",
-      [departamento || null, num_empleado || null, max_residentes || 10, req.params.id],
+      [
+        departamento || null,
+        num_empleado || null,
+        max_residentes || 10,
+        req.params.id,
+      ],
     );
     return res.json({ ok: true });
   } catch (err) {
@@ -896,9 +923,15 @@ router.put("/admin/asesores/:id/toggle", ...soloJefe, async (req, res) => {
       "SELECT u.id AS uid, u.activo FROM asesores a JOIN usuarios u ON a.usuario_id=u.id WHERE a.id=?",
       [req.params.id],
     );
-    if (!rows.length) return res.status(404).json({ ok: false, mensaje: "Asesor no encontrado." });
+    if (!rows.length)
+      return res
+        .status(404)
+        .json({ ok: false, mensaje: "Asesor no encontrado." });
     const nuevoActivo = rows[0].activo ? 0 : 1;
-    await db.execute("UPDATE usuarios SET activo=? WHERE id=?", [nuevoActivo, rows[0].uid]);
+    await db.execute("UPDATE usuarios SET activo=? WHERE id=?", [
+      nuevoActivo,
+      rows[0].uid,
+    ]);
     return res.json({ ok: true, activo: nuevoActivo });
   } catch (err) {
     console.error("Error PUT /admin/asesores/:id/toggle:", err);
@@ -929,12 +962,21 @@ router.get("/periodos", ...soloJefe, async (req, res) => {
 router.post("/periodos", ...soloJefe, async (req, res) => {
   const { nombre, fecha_inicio, fecha_fin, descripcion, estado } = req.body;
   if (!nombre?.trim() || !fecha_inicio || !fecha_fin)
-    return res.status(400).json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
   try {
     const id = `per_${Date.now()}`;
     await db.execute(
       "INSERT INTO periodos (id, nombre, fecha_inicio, fecha_fin, descripcion, estado) VALUES (?,?,?,?,?,?)",
-      [id, nombre.trim(), fecha_inicio, fecha_fin, descripcion || null, estado || "planificado"],
+      [
+        id,
+        nombre.trim(),
+        fecha_inicio,
+        fecha_fin,
+        descripcion || null,
+        estado || "planificado",
+      ],
     );
     return res.json({ ok: true, id });
   } catch (err) {
@@ -946,11 +988,20 @@ router.post("/periodos", ...soloJefe, async (req, res) => {
 router.put("/periodos/:id", ...soloJefe, async (req, res) => {
   const { nombre, fecha_inicio, fecha_fin, descripcion, estado } = req.body;
   if (!nombre?.trim() || !fecha_inicio || !fecha_fin)
-    return res.status(400).json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "Nombre y fechas son requeridos." });
   try {
     await db.execute(
       "UPDATE periodos SET nombre=?, fecha_inicio=?, fecha_fin=?, descripcion=?, estado=? WHERE id=?",
-      [nombre.trim(), fecha_inicio, fecha_fin, descripcion || null, estado || "planificado", req.params.id],
+      [
+        nombre.trim(),
+        fecha_inicio,
+        fecha_fin,
+        descripcion || null,
+        estado || "planificado",
+        req.params.id,
+      ],
     );
     return res.json({ ok: true });
   } catch (err) {
@@ -961,9 +1012,15 @@ router.put("/periodos/:id", ...soloJefe, async (req, res) => {
 
 router.delete("/periodos/:id", ...soloJefe, async (req, res) => {
   try {
-    const [ep] = await db.execute("SELECT COUNT(*) AS c FROM empresa_periodos WHERE periodo_id=?", [req.params.id]);
+    const [ep] = await db.execute(
+      "SELECT COUNT(*) AS c FROM empresa_periodos WHERE periodo_id=?",
+      [req.params.id],
+    );
     if (ep[0].c > 0)
-      return res.status(400).json({ ok: false, mensaje: "El período tiene empresas asociadas. Elimínalas primero." });
+      return res.status(400).json({
+        ok: false,
+        mensaje: "El período tiene empresas asociadas. Elimínalas primero.",
+      });
     await db.execute("DELETE FROM periodos WHERE id=?", [req.params.id]);
     return res.json({ ok: true });
   } catch (err) {
@@ -995,7 +1052,10 @@ router.get("/periodos/:id/empresas", ...soloJefe, async (req, res) => {
 
 router.post("/periodos/:id/empresas", ...soloJefe, async (req, res) => {
   const { empresa_id } = req.body;
-  if (!empresa_id) return res.status(400).json({ ok: false, mensaje: "empresa_id requerido." });
+  if (!empresa_id)
+    return res
+      .status(400)
+      .json({ ok: false, mensaje: "empresa_id requerido." });
   try {
     await db.execute(
       "INSERT IGNORE INTO empresa_periodos (periodo_id, empresa_id) VALUES (?,?)",
@@ -1008,17 +1068,21 @@ router.post("/periodos/:id/empresas", ...soloJefe, async (req, res) => {
   }
 });
 
-router.delete("/periodos/:id/empresas/:empresaId", ...soloJefe, async (req, res) => {
-  try {
-    await db.execute(
-      "DELETE FROM empresa_periodos WHERE periodo_id=? AND empresa_id=?",
-      [req.params.id, req.params.empresaId],
-    );
-    return res.json({ ok: true });
-  } catch (err) {
-    console.error("Error DELETE /periodos/:id/empresas/:eid:", err);
-    return res.status(500).json({ ok: false, mensaje: "Error interno." });
-  }
-});
+router.delete(
+  "/periodos/:id/empresas/:empresaId",
+  ...soloJefe,
+  async (req, res) => {
+    try {
+      await db.execute(
+        "DELETE FROM empresa_periodos WHERE periodo_id=? AND empresa_id=?",
+        [req.params.id, req.params.empresaId],
+      );
+      return res.json({ ok: true });
+    } catch (err) {
+      console.error("Error DELETE /periodos/:id/empresas/:eid:", err);
+      return res.status(500).json({ ok: false, mensaje: "Error interno." });
+    }
+  },
+);
 
 module.exports = router;
