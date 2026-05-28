@@ -73,7 +73,7 @@ export default function ResidenteApp({ usuario, onLogout }) {
     "reportes-parciales": <ReportesParciales />,
     "reporte-final": <ReporteFinal usuario={usuario} />,
     notificaciones: <Notificaciones onNavigate={navigateTo} />,
-    calendario: <CalendarioCitas />,
+    calendario: <CalendarioCitas usuario={usuario} />,
     utilerias: (
       <Utilerias
         fotoPerfil={fotoPerfil}
