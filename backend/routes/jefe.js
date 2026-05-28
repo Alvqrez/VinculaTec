@@ -1092,4 +1092,84 @@ router.delete(
   },
 );
 
+// ── GET /api/jefe/seguimiento ─────────────────────────────────────────────────
+// Devuelve todos los residentes activos con sus reportes para la vista
+// de Seguimiento del Departamento. Independiente del contexto del Asesor.
+router.get("/seguimiento", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT
+         res.id                                        AS residenteId,
+         CONCAT(u.nombre,' ',u.apellidos)              AS nombre,
+         CONCAT(LEFT(u.nombre,1),LEFT(u.apellidos,1))  AS iniciales,
+         e.nombre                                      AS empresa,
+         p.titulo                                      AS proyecto,
+         COALESCE(CONCAT(ua.nombre,' ',ua.apellidos),'Sin asignar') AS asesor,
+         r.id                                          AS reporteId,
+         r.tipo                                        AS fase,
+         r.estado                                      AS status,
+         r.fecha_entrega                               AS fecha
+       FROM residentes res
+       JOIN usuarios u ON res.usuario_id = u.id
+       LEFT JOIN empresas e ON res.empresa_id = e.id
+       LEFT JOIN proyectos p ON p.residente_id = res.id
+       LEFT JOIN asesores a ON res.asesor_id = a.id
+       LEFT JOIN usuarios ua ON a.usuario_id = ua.id
+       LEFT JOIN reportes r ON r.residente_id = res.id
+       WHERE res.estado = 'activo'
+       ORDER BY u.nombre, u.apellidos,
+                FIELD(r.tipo,'preliminar','parcial1','parcial2','parcial3','final')`,
+    );
+
+    // Normalizar fase y status (misma lógica que asesor.js)
+    const faseMap = {
+      preliminar: "Preliminar",
+      parcial1: "Parcial 1",
+      parcial2: "Parcial 2",
+      parcial3: "Parcial 3",
+      final: "Final",
+    };
+    const statusMap = {
+      Pendiente: "Pendiente",
+      "En Revisión": "Pendiente",
+      Aprobado: "Aceptado",
+      Entregado: "Pendiente",
+      Rechazado: "Por corregir",
+      "Por corregir": "Por corregir",
+      Aceptado: "Aceptado",
+    };
+
+    // Agrupar por residente
+    const map = new Map();
+    for (const row of rows) {
+      const key = row.residenteId;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          nombre: row.nombre,
+          iniciales: row.iniciales,
+          empresa: row.empresa || "Sin empresa",
+          proyecto: row.proyecto || "Sin proyecto",
+          asesor: row.asesor,
+          reportes: [],
+        });
+      }
+      if (row.reporteId) {
+        map.get(key).reportes.push({
+          tipo: faseMap[row.fase] || row.fase,
+          estado: statusMap[row.status] || row.status || "Pendiente",
+          fecha: row.fecha
+            ? new Date(row.fecha).toISOString().split("T")[0]
+            : null,
+        });
+      }
+    }
+
+    return res.json({ ok: true, residentes: [...map.values()] });
+  } catch (err) {
+    console.error("Error en GET /jefe/seguimiento:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 module.exports = router;
