@@ -115,8 +115,8 @@ const EMPTY_USUARIO_FORM = {
   password: "",
   confirmPassword: "",
   numControl: "",
-  carrera: "",
   semestre: "",
+  carrera: "Ingeniería en Sistemas Computacionales",
   departamento: "",
   numEmpleado: "",
 };
@@ -390,49 +390,6 @@ function RegistrarUsuarioModal({
                     />
                   </View>
                 </Row>
-                <View style={{ marginBottom: 14 }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontWeight: "700",
-                      color: C.textMuted,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                      marginBottom: 8,
-                    }}
-                  >
-                    Carrera
-                  </Text>
-                  <View
-                    style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}
-                  >
-                    {CARRERAS.map((c) => (
-                      <TouchableOpacity
-                        key={c}
-                        onPress={() => set("carrera", c)}
-                        style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 20,
-                          borderWidth: 1,
-                          borderColor: form.carrera === c ? C.blue : C.border,
-                          backgroundColor:
-                            form.carrera === c ? C.blueLight : C.card,
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontWeight: "600",
-                            color: form.carrera === c ? C.blue : C.textMuted,
-                          }}
-                        >
-                          {c}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
               </>
             )}
 

@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Platform } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../../context/ThemeContext";
 import { useResponsive } from "../../hooks/useResponsive";
@@ -15,7 +21,6 @@ import { useReportes } from "../../context/ReportesContext";
 import { useNotificaciones } from "../../context/NotificacionesContext";
 import { NotificationBadge } from "../../components/NotificationBadge";
 import apiClient from "../../utils/apiClient";
-
 
 export default function DashResidente({ onNavigate }) {
   const { colors: C } = useTheme();
@@ -53,24 +58,28 @@ export default function DashResidente({ onNavigate }) {
   // Validación de residencia: solo se valida después de que el reporte final sea aceptado
   const residenciaValidada = final?.status === "Aceptado";
 
-  // Steps: Registro & Asignación are always done; then one per parcial + Final
+  // Progreso — Asignación y Reportes solo aparecen si hay asesor
   const steps = [
     { label: "Registro", done: true, active: false },
-    { label: "Asignación", done: true, active: false },
-    ...parciales.map((p, i) => ({
-      label: `Reporte ${i + 1}`,
-      done: p.status === "Aceptado",
-      active:
-        p.status !== "Aceptado" &&
-        parciales.slice(0, i).every((pp) => pp.status === "Aceptado"),
-    })),
-    {
-      label: "Final",
-      done: final?.status === "Aceptado",
-      active:
-        final?.status !== "Aceptado" &&
-        parciales.every((p) => p.status === "Aceptado"),
-    },
+    { label: "Asignación", done: !!asesor, active: !asesor },
+    ...(asesor
+      ? [
+          ...parciales.map((p, i) => ({
+            label: `Reporte ${i + 1}`,
+            done: p.status === "Aceptado",
+            active:
+              p.status !== "Aceptado" &&
+              parciales.slice(0, i).every((pp) => pp.status === "Aceptado"),
+          })),
+          {
+            label: "Final",
+            done: final?.status === "Aceptado",
+            active:
+              final?.status !== "Aceptado" &&
+              parciales.every((p) => p.status === "Aceptado"),
+          },
+        ]
+      : []),
   ];
 
   // Tabla "Mis Reportes" — sólo parciales
@@ -79,22 +88,25 @@ export default function DashResidente({ onNavigate }) {
     "Desarrollo del proyecto",
     "Avance final y conclusiones",
   ];
-  const reportesTabla = parciales.map((p, i) => {
-    const isAceptado = p.status === "Aceptado";
-    const isPendiente = p.status === "Pendiente";
-    return {
-      nombre: `Reporte ${i + 1} — ${PARCIAL_FOCUS[i] || "Reporte"}`,
-      fechaLimite: p.submitted ?? "—",
-      fechaEntrega: p.submitted ?? "—",
-      estado: p.status,
-      estadoColor: isAceptado ? C.green : isPendiente ? C.amber : C.blue,
-      estadoBg: isAceptado
-        ? C.greenLight
-        : isPendiente
-          ? C.amberLight
-          : C.tealLight,
-    };
-  });
+  // Mis Reportes — solo si hay asesor asignado
+  const reportesTabla = asesor
+    ? parciales.map((p, i) => {
+        const isAceptado = p.status === "Aceptado";
+        const isPendiente = p.status === "Pendiente";
+        return {
+          nombre: `Reporte ${i + 1} — ${PARCIAL_FOCUS[i] || "Reporte"}`,
+          fechaLimite: p.submitted ?? "—",
+          fechaEntrega: p.submitted ?? "—",
+          estado: p.status,
+          estadoColor: isAceptado ? C.green : isPendiente ? C.amber : C.blue,
+          estadoBg: isAceptado
+            ? C.greenLight
+            : isPendiente
+              ? C.amberLight
+              : C.tealLight,
+        };
+      })
+    : [];
 
   const [eventos, setEventos] = useState([]);
 
@@ -123,9 +135,17 @@ export default function DashResidente({ onNavigate }) {
       style={{ flex: 1, backgroundColor: C.bg }}
       contentContainerStyle={{ padding: 24 }}
     >
-      <Row style={{ justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-      <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>Dashboard Residente</Text>
-    </Row>
+      <Row
+        style={{
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 14,
+        }}
+      >
+        <Text style={{ fontSize: 18, fontWeight: "800", color: C.text }}>
+          Dashboard Residente
+        </Text>
+      </Row>
 
       {/* Stat Cards */}
       <Row style={{ gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
@@ -157,7 +177,13 @@ export default function DashResidente({ onNavigate }) {
         />
       </Row>
 
-      <Row style={{ gap: 20, alignItems: "flex-start", flexDirection: isMobile ? "column" : "row" }}>
+      <Row
+        style={{
+          gap: 20,
+          alignItems: "flex-start",
+          flexDirection: isMobile ? "column" : "row",
+        }}
+      >
         {/* Columna izquierda */}
         <View style={{ flex: 1, gap: 20, width: "100%" }}>
           {/* Mi Proyecto */}
@@ -543,49 +569,66 @@ export default function DashResidente({ onNavigate }) {
                 ESTADO
               </Text>
             </Row>
-            {reportesTabla.map((r, i) => (
-              <Row
-                key={i}
-                style={{
-                  paddingHorizontal: 12,
-                  paddingVertical: 14,
-                  borderBottomWidth: i < reportesTabla.length - 1 ? 1 : 0,
-                  borderBottomColor: C.border,
-                  alignItems: "center",
-                }}
-              >
-                <Text style={{ flex: 2, fontSize: 14, color: C.text }}>
-                  {r.nombre}
-                </Text>
+            {reportesTabla.length === 0 ? (
+              <View style={{ padding: 20, alignItems: "center" }}>
+                <Feather name="lock" size={24} color={C.textLight} />
                 <Text
                   style={{
-                    flex: 1,
                     fontSize: 13,
                     color: C.textMuted,
+                    marginTop: 10,
                     textAlign: "center",
                   }}
                 >
-                  {r.fechaLimite}
+                  Los reportes aparecerán cuando se te asigne un asesor y
+                  proyecto.
                 </Text>
-                <Text
+              </View>
+            ) : (
+              reportesTabla.map((r, i) => (
+                <Row
+                  key={i}
                   style={{
-                    flex: 1,
-                    fontSize: 13,
-                    color: C.textMuted,
-                    textAlign: "center",
+                    paddingHorizontal: 12,
+                    paddingVertical: 14,
+                    borderBottomWidth: i < reportesTabla.length - 1 ? 1 : 0,
+                    borderBottomColor: C.border,
+                    alignItems: "center",
                   }}
                 >
-                  {r.fechaEntrega}
-                </Text>
-                <View style={{ flex: 1, alignItems: "center" }}>
-                  <Badge
-                    text={r.estado}
-                    color={r.estadoColor}
-                    bg={r.estadoBg}
-                  />
-                </View>
-              </Row>
-            ))}
+                  <Text style={{ flex: 2, fontSize: 14, color: C.text }}>
+                    {r.nombre}
+                  </Text>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      color: C.textMuted,
+                      textAlign: "center",
+                    }}
+                  >
+                    {r.fechaLimite}
+                  </Text>
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      color: C.textMuted,
+                      textAlign: "center",
+                    }}
+                  >
+                    {r.fechaEntrega}
+                  </Text>
+                  <View style={{ flex: 1, alignItems: "center" }}>
+                    <Badge
+                      text={r.estado}
+                      color={r.estadoColor}
+                      bg={r.estadoBg}
+                    />
+                  </View>
+                </Row>
+              ))
+            )}
           </Card>
         </View>
 
