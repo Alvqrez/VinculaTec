@@ -1084,16 +1084,17 @@ export default function SeguimientoAsesor() {
                         <Row style={{ gap: 10, flexWrap: "wrap" }}>
                           {report.archivo && (
                             <TouchableOpacity
-                              onPress={() => {
-                                // Modificado: Descargar el archivo desde el servidor
-                                // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
-                                // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
+                              onPress={async () => {
                                 const { API_BASE } = require("../config/api");
-                                const base = API_BASE
-                                  ? API_BASE.replace("/api", "")
-                                  : "";
+                                const { getAuthToken } = require("../context/AuthContext");
+                                const base = API_BASE ? API_BASE.replace("/api", "") : "";
                                 const url = `${base}${report.archivo}`;
-                                window.open(url, "_blank");
+                                try {
+                                  const res = await fetch(url, { headers: { Authorization: `Bearer ${getAuthToken()}` } });
+                                  const blob = await res.blob();
+                                  const objUrl = URL.createObjectURL(blob);
+                                  window.open(objUrl, "_blank");
+                                } catch (e) { console.error("Error al abrir archivo:", e); }
                               }}
                               style={{
                                 flexDirection: "row",
@@ -1407,14 +1408,17 @@ export default function SeguimientoAsesor() {
                 {/* Archivo adjunto */}
                 {reviewingReport.archivo && (
                   <TouchableOpacity
-                    onPress={() => {
-                      // Modificado: Descargar el archivo desde el servidor
-                      // Por qué: El archivo ahora se guarda en el disco del servidor, no en la base de datos
-                      // Para qué: El asesor puede descargar y ver el archivo PDF enviado por el residente
+                    onPress={async () => {
                       const { API_BASE } = require("../config/api");
+                      const { getAuthToken } = require("../context/AuthContext");
                       const base = API_BASE ? API_BASE.replace("/api", "") : "";
                       const url = `${base}${reviewingReport.archivo}`;
-                      window.open(url, "_blank");
+                      try {
+                        const res = await fetch(url, { headers: { Authorization: `Bearer ${getAuthToken()}` } });
+                        const blob = await res.blob();
+                        const objUrl = URL.createObjectURL(blob);
+                        window.open(objUrl, "_blank");
+                      } catch (e) { console.error("Error al abrir archivo:", e); }
                     }}
                     style={{
                       flexDirection: "row",
