@@ -11,6 +11,7 @@
     "@expo-google-fonts/sora": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "8.4.4",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "expo": "~54.0.33",
