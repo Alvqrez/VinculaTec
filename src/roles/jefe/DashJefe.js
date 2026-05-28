@@ -25,7 +25,7 @@ export default function DashJefe({ onNavigate }) {
     stats: realTimeStats,
     loading: statsLoading,
     refresh,
-  } = useRealTimeStats(30000);
+  } = useRealTimeStats("/api/jefe/dashboard", 60000);
 
   const STATUS_STYLE = {
     Activa: { color: C.green, bg: C.greenLight },

@@ -1,23 +1,20 @@
 /**
  * Configuración centralizada de la API
  *
- * SEGURIDAD FIX #11: Eliminada la IP local hardcodeada del código fuente.
- * Ahora se configura mediante variables de entorno o archivo .env.local
- *
- * SETUP PARA DESARROLLO:
- * 1. Copia el archivo .env.example a .env.local en la raíz del proyecto
- * 2. Define REACT_APP_API_URL con la URL correcta según tu ambiente:
- *    - localhost (solo navegador):  http://localhost:3001/api
- *    - WiFi (dispositivo físico):   http://TU_IP_AQUI:3001/api
- *    - ngrok (externo):             https://xxxx.ngrok-free.dev/api
- * 3. Reinicia Expo
+ * SETUP PARA DESARROLLO (cada miembro del equipo):
+ * 1. Copia .env.local.example → .env.local en la raíz del proyecto
+ * 2. Pon la IP o URL ngrok de la máquina que corre el backend:
+ *      REACT_APP_API_URL=http://192.168.x.x:3001/api
+ *    O con ngrok:
+ *      REACT_APP_API_URL=https://xxxx.ngrok-free.dev/api
+ * 3. Reinicia Expo (Ctrl+C y vuelve a correr)
  *
  * OBTENER TU IP LOCAL:
- *   Windows: ipconfig → "Dirección IPv4"
+ *   Windows : ipconfig  → "Dirección IPv4"
  *   Mac/Linux: ifconfig | grep "inet "
  */
 
-import { REACT_APP_API_URL } from '@env';
+import { REACT_APP_API_URL } from "@env";
 
 const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -44,40 +41,33 @@ const isMobile = (() => {
   }
 })();
 
-// SEGURIDAD FIX #11: La IP local ya no está hardcodeada aquí.
-// Se obtiene de la variable de entorno REACT_APP_API_URL definida en .env.local
-const envUrl = REACT_APP_API_URL;
-
-// Fallback solo para entorno localhost (navegador en la misma máquina)
-// Para móvil o dispositivos externos, REACT_APP_API_URL es obligatorio
-const API_BASE = envUrl || (isLocalhost ? "http://localhost:3001/api" : null);
+// Prioridad: variable de entorno → fallback solo si estamos en localhost
+const API_BASE =
+  REACT_APP_API_URL || (isLocalhost ? "http://localhost:3001/api" : null);
 
 if (!API_BASE) {
   console.error(
-    "[API] ERROR: No se pudo determinar la URL del backend.\n" +
-    "Crea un archivo .env.local en la raíz del proyecto con:\n" +
-    "REACT_APP_API_URL=http://TU_IP:3001/api"
+    "[API] ❌ No se pudo determinar la URL del backend.\n" +
+      "Crea un archivo .env.local en la raíz del proyecto con:\n" +
+      "REACT_APP_API_URL=http://TU_IP:3001/api\n" +
+      "(o la URL de ngrok si usas dispositivo externo)",
   );
 }
 
-if (isDevelopment) {
-  console.log("[API] Configuración:", {
-    isLocalhost,
-    isMobile,
-    envUrl: envUrl || "no definida",
-    apiBase: API_BASE || "NO CONFIGURADA",
-  });
+if (isDevelopment && API_BASE) {
+  console.log("[API] ✅ Backend URL:", API_BASE);
 }
 
-const WS_BASE = API_BASE ? API_BASE.replace("/api", "") : null;
+// WS_BASE: quita "/api" del final para apuntar al servidor raíz de Socket.IO
+const WS_BASE = API_BASE ? API_BASE.replace(/\/api\/?$/, "") : null;
 
 const checkApiHealth = async () => {
   if (!API_BASE) return false;
   try {
-    const response = await fetch(`${API_BASE.replace("/api", "")}/api/health`, {
-      method: "GET",
-      mode: "cors",
-    });
+    const response = await fetch(
+      `${API_BASE.replace(/\/api\/?$/, "")}/api/health`,
+      { method: "GET", mode: "cors" },
+    );
     return response.ok;
   } catch (error) {
     console.warn("[API] No se puede conectar al backend:", error.message);
@@ -85,4 +75,11 @@ const checkApiHealth = async () => {
   }
 };
 
-export { API_BASE, WS_BASE, checkApiHealth, isDevelopment, isLocalhost, isMobile };
+export {
+  API_BASE,
+  WS_BASE,
+  checkApiHealth,
+  isDevelopment,
+  isLocalhost,
+  isMobile,
+};

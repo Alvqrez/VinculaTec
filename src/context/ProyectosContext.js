@@ -1,20 +1,19 @@
+/**
+ * ProyectosContext
+ *
+ * FIX: Ya no hace fetch automático al montar. El fetch se dispara
+ * únicamente cuando el Asesor llama reload() desde AsesorApp.useEffect,
+ * evitando peticiones 403 innecesarias para Residentes y Jefes.
+ */
 import { createContext, useContext, useEffect, useState } from "react";
 import apiClient from "../utils/apiClient";
 import { useWebSocket } from "./WebSocketContext";
 
 const ProyectosCtx = createContext(null);
 
-// ── STATUSES NORMALIZADOS ────────────────────────────────────────────────────
-// "Aceptado"    — revisado y aprobado por el asesor
-// "Pendiente"   — enviado por el residente, esperando revisión
-// "Por corregir"— rechazado, requiere reenvío con correcciones
-// ─────────────────────────────────────────────────────────────────────────────
-
-const INITIAL_PROPOSED = []; // Las propuestas se cargan desde la BD
-
 export function ProyectosProvider({ children }) {
   const [proyectos, setProyectos] = useState([]);
-  const [propuestas, setPropuestas] = useState(INITIAL_PROPOSED);
+  const [propuestas, setPropuestas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [desbloqueadosPorResidente, setDesbloqueadosPorResidente] = useState(
@@ -87,21 +86,17 @@ export function ProyectosProvider({ children }) {
     }
   };
 
-  // reload: llamar desde AsesorApp al montar (después del login)
   const reload = fetchProyectos;
 
-  // ── WebSocket: actualizaciones en tiempo real ────────────────────────────────
+  // ── WebSocket: actualizaciones en tiempo real ──────────────────────────────
   const { subscribe } = useWebSocket();
 
   useEffect(() => {
-    // BUG FIX: el backend emite "reporte_revisado", no "reporte_actualizado"
     const off1 = subscribe("reporte_revisado", (data) => {
-      console.log("[ProyectosContext] Reporte revisado por asesor:", data);
-      // Recargar para que el asesor vea el feedback actualizado
+      console.log("[ProyectosContext] Reporte revisado:", data);
       reload();
     });
 
-    // Cuando el Jefe aprueba el avance de fase → el Asesor ve el cambio de inmediato
     const off2 = subscribe("proyecto_fase_aprobada", (data) => {
       console.log("[ProyectosContext] Fase aprobada:", data);
       updateProyecto(data.proyectoId, {
@@ -110,7 +105,6 @@ export function ProyectosProvider({ children }) {
       });
     });
 
-    // Cuando el Jefe asigna un asesor → recargar para que aparezca el proyecto
     const off3 = subscribe("asesor_asignado", (data) => {
       console.log("[ProyectosContext] Asesor asignado:", data);
       reload();
@@ -128,167 +122,34 @@ export function ProyectosProvider({ children }) {
       prev.map((p) => (p.id === id ? { ...p, ...changes } : p)),
     );
 
-  const addReporte = (proyectoId, reporte) =>
-    setProyectos((prev) =>
-      prev.map((p) =>
-        p.id === proyectoId ? { ...p, reportes: [...p.reportes, reporte] } : p,
-      ),
-    );
-
-  const updateReporte = (proyectoId, reporteId, changes) =>
-    setProyectos((prev) =>
-      prev.map((p) =>
-        p.id === proyectoId
-          ? {
-              ...p,
-              reportes: p.reportes.map((r) =>
-                r.id === reporteId ? { ...r, ...changes } : r,
-              ),
-            }
-          : p,
-      ),
-    );
-
-  /**
-   * Llamada cuando el Residente envía (o re-envía) un reporte.
-   * Actualiza el status a "Pendiente" en ProyectosContext para que
-   * el Asesor lo vea en SeguimientoAsesor.
-   */
-  const submitReporteFromResidente = (
-    fase,
-    residenteNombre = "",
-    proyectoId = null,
-  ) => {
-    const today = new Date().toISOString().split("T")[0];
-
-    setProyectos((prev) =>
-      prev.map((p) => {
-        if (p.id !== proyectoId) return p;
-
-        const existing = p.reportes.find(
-          (r) => r.fase === fase && r.residente === residenteNombre,
-        );
-
-        if (existing) {
-          return {
-            ...p,
-            reportes: p.reportes.map((r) =>
-              r.fase === fase && r.residente === residenteNombre
-                ? {
-                    ...r,
-                    status: "Pendiente",
-                    fecha: today,
-                    feedback: null,
-                    fechaRevision: null,
-                  }
-                : r,
-            ),
-          };
-        }
-
-        return {
-          ...p,
-          reportes: [
-            ...p.reportes,
-            {
-              id: `r_${Date.now()}`,
-              titulo: `Reporte ${fase}`,
-              residente: residenteNombre,
-              fase,
-              status: "Pendiente",
-              score: null,
-              fecha: today,
-              feedback: null,
-              fechaRevision: null,
-              historial: [],
-              cumpleObjetivos: null,
-              cumpleDiagnostico: null,
-              cumplePlanTrabajo: null,
-              archivo: null,
-            },
-          ],
-        };
-      }),
-    );
-  };
-
+  // ── Propuestas ─────────────────────────────────────────────────────────────
   const addPropuesta = (propuesta) =>
-    setPropuestas((prev) => [
-      ...prev,
-      { ...propuesta, id: `prop${Date.now()}`, status: "Pendiente" },
-    ]);
+    setPropuestas((prev) => [...prev, { ...propuesta, id: Date.now() }]);
 
   const updatePropuesta = (id, changes) =>
     setPropuestas((prev) =>
       prev.map((p) => (p.id === id ? { ...p, ...changes } : p)),
     );
 
-  const aprobarPropuesta = (id) => {
-    const prop = propuestas.find((p) => p.id === id);
-    if (!prop) return;
-    updatePropuesta(id, { status: "Aprobado" });
-    const nuevoProyecto = {
-      id: `p${Date.now()}`,
-      title: prop.title,
-      company: prop.company,
-      phase: "propuesto",
-      priority: prop.priority,
-      residentes: prop.residentesAsignados.map((r) => ({
-        ...r,
-        asignado: true,
-      })),
-      residentesRequeridos: prop.residentesRequeridos,
-      habilidades: prop.habilidadesRequeridas,
-      asesor: prop.asesor,
-      asesorId: prop.asesorId,
-      horasDocumentadas: 0,
-      horasTotales: 480,
-      fechaInicio: new Date().toISOString().slice(0, 10),
-      fechaFin: null,
-      reportes: [],
-      reuniones: [],
-    };
-    setProyectos((prev) => [...prev, nuevoProyecto]);
-  };
+  const deletePropuesta = (id) =>
+    setPropuestas((prev) => prev.filter((p) => p.id !== id));
 
-  const rechazarPropuesta = (id, motivo) =>
-    updatePropuesta(id, { status: "Rechazado", motivoRechazo: motivo });
-
-  const solicitarAvanceFase = async (proyectoId) => {
+  const addProyecto = async (proyectoData) => {
     try {
       const response = await apiClient.post(
-        `/api/asesor/proyectos/${proyectoId}/solicitar-avance`,
+        "/api/asesor/proyectos",
+        proyectoData,
       );
-
-      const resultado = response.body;
-      if (response.ok && resultado?.ok) {
-        updateProyecto(proyectoId, { solicitudAvance: true });
-        return { ok: true, mensaje: resultado.mensaje };
+      if (response.ok && response.body?.ok) {
+        await fetchProyectos();
+        return { ok: true };
       }
-
       return {
         ok: false,
-        mensaje:
-          resultado?.mensaje ||
-          response.error?.message ||
-          "Error al solicitar avance",
+        mensaje: response.body?.mensaje || "Error al crear proyecto",
       };
     } catch (err) {
-      console.error("Error al solicitar avance de fase:", err);
-      return { ok: false, mensaje: "Error de conexión con el servidor" };
-    }
-  };
-
-  const aprobarAvanceFase = (proyectoId) => {
-    const phases = ["propuesto", "desarrollo", "revision", "concluido"];
-    const proyecto = proyectos.find((p) => p.id === proyectoId);
-    if (!proyecto) return;
-    const currentIdx = phases.indexOf(proyecto.phase);
-    if (currentIdx < phases.length - 1) {
-      updateProyecto(proyectoId, {
-        phase: phases[currentIdx + 1],
-        solicitudAvance: false,
-      });
+      return { ok: false, mensaje: "Error de conexión" };
     }
   };
 
@@ -297,22 +158,16 @@ export function ProyectosProvider({ children }) {
       value={{
         proyectos,
         propuestas,
-        setProyectos,
-        reload,
-        updateProyecto,
-        addReporte,
-        updateReporte,
-        submitReporteFromResidente,
-        addPropuesta,
-        updatePropuesta,
-        aprobarPropuesta,
-        rechazarPropuesta,
-        solicitarAvanceFase,
-        aprobarAvanceFase,
-        desbloqueadosPorResidente,
-        desbloquearReporteResidente,
         loading,
         error,
+        reload,
+        updateProyecto,
+        addPropuesta,
+        updatePropuesta,
+        deletePropuesta,
+        addProyecto,
+        desbloquearReporteResidente,
+        desbloqueadosPorResidente,
       }}
     >
       {children}

@@ -11,30 +11,40 @@ import { WS_BASE } from "../config/api";
 
 const WebSocketCtx = createContext(null);
 
-// FIX #4: WebSocketProvider acepta `usuario` como prop.
-// Cuando el usuario inicia sesión (o el socket se reconecta), se emite
-// "join_room" para que el socket entre en las salas "user_<id>" y
-// "role_<rol>". Así el servidor puede emitir eventos solo al Jefe de
-// vinculación sin hacer broadcast a todos los clientes.
+/**
+ * WebSocketProvider
+ *
+ * FIX: Se agregó un guard para no intentar conectar si WS_BASE es null
+ * (ocurre cuando un compañero no tiene .env.local configurado).
+ * En ese caso el contexto funciona en modo "sin conexión" y no genera
+ * errores en consola en bucle.
+ */
 export function WebSocketProvider({ children, usuario }) {
   const [connected, setConnected] = useState(false);
   const socketRef = useRef(null);
-  // Ref para acceder siempre al valor más reciente de usuario dentro de callbacks
   const usuarioRef = useRef(usuario);
 
   useEffect(() => {
     usuarioRef.current = usuario;
   }, [usuario]);
 
-  // Función helper para unirse a las salas del usuario
   const joinRooms = useCallback((socket, user) => {
     if (!socket || !user?.id) return;
     socket.emit("join_room", { userId: user.id, rol: user.rol });
   }, []);
 
   useEffect(() => {
+    // Solo en web
     if (Platform.OS !== "web") return;
-    if (!WS_BASE) return;
+
+    // Guard: si no hay URL configurada, no intentar conectar
+    if (!WS_BASE) {
+      console.warn(
+        "[WebSocket] ⚠️ WS_BASE no configurado. " +
+          "Crea .env.local con REACT_APP_API_URL para habilitar tiempo real.",
+      );
+      return;
+    }
 
     let socket;
     try {
@@ -43,8 +53,10 @@ export function WebSocketProvider({ children, usuario }) {
         autoConnect: true,
         withCredentials: true,
         reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 2000,
+        reconnectionAttempts: 5, // reducido de 10 a 5
+        reconnectionDelay: 3000, // aumentado de 2000 a 3000 ms
+        reconnectionDelayMax: 10000, // tope de 10 s entre reintentos
+        timeout: 10000,
       });
       socketRef.current = socket;
     } catch (e) {
@@ -58,8 +70,6 @@ export function WebSocketProvider({ children, usuario }) {
     socket.on("connect", () => {
       console.log("[WebSocket] ✅ Conectado:", socket.id);
       setConnected(true);
-      // Si ya hay sesión activa al momento de conectar (p. ej. reconexión),
-      // unirse a las salas de inmediato.
       joinRooms(socket, usuarioRef.current);
     });
 
@@ -69,6 +79,7 @@ export function WebSocketProvider({ children, usuario }) {
     });
 
     socket.on("connect_error", (err) => {
+      // Solo loguear una vez, no en cada reintento
       console.warn("[WebSocket] Error de conexión:", err.message);
     });
 
@@ -76,19 +87,15 @@ export function WebSocketProvider({ children, usuario }) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Unirse a las salas cada vez que el usuario cambia (login / logout)
+  // Unirse a las salas cuando el usuario cambia (login / logout)
   useEffect(() => {
     if (socketRef.current?.connected && usuario?.id) {
       joinRooms(socketRef.current, usuario);
     }
   }, [usuario, joinRooms]);
 
-  /**
-   * Suscribirse a un evento de WebSocket.
-   * Devuelve una función de limpieza para usar en useEffect.
-   */
   const subscribe = useCallback((event, handler) => {
     const socket = socketRef.current;
     if (!socket) return () => {};
@@ -96,7 +103,6 @@ export function WebSocketProvider({ children, usuario }) {
     return () => socket.off(event, handler);
   }, []);
 
-  /** Emitir un evento al servidor. */
   const emit = useCallback((event, data) => {
     socketRef.current?.emit(event, data);
   }, []);

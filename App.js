@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { Text, TextInput, Platform } from "react-native";
+import {
+  Text,
+  TextInput,
+  Platform,
+  View,
+  ActivityIndicator,
+} from "react-native";
 import {
   useFonts,
   Sora_400Regular,
@@ -25,7 +31,7 @@ import { ThemeProvider } from "./src/context/ThemeContext";
 import { WebSocketProvider } from "./src/context/WebSocketContext";
 
 export default function App() {
-  // ── 1. Cargar Sora (necesario para iOS/Android) ───────────────────────────
+  // ── 1. Cargar fuentes Sora ────────────────────────────────────────────────
   const [fontsLoaded] = useFonts({
     Sora_400Regular,
     Sora_500Medium,
@@ -35,13 +41,6 @@ export default function App() {
   });
 
   // ── Aplicar Sora globalmente ──────────────────────────────────────────────
-  // FIX: En web se usa "Sora" (cargada desde Google Fonts en index.html),
-  //      lo que permite que fontWeight: "700" etc. funcionen correctamente
-  //      ya que el navegador puede resolver los pesos de la misma familia.
-  //
-  //      En nativo (iOS/Android) se usa "Sora_400Regular" porque expo-google-fonts
-  //      registra cada peso como familia separada y los pesos se manejan
-  //      explícitamente en los estilos individuales.
   if (fontsLoaded) {
     if (!Text.defaultProps?._soraApplied) {
       const fontFamily = Platform.OS === "web" ? "Sora" : "Sora_400Regular";
@@ -95,7 +94,7 @@ export default function App() {
       }
       setScreen("app");
     } catch (err) {
-      setLoginError("Error de conexión. ¿El backend está corriendo en :3001?");
+      setLoginError("Error de conexión. ¿El backend está corriendo?");
       console.error(err);
     }
   };
@@ -107,43 +106,59 @@ export default function App() {
     setScreen("login");
   };
 
-  // Mostrar nada mientras cargan las fuentes (evita flash de fuente fea)
-  if (!fontsLoaded) return null;
+  // ── 3. Pantalla de carga mientras las fuentes no están listas ─────────────
+  if (!fontsLoaded) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
+        <ActivityIndicator size="large" color="#0d9488" />
+      </View>
+    );
+  }
 
-  // ── 3. Árbol de providers ─────────────────────────────────────────────────
+  // ── 4. Árbol de providers ─────────────────────────────────────────────────
+  // ProyectosProvider solo se monta para el Asesor (ver AsesorApp).
+  // Aquí se mantiene en el árbol global para que el contexto esté disponible,
+  // pero el fetch real solo ocurre cuando AsesorApp llama reload().
   return (
-  <SafeAreaProvider>
-    <WebSocketProvider usuario={usuario}>
-      <ThemeProvider>
-        <FotosProvider>
-          <ProyectosProvider>
-            <ReportesProvider>
-              <NotificacionesProvider initialUnread={0}>
-                {screen === "login" || !usuario ? (
-                  <LoginScreen
-                    onLogin={handleLogin}
-                    loginError={loginError}
-                    onClearError={() => setLoginError("")}
-                  />
-                ) : rolNormalizado === "residente" ? (
-                  <ResidenteApp usuario={usuario} onLogout={handleLogout} />
-                ) : rolNormalizado === "asesor" ? (
-                  <AsesorApp usuario={usuario} onLogout={handleLogout} />
-                ) : rolNormalizado === "jefe" ? (
-                  <JefeApp usuario={usuario} onLogout={handleLogout} />
-                ) : (
-                  <LoginScreen
-                    onLogin={handleLogin}
-                    loginError={loginError}
-                    onClearError={() => setLoginError("")}
-                  />
-                )}
-              </NotificacionesProvider>
-            </ReportesProvider>
-          </ProyectosProvider>
-        </FotosProvider>
+    <SafeAreaProvider>
+      <WebSocketProvider usuario={usuario}>
+        <ThemeProvider>
+          <FotosProvider>
+            <ProyectosProvider>
+              <ReportesProvider>
+                <NotificacionesProvider initialUnread={0}>
+                  {screen === "login" || !usuario ? (
+                    <LoginScreen
+                      onLogin={handleLogin}
+                      loginError={loginError}
+                      onClearError={() => setLoginError("")}
+                    />
+                  ) : rolNormalizado === "residente" ? (
+                    <ResidenteApp usuario={usuario} onLogout={handleLogout} />
+                  ) : rolNormalizado === "asesor" ? (
+                    <AsesorApp usuario={usuario} onLogout={handleLogout} />
+                  ) : rolNormalizado === "jefe" ? (
+                    <JefeApp usuario={usuario} onLogout={handleLogout} />
+                  ) : (
+                    <LoginScreen
+                      onLogin={handleLogin}
+                      loginError={loginError}
+                      onClearError={() => setLoginError("")}
+                    />
+                  )}
+                </NotificacionesProvider>
+              </ReportesProvider>
+            </ProyectosProvider>
+          </FotosProvider>
         </ThemeProvider>
-    </WebSocketProvider>
-  </SafeAreaProvider>
-);
+      </WebSocketProvider>
+    </SafeAreaProvider>
+  );
 }

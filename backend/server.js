@@ -19,12 +19,9 @@ const reportesRoutes = require("./routes/reportes");
 
 const app = express();
 const server = http.createServer(app);
-
 const PORT = process.env.PORT || 3001;
 
-// ── Lista blanca de orígenes permitidos ──────────────────────────────────────
-// SEGURIDAD FIX #9: CORS separado por ambiente. En producción solo se permiten
-// dominios explícitos; en desarrollo se permite ngrok y localhost.
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const isDev = process.env.NODE_ENV !== "production";
 
 const allowedOrigins = process.env.CORS_ORIGINS
@@ -34,6 +31,7 @@ const allowedOrigins = process.env.CORS_ORIGINS
         "http://localhost:8081",
         "http://localhost:19006",
         "http://localhost:3000",
+        "http://localhost:8082",
       ]
     : [];
 
@@ -42,14 +40,15 @@ function isOriginAllowed(origin) {
   if (isDev) {
     if (origin.includes("localhost")) return true;
     if (origin.includes("127.0.0.1")) return true;
-    // En desarrollo se permite ngrok para pruebas con dispositivos físicos
     if (origin.includes("ngrok-free.dev")) return true;
     if (origin.includes("ngrok.io")) return true;
+    // Permitir cualquier IP privada en desarrollo (192.168.x.x, 10.x.x.x, 172.x.x.x)
+    if (/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(origin))
+      return true;
   }
   return allowedOrigins.includes(origin);
 }
 
-// ── CORS para Express ─────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: (origin, callback) => {
@@ -61,7 +60,7 @@ app.use(
   }),
 );
 
-// ── Socket.IO con la misma lógica de CORS ────────────────────────────────────
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
@@ -70,23 +69,26 @@ const io = new Server(server, {
     },
     credentials: true,
   },
+  // Configuración de transports para mayor compatibilidad en LAN
+  transports: ["websocket", "polling"],
+  pingInterval: 25000,
+  pingTimeout: 10000,
 });
 
 app.use(express.json({ limit: "10mb" }));
 
-// ── SEGURIDAD FIX #8: Rate limiting global y específico para auth ─────────────
-// Instalar con: npm install express-rate-limit
+// ── Rate limiting ─────────────────────────────────────────────────────────────
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 200,
+  windowMs: 15 * 60 * 1000,
+  max: 300, // aumentado de 200 → 300 para equipos de trabajo
   standardHeaders: true,
   legacyHeaders: false,
   message: { ok: false, mensaje: "Demasiadas peticiones, intenta más tarde." },
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // Máximo 10 intentos de login por IP cada 15 minutos
+  windowMs: 15 * 60 * 1000,
+  max: 20, // aumentado de 10 → 20 (varios compañeros hacen login a la vez)
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -96,11 +98,9 @@ const authLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-app.use("/api/auth/login", authLimiter); // Rate limit estricto solo en login
+app.use("/api/auth/login", authLimiter);
 
-// ── SEGURIDAD FIX #4: Uploads protegidos con autenticación ───────────────────
-// Antes: app.use("/uploads", express.static("uploads"))  ← INSEGURO (público)
-// Ahora: se verifica el JWT antes de servir cualquier archivo
+// ── Uploads protegidos con JWT ─────────────────────────────────────────────────
 app.get("/uploads/:filename", (req, res) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -117,7 +117,6 @@ app.get("/uploads/:filename", (req, res) => {
     return res.status(401).json({ ok: false, mensaje: "Token inválido." });
   }
 
-  // Sanitizar el nombre del archivo para evitar path traversal
   const filename = path.basename(req.params.filename);
   const filePath = path.join(__dirname, "uploads", filename);
 
@@ -134,16 +133,9 @@ app.get("/uploads/:filename", (req, res) => {
 io.on("connection", (socket) => {
   console.log(`[WebSocket] Cliente conectado: ${socket.id}`);
 
-  // FIX #4: El cliente emite "join_room" tras iniciar sesión para que el
-  // servidor pueda enviar eventos solo a usuarios/roles específicos en lugar
-  // de hacer broadcast global con io.emit().
   socket.on("join_room", ({ userId, rol }) => {
-    if (userId) {
-      socket.join(`user_${userId}`);
-    }
-    if (rol) {
-      socket.join(`role_${rol}`);
-    }
+    if (userId) socket.join(`user_${userId}`);
+    if (rol) socket.join(`role_${rol}`);
     console.log(`[WebSocket] ${socket.id} → user_${userId} / role_${rol}`);
   });
 
@@ -154,7 +146,7 @@ io.on("connection", (socket) => {
 
 app.set("io", io);
 
-// ── Rutas ────────────────────────────────────────────────────────────────────
+// ── Rutas ─────────────────────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
 app.use("/api/citas", citasRoutes);
 app.use("/api/asesor", asesorRoutes);
@@ -172,4 +164,18 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log(`✅  Servidor corriendo en http://0.0.0.0:${PORT}`);
   console.log(`🌐  Modo: ${isDev ? "desarrollo" : "producción"}`);
   console.log(`🔌  WebSockets habilitados`);
+  if (isDev) {
+    // Mostrar la IP de red local para que los compañeros sepan qué poner en .env.local
+    const { networkInterfaces } = require("os");
+    const nets = networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        if (net.family === "IPv4" && !net.internal) {
+          console.log(
+            `🖥️  IP local: http://${net.address}:${PORT}/api  ← usa esta en .env.local`,
+          );
+        }
+      }
+    }
+  }
 });
