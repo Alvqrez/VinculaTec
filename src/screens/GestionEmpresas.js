@@ -9,6 +9,7 @@ import {
   Pressable,
   Dimensions,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
@@ -91,7 +92,11 @@ export default function GestionEmpresas() {
   });
   const [editId, setEditId] = useState(null);
   const [toast, setToast] = useState(null);
-  const [periodoActivo, setPeriodoActivo] = useState(true); // true = hay período activo
+  const [periodoActivo, setPeriodoActivo] = useState(true);
+
+  // ── Estado para filas expandibles ────────────────────────────────────────────
+  const [expandedId, setExpandedId] = useState(null);
+  const [empresaResidentes, setEmpresaResidentes] = useState({});
 
   const filterBtnRef = useRef(null);
 
@@ -106,13 +111,11 @@ export default function GestionEmpresas() {
     });
 
   useEffect(() => {
-    // Cargar empresas
     apiClient.get("/api/jefe/empresas").then((res) => {
       if (res.ok && res.body?.ok) setCompanies(res.body.empresas);
       setLoading(false);
     });
 
-    // Verificar si hay al menos un período activo o planificado
     apiClient.get("/api/jefe/periodos").then((res) => {
       if (res.ok && res.body?.ok) {
         const hay = res.body.periodos?.some(
@@ -122,6 +125,33 @@ export default function GestionEmpresas() {
       }
     });
   }, []);
+
+  // Cargar residentes de una empresa al expandir
+  const toggleExpand = async (id) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!empresaResidentes[id]) {
+      setEmpresaResidentes((prev) => ({
+        ...prev,
+        [id]: { loading: true, residentes: [] },
+      }));
+      const res = await apiClient.get(`/api/jefe/empresas/${id}/residentes`);
+      if (res.ok && res.body?.ok) {
+        setEmpresaResidentes((prev) => ({
+          ...prev,
+          [id]: { loading: false, residentes: res.body.residentes },
+        }));
+      } else {
+        setEmpresaResidentes((prev) => ({
+          ...prev,
+          [id]: { loading: false, residentes: [] },
+        }));
+      }
+    }
+  };
 
   const CIUDADES = [
     "Todas",
@@ -209,6 +239,12 @@ export default function GestionEmpresas() {
       const res = await apiClient.put(`/api/jefe/empresas/${editId}`, payload);
       if (res.ok) {
         await reloadEmpresas();
+        // Invalidar caché de residentes para esta empresa
+        setEmpresaResidentes((prev) => {
+          const next = { ...prev };
+          delete next[editId];
+          return next;
+        });
         setModal(false);
         showToast("Empresa actualizada");
       } else showToast(res.body?.mensaje || "Error al actualizar", "error");
@@ -234,6 +270,7 @@ export default function GestionEmpresas() {
           onPress: async () => {
             const res = await apiClient.delete(`/api/jefe/empresas/${co.id}`);
             if (res.ok) {
+              if (expandedId === co.id) setExpandedId(null);
               await reloadEmpresas();
               showToast("Empresa eliminada");
             } else {
@@ -351,37 +388,58 @@ export default function GestionEmpresas() {
               <Text style={{ fontSize: 15, fontWeight: "800", color: C.text }}>
                 Directorio de Empresas
               </Text>
-              <TouchableOpacity
-                ref={filterBtnRef}
-                onPress={showFilter ? () => setFilter(false) : openFilter}
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 5,
-                  borderWidth: 1,
-                  borderColor: activeFilterCount > 0 ? C.teal : C.border,
-                  paddingHorizontal: 12,
-                  paddingVertical: 7,
-                  borderRadius: 8,
-                  backgroundColor: C.bg,
-                }}
-              >
-                <Feather
-                  name="filter"
-                  size={13}
-                  color={activeFilterCount > 0 ? C.teal : C.textMuted}
-                />
-                <Text
+              <Row style={{ gap: 8 }}>
+                <TouchableOpacity
+                  onPress={openNew}
                   style={{
-                    fontSize: 12,
-                    color: activeFilterCount > 0 ? C.teal : C.textMuted,
-                    fontWeight: "600",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 5,
+                    backgroundColor: C.teal,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    borderRadius: 8,
                   }}
                 >
-                  Filtrar
-                  {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
-                </Text>
-              </TouchableOpacity>
+                  <Feather name="plus" size={13} color="white" />
+                  <Text
+                    style={{ fontSize: 12, color: "white", fontWeight: "700" }}
+                  >
+                    Nueva
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  ref={filterBtnRef}
+                  onPress={showFilter ? () => setFilter(false) : openFilter}
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 5,
+                    borderWidth: 1,
+                    borderColor: activeFilterCount > 0 ? C.teal : C.border,
+                    paddingHorizontal: 12,
+                    paddingVertical: 7,
+                    borderRadius: 8,
+                    backgroundColor: C.bg,
+                  }}
+                >
+                  <Feather
+                    name="filter"
+                    size={13}
+                    color={activeFilterCount > 0 ? C.teal : C.textMuted}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: activeFilterCount > 0 ? C.teal : C.textMuted,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Filtrar
+                    {activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}
+                  </Text>
+                </TouchableOpacity>
+              </Row>
             </Row>
 
             <Row
@@ -431,7 +489,7 @@ export default function GestionEmpresas() {
                 ["Ciudad", 1.2],
                 ["Resid.", 0.8, "center"],
                 ["Estado", 1, "center"],
-                ["", 0.8],
+                ["", 1],
               ].map(([h, f, ta]) => (
                 <Text
                   key={h}
@@ -463,85 +521,344 @@ export default function GestionEmpresas() {
             filtered.map((co) => {
               const st = STATUS_STYLE[co.status] || STATUS_STYLE.Activa;
               const ico = SECTOR_ICON[co.sector] || "briefcase";
+              const isExpanded = expandedId === co.id;
+              const resData = empresaResidentes[co.id];
+
               return (
                 <View
                   key={co.id}
                   style={{
-                    paddingHorizontal: 18,
-                    paddingVertical: 13,
                     borderTopWidth: 1,
                     borderTopColor: C.borderLight,
-                    backgroundColor: C.bg,
+                    backgroundColor: isExpanded ? C.tealLighter || C.bg : C.bg,
                   }}
                 >
-                  <Row style={{ alignItems: "center" }}>
-                    <Row style={{ flex: 2.5, alignItems: "center", gap: 10 }}>
-                      <View
-                        style={{
-                          width: 34,
-                          height: 34,
-                          borderRadius: 9,
-                          backgroundColor: C.tealLight,
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <Feather name={ico} size={15} color={C.teal} />
-                      </View>
-                      <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: C.text,
-                          flex: 1,
-                        }}
-                        numberOfLines={1}
-                      >
-                        {co.name}
-                      </Text>
-                    </Row>
-                    <Text style={{ flex: 1.5, fontSize: 12, color: C.textSub }}>
-                      {co.sector}
-                    </Text>
-                    <Text style={{ flex: 1.2, fontSize: 12, color: C.textSub }}>
-                      {co.ciudad || "—"}
-                    </Text>
-                    <View style={{ flex: 0.8, alignItems: "center" }}>
-                      <View
-                        style={{
-                          backgroundColor: C.blueLight,
-                          borderRadius: 20,
-                          paddingHorizontal: 8,
-                          paddingVertical: 2,
-                          minWidth: 28,
-                          alignItems: "center",
-                        }}
-                      >
-                        <Text
-                          style={{
-                            fontSize: 12,
-                            fontWeight: "700",
-                            color: C.blue,
-                          }}
-                        >
-                          {co.residentes}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={{ flex: 1, alignItems: "center" }}>
-                      <Badge text={co.status} color={st.color} bg={st.bg} />
-                    </View>
-                    <Row
-                      style={{ flex: 0.8, justifyContent: "flex-end", gap: 8 }}
+                  {/* ── Fila principal ── */}
+                  <Row style={{ alignItems: "center", paddingHorizontal: 18 }}>
+                    {/* Lado izquierdo: clickable para expandir */}
+                    <TouchableOpacity
+                      style={{ flex: 1 }}
+                      onPress={() => toggleExpand(co.id)}
+                      activeOpacity={0.7}
                     >
+                      <Row
+                        style={{
+                          alignItems: "center",
+                          paddingVertical: 13,
+                        }}
+                      >
+                        <Row
+                          style={{ flex: 2.5, alignItems: "center", gap: 10 }}
+                        >
+                          <View
+                            style={{
+                              width: 34,
+                              height: 34,
+                              borderRadius: 9,
+                              backgroundColor: isExpanded
+                                ? C.tealLight
+                                : C.tealLight,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather name={ico} size={15} color={C.teal} />
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: "700",
+                              color: C.text,
+                              flex: 1,
+                            }}
+                            numberOfLines={1}
+                          >
+                            {co.name}
+                          </Text>
+                        </Row>
+                        <Text
+                          style={{ flex: 1.5, fontSize: 12, color: C.textSub }}
+                        >
+                          {co.sector}
+                        </Text>
+                        <Text
+                          style={{ flex: 1.2, fontSize: 12, color: C.textSub }}
+                        >
+                          {co.ciudad || "—"}
+                        </Text>
+                        <View style={{ flex: 0.8, alignItems: "center" }}>
+                          <View
+                            style={{
+                              backgroundColor: C.blueLight,
+                              borderRadius: 20,
+                              paddingHorizontal: 8,
+                              paddingVertical: 2,
+                              minWidth: 28,
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text
+                              style={{
+                                fontSize: 12,
+                                fontWeight: "700",
+                                color: C.blue,
+                              }}
+                            >
+                              {co.residentes}
+                            </Text>
+                          </View>
+                        </View>
+                        <View style={{ flex: 1, alignItems: "center" }}>
+                          <Badge text={co.status} color={st.color} bg={st.bg} />
+                        </View>
+                      </Row>
+                    </TouchableOpacity>
+
+                    {/* Lado derecho: acciones + chevron */}
+                    <Row style={{ gap: 8, alignItems: "center" }}>
                       <TouchableOpacity onPress={() => openEdit(co)}>
                         <Feather name="edit-2" size={14} color={C.textMuted} />
                       </TouchableOpacity>
                       <TouchableOpacity onPress={() => confirmDelete(co)}>
                         <Feather name="trash-2" size={14} color={C.red} />
                       </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => toggleExpand(co.id)}
+                        style={{ padding: 4 }}
+                      >
+                        <Feather
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={15}
+                          color={isExpanded ? C.teal : C.textMuted}
+                        />
+                      </TouchableOpacity>
                     </Row>
                   </Row>
+
+                  {/* ── Sección expandida ── */}
+                  {isExpanded && (
+                    <View
+                      style={{
+                        marginHorizontal: 18,
+                        marginBottom: 16,
+                        borderRadius: 10,
+                        backgroundColor: C.card,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        overflow: "hidden",
+                      }}
+                    >
+                      {/* Contacto */}
+                      {co.contactoNombre || co.contactoTel ? (
+                        <View
+                          style={{
+                            padding: 14,
+                            borderBottomWidth: co.residentes > 0 ? 1 : 0,
+                            borderBottomColor: C.border,
+                          }}
+                        >
+                          <Row
+                            style={{
+                              alignItems: "center",
+                              gap: 6,
+                              marginBottom: 10,
+                            }}
+                          >
+                            <Feather name="user" size={13} color={C.teal} />
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontWeight: "700",
+                                color: C.teal,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.5,
+                              }}
+                            >
+                              Contacto Principal
+                            </Text>
+                          </Row>
+                          <Row style={{ gap: 20, flexWrap: "wrap" }}>
+                            {co.contactoNombre ? (
+                              <Row style={{ alignItems: "center", gap: 6 }}>
+                                <Feather
+                                  name="user-check"
+                                  size={13}
+                                  color={C.textMuted}
+                                />
+                                <Text
+                                  style={{
+                                    fontSize: 13,
+                                    color: C.text,
+                                    fontWeight: "600",
+                                  }}
+                                >
+                                  {co.contactoNombre}
+                                </Text>
+                              </Row>
+                            ) : null}
+                            {co.contactoTel ? (
+                              <Row style={{ alignItems: "center", gap: 6 }}>
+                                <Feather
+                                  name="phone"
+                                  size={13}
+                                  color={C.textMuted}
+                                />
+                                <Text style={{ fontSize: 13, color: C.text }}>
+                                  {co.contactoTel}
+                                </Text>
+                              </Row>
+                            ) : null}
+                          </Row>
+                        </View>
+                      ) : null}
+
+                      {/* Lista de residentes */}
+                      <View style={{ padding: 14 }}>
+                        <Row
+                          style={{
+                            alignItems: "center",
+                            gap: 6,
+                            marginBottom: 10,
+                          }}
+                        >
+                          <Feather name="users" size={13} color={C.teal} />
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: "700",
+                              color: C.teal,
+                              textTransform: "uppercase",
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            Residentes en esta empresa
+                          </Text>
+                        </Row>
+
+                        {resData?.loading ? (
+                          <ActivityIndicator
+                            size="small"
+                            color={C.teal}
+                            style={{ marginVertical: 8 }}
+                          />
+                        ) : (resData?.residentes || []).length === 0 ? (
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: C.textLight,
+                              fontStyle: "italic",
+                            }}
+                          >
+                            Sin residentes activos en esta empresa
+                          </Text>
+                        ) : (
+                          <View style={{ gap: 8 }}>
+                            {resData.residentes.map((r, ri) => {
+                              const initials = r.nombre
+                                .split(" ")
+                                .map((w) => w[0])
+                                .slice(0, 2)
+                                .join("")
+                                .toUpperCase();
+                              return (
+                                <Row
+                                  key={ri}
+                                  style={{
+                                    alignItems: "center",
+                                    gap: 10,
+                                    backgroundColor: C.bg,
+                                    borderRadius: 8,
+                                    padding: 10,
+                                  }}
+                                >
+                                  <View
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 16,
+                                      backgroundColor: C.tealLight,
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                  >
+                                    <Text
+                                      style={{
+                                        fontSize: 10,
+                                        fontWeight: "800",
+                                        color: C.teal,
+                                      }}
+                                    >
+                                      {initials}
+                                    </Text>
+                                  </View>
+                                  <View style={{ flex: 1 }}>
+                                    <Text
+                                      style={{
+                                        fontSize: 13,
+                                        fontWeight: "700",
+                                        color: C.text,
+                                      }}
+                                    >
+                                      {r.nombre}
+                                    </Text>
+                                    <Row
+                                      style={{
+                                        gap: 10,
+                                        marginTop: 2,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <Row
+                                        style={{
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        <Feather
+                                          name="folder"
+                                          size={10}
+                                          color={C.textLight}
+                                        />
+                                        <Text
+                                          style={{
+                                            fontSize: 11,
+                                            color: C.textMuted,
+                                          }}
+                                          numberOfLines={1}
+                                        >
+                                          {r.proyecto || "Sin proyecto"}
+                                        </Text>
+                                      </Row>
+                                      <Row
+                                        style={{
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                      >
+                                        <Feather
+                                          name="user-check"
+                                          size={10}
+                                          color={C.textLight}
+                                        />
+                                        <Text
+                                          style={{
+                                            fontSize: 11,
+                                            color: C.textMuted,
+                                          }}
+                                        >
+                                          {r.asesor}
+                                        </Text>
+                                      </Row>
+                                    </Row>
+                                  </View>
+                                </Row>
+                              );
+                            })}
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  )}
                 </View>
               );
             })

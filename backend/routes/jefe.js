@@ -190,6 +190,30 @@ router.delete("/empresas/:id", ...soloJefe, async (req, res) => {
   }
 });
 
+// ── GET /api/jefe/empresas/:id/residentes ─────────────────────────────────────
+router.get("/empresas/:id/residentes", ...soloJefe, async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      `SELECT CONCAT(u.nombre,' ',u.apellidos) AS nombre,
+              p.titulo AS proyecto,
+              COALESCE(CONCAT(ua.nombre,' ',ua.apellidos), 'Sin asignar') AS asesor
+       FROM residentes r
+       JOIN usuarios u ON r.usuario_id = u.id
+       LEFT JOIN proyectos p ON p.residente_id = r.id
+         AND p.estado NOT IN ('concluido')
+       LEFT JOIN asesores a ON r.asesor_id = a.id
+       LEFT JOIN usuarios ua ON a.usuario_id = ua.id
+       WHERE r.empresa_id = ? AND r.estado = 'activo'
+       ORDER BY u.apellidos, u.nombre`,
+      [req.params.id],
+    );
+    return res.json({ ok: true, residentes: rows });
+  } catch (err) {
+    console.error("Error en GET /jefe/empresas/:id/residentes:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error interno." });
+  }
+});
+
 // ── GET /api/jefe/proyectos ───────────────────────────────────────────────────
 router.get("/proyectos", ...soloJefe, async (req, res) => {
   try {
@@ -852,11 +876,16 @@ router.get("/admin/residentes", ...soloJefe, async (req, res) => {
     const [rows] = await db.execute(
       `SELECT r.id, CONCAT(u.nombre,' ',u.apellidos) AS nombre, u.correo,
               r.num_control, r.carrera, r.semestre, r.estado,
-              CONCAT(ua.nombre,' ',ua.apellidos) AS asesor_nombre
+              CONCAT(ua.nombre,' ',ua.apellidos) AS asesor_nombre,
+              e.nombre AS empresa_nombre,
+              p.titulo AS proyecto_titulo
        FROM residentes r
        JOIN usuarios u ON r.usuario_id = u.id
        LEFT JOIN asesores a ON r.asesor_id = a.id
        LEFT JOIN usuarios ua ON a.usuario_id = ua.id
+       LEFT JOIN empresas e ON r.empresa_id = e.id
+       LEFT JOIN proyectos p ON p.residente_id = r.id
+         AND p.estado NOT IN ('concluido','cancelado')
        ORDER BY u.apellidos, u.nombre ASC`,
     );
     return res.json({ ok: true, residentes: rows });

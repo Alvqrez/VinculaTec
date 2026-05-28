@@ -530,6 +530,7 @@ function RegistrarUsuarioModal({
 }
 
 // ─── Tab: Residentes ──────────────────────────────────────────────────────────
+// ─── Tab: Residentes ──────────────────────────────────────────────────────────
 function ResidentesTab() {
   const { colors: C } = useTheme();
   const [residentes, setResidentes] = useState([]);
@@ -541,6 +542,7 @@ function ResidentesTab() {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState(null);
   const [showRegistrar, setShowRegistrar] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -684,6 +686,7 @@ function ResidentesTab() {
         <ActivityIndicator color={C.teal} style={{ marginTop: 40 }} />
       ) : (
         <Card style={{ padding: 0, overflow: "hidden" }}>
+          {/* Cabecera */}
           <View
             style={{
               paddingHorizontal: 16,
@@ -701,7 +704,7 @@ function ResidentesTab() {
                 ["Sem.", 0.6, "center"],
                 ["Asesor", 1.5],
                 ["Estado", 1, "center"],
-                ["", 0.6],
+                ["", 0.7],
               ].map(([h, f, ta]) => (
                 <Text
                   key={h}
@@ -720,6 +723,7 @@ function ResidentesTab() {
               ))}
             </Row>
           </View>
+
           {filtered.length === 0 ? (
             <View style={{ padding: 32, alignItems: "center" }}>
               <Feather name="inbox" size={28} color={C.textLight} />
@@ -730,77 +734,283 @@ function ResidentesTab() {
           ) : (
             filtered.map((r) => {
               const est = ESTADO_STYLE[r.estado] || ESTADO_STYLE.activo;
+              const isExpanded = expandedId === r.id;
               return (
                 <View
                   key={r.id}
                   style={{
-                    paddingHorizontal: 16,
-                    paddingVertical: 12,
                     borderTopWidth: 1,
                     borderTopColor: C.borderLight,
+                    backgroundColor: isExpanded ? C.tealLighter || C.bg : "transparent",
                   }}
                 >
-                  <Row style={{ alignItems: "center" }}>
-                    <View style={{ flex: 2.5 }}>
+                  {/* Fila principal */}
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() =>
+                      setExpandedId(isExpanded ? null : r.id)
+                    }
+                    style={{ paddingHorizontal: 16, paddingVertical: 12 }}
+                  >
+                    <Row style={{ alignItems: "center" }}>
+                      <View style={{ flex: 2.5 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: "700",
+                            color: C.text,
+                          }}
+                          numberOfLines={1}
+                        >
+                          {r.nombre}
+                        </Text>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: C.textMuted,
+                            marginTop: 1,
+                          }}
+                        >
+                          {r.correo}
+                        </Text>
+                      </View>
                       <Text
-                        style={{
-                          fontSize: 13,
-                          fontWeight: "700",
-                          color: C.text,
-                        }}
+                        style={{ flex: 1.2, fontSize: 12, color: C.textSub }}
+                      >
+                        {r.num_control || "—"}
+                      </Text>
+                      <Text
+                        style={{ flex: 2, fontSize: 12, color: C.textSub }}
                         numberOfLines={1}
                       >
-                        {r.nombre}
+                        {r.carrera || "—"}
                       </Text>
                       <Text
                         style={{
-                          fontSize: 11,
-                          color: C.textMuted,
-                          marginTop: 1,
+                          flex: 0.6,
+                          fontSize: 12,
+                          color: C.textSub,
+                          textAlign: "center",
                         }}
                       >
-                        {r.correo}
+                        {r.semestre || "—"}
                       </Text>
-                    </View>
-                    <Text style={{ flex: 1.2, fontSize: 12, color: C.textSub }}>
-                      {r.num_control || "—"}
-                    </Text>
-                    <Text
-                      style={{ flex: 2, fontSize: 12, color: C.textSub }}
-                      numberOfLines={1}
-                    >
-                      {r.carrera || "—"}
-                    </Text>
-                    <Text
+                      <Text
+                        style={{ flex: 1.5, fontSize: 12, color: C.textSub }}
+                        numberOfLines={1}
+                      >
+                        {r.asesor_nombre || "Sin asignar"}
+                      </Text>
+                      <View style={{ flex: 1, alignItems: "center" }}>
+                        <Badge text={r.estado} color={est.color} bg={est.bg} />
+                      </View>
+                      <Row
+                        style={{
+                          flex: 0.7,
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: 6,
+                        }}
+                      >
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation?.();
+                            openEdit(r);
+                          }}
+                        >
+                          <Feather
+                            name="edit-2"
+                            size={13}
+                            color={C.textMuted}
+                          />
+                        </TouchableOpacity>
+                        <Feather
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={14}
+                          color={isExpanded ? C.teal : C.textLight}
+                        />
+                      </Row>
+                    </Row>
+                  </TouchableOpacity>
+
+                  {/* Panel expandido */}
+                  {isExpanded && (
+                    <View
                       style={{
-                        flex: 0.6,
-                        fontSize: 12,
-                        color: C.textSub,
-                        textAlign: "center",
+                        marginHorizontal: 16,
+                        marginBottom: 14,
+                        borderRadius: 10,
+                        backgroundColor: C.card,
+                        borderWidth: 1,
+                        borderColor: C.border,
+                        overflow: "hidden",
                       }}
                     >
-                      {r.semestre || "—"}
-                    </Text>
-                    <Text
-                      style={{ flex: 1.5, fontSize: 12, color: C.textSub }}
-                      numberOfLines={1}
-                    >
-                      {r.asesor_nombre || "Sin asignar"}
-                    </Text>
-                    <View style={{ flex: 1, alignItems: "center" }}>
-                      <Badge text={r.estado} color={est.color} bg={est.bg} />
+                      <View
+                        style={{
+                          paddingHorizontal: 14,
+                          paddingVertical: 10,
+                          borderBottomWidth: 1,
+                          borderBottomColor: C.border,
+                          backgroundColor: C.tealLight,
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: "700",
+                            color: C.teal,
+                            textTransform: "uppercase",
+                            letterSpacing: 0.5,
+                          }}
+                        >
+                          Información de Asignación
+                        </Text>
+                      </View>
+                      <View style={{ padding: 14, gap: 10 }}>
+                        {/* Empresa */}
+                        <Row style={{ alignItems: "center", gap: 10 }}>
+                          <View
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              backgroundColor: C.blueLight,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather
+                              name="briefcase"
+                              size={13}
+                              color={C.blue}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "700",
+                                color: C.textMuted,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.4,
+                                marginBottom: 2,
+                              }}
+                            >
+                              Empresa
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: r.empresa_nombre ? C.text : C.textLight,
+                                fontStyle: r.empresa_nombre
+                                  ? "normal"
+                                  : "italic",
+                              }}
+                            >
+                              {r.empresa_nombre || "Sin empresa asignada"}
+                            </Text>
+                          </View>
+                        </Row>
+
+                        {/* Proyecto */}
+                        <Row style={{ alignItems: "center", gap: 10 }}>
+                          <View
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              backgroundColor: C.purpleLight,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather name="folder" size={13} color={C.purple} />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "700",
+                                color: C.textMuted,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.4,
+                                marginBottom: 2,
+                              }}
+                            >
+                              Proyecto
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: r.proyecto_titulo
+                                  ? C.text
+                                  : C.textLight,
+                                fontStyle: r.proyecto_titulo
+                                  ? "normal"
+                                  : "italic",
+                              }}
+                            >
+                              {r.proyecto_titulo || "Sin proyecto asignado"}
+                            </Text>
+                          </View>
+                        </Row>
+
+                        {/* Asesor */}
+                        <Row style={{ alignItems: "center", gap: 10 }}>
+                          <View
+                            style={{
+                              width: 30,
+                              height: 30,
+                              borderRadius: 8,
+                              backgroundColor: C.tealLight,
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <Feather
+                              name="user-check"
+                              size={13}
+                              color={C.teal}
+                            />
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: 10,
+                                fontWeight: "700",
+                                color: C.textMuted,
+                                textTransform: "uppercase",
+                                letterSpacing: 0.4,
+                                marginBottom: 2,
+                              }}
+                            >
+                              Asesor
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 13,
+                                fontWeight: "600",
+                                color: r.asesor_nombre ? C.text : C.textLight,
+                                fontStyle: r.asesor_nombre
+                                  ? "normal"
+                                  : "italic",
+                              }}
+                            >
+                              {r.asesor_nombre || "Sin asesor asignado"}
+                            </Text>
+                          </View>
+                        </Row>
+                      </View>
                     </View>
-                    <TouchableOpacity
-                      style={{ flex: 0.6, alignItems: "center" }}
-                      onPress={() => openEdit(r)}
-                    >
-                      <Feather name="edit-2" size={14} color={C.textMuted} />
-                    </TouchableOpacity>
-                  </Row>
+                  )}
                 </View>
               );
             })
           )}
+
           <View
             style={{ padding: 12, borderTopWidth: 1, borderTopColor: C.border }}
           >
@@ -826,6 +1036,38 @@ function ResidentesTab() {
         >
           <View
             style={{
+              backgroundColor: toast.type === "error" ? C.red : C.green,
+              borderRadius: 10,
+              paddingVertical: 10,
+              paddingHorizontal: 20,
+              flexDirection: "row",
+              gap: 8,
+              alignItems: "center",
+            }}
+          >
+            <Feather
+              name={toast.type === "error" ? "x-circle" : "check-circle"}
+              size={15}
+              color="white"
+            />
+            <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>
+              {toast.msg}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Modal registrar residente */}
+      <RegistrarUsuarioModal
+        visible={showRegistrar}
+        rolDefault="residente"
+        onClose={() => setShowRegistrar(false)}
+        onSuccess={(nombre) => {
+          showToast(`${nombre} registrado`);
+          load();
+        }}
+      />
+
               backgroundColor: toast.type === "error" ? C.red : C.green,
               borderRadius: 10,
               paddingVertical: 10,
