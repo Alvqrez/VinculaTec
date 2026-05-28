@@ -741,15 +741,15 @@ function ResidentesTab() {
                   style={{
                     borderTopWidth: 1,
                     borderTopColor: C.borderLight,
-                    backgroundColor: isExpanded ? C.tealLighter || C.bg : "transparent",
+                    backgroundColor: isExpanded
+                      ? C.tealLighter || C.bg
+                      : "transparent",
                   }}
                 >
                   {/* Fila principal */}
                   <TouchableOpacity
                     activeOpacity={0.75}
-                    onPress={() =>
-                      setExpandedId(isExpanded ? null : r.id)
-                    }
+                    onPress={() => setExpandedId(isExpanded ? null : r.id)}
                     style={{ paddingHorizontal: 16, paddingVertical: 12 }}
                   >
                     <Row style={{ alignItems: "center" }}>
@@ -945,9 +945,7 @@ function ResidentesTab() {
                               style={{
                                 fontSize: 13,
                                 fontWeight: "600",
-                                color: r.proyecto_titulo
-                                  ? C.text
-                                  : C.textLight,
+                                color: r.proyecto_titulo ? C.text : C.textLight,
                                 fontStyle: r.proyecto_titulo
                                   ? "normal"
                                   : "italic",
@@ -1036,38 +1034,6 @@ function ResidentesTab() {
         >
           <View
             style={{
-              backgroundColor: toast.type === "error" ? C.red : C.green,
-              borderRadius: 10,
-              paddingVertical: 10,
-              paddingHorizontal: 20,
-              flexDirection: "row",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <Feather
-              name={toast.type === "error" ? "x-circle" : "check-circle"}
-              size={15}
-              color="white"
-            />
-            <Text style={{ color: "white", fontWeight: "700", fontSize: 13 }}>
-              {toast.msg}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Modal registrar residente */}
-      <RegistrarUsuarioModal
-        visible={showRegistrar}
-        rolDefault="residente"
-        onClose={() => setShowRegistrar(false)}
-        onSuccess={(nombre) => {
-          showToast(`${nombre} registrado`);
-          load();
-        }}
-      />
-
               backgroundColor: toast.type === "error" ? C.red : C.green,
               borderRadius: 10,
               paddingVertical: 10,
